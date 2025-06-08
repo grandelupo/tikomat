@@ -1,0 +1,180 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Video;
+use App\Models\VideoTarget;
+use App\Services\VideoProcessingService;
+use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class VideoController extends Controller
+{
+    use AuthorizesRequests;
+
+    protected VideoProcessingService $videoService;
+
+    public function __construct(VideoProcessingService $videoService)
+    {
+        $this->videoService = $videoService;
+    }
+
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request): Response
+    {
+        $videos = Video::where('user_id', $request->user()->id)
+            ->with(['targets'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return Inertia::render('Videos/Index', [
+            'videos' => $videos,
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(): Response
+    {
+        return Inertia::render('Videos/Create');
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'video' => 'required|file|mimes:mp4,mov,avi,wmv,webm|max:102400', // 100MB max
+            'title' => 'required|string|max:255',
+            'description' => 'required|string|max:1000',
+            'platforms' => 'required|array|min:1',
+            'platforms.*' => 'in:youtube,instagram,tiktok',
+            'publish_type' => 'required|in:now,scheduled',
+            'publish_at' => 'required_if:publish_type,scheduled|nullable|date|after:now',
+        ]);
+
+        try {
+            // Validate and process video
+            $this->videoService->validateVideo($request->file('video'));
+            $videoInfo = $this->videoService->processVideo($request->file('video'));
+
+            DB::transaction(function () use ($request, $videoInfo) {
+                // Create video record
+                $video = Video::create([
+                    'user_id' => $request->user()->id,
+                    'title' => $request->title,
+                    'description' => $request->description,
+                    'original_file_path' => $videoInfo['path'],
+                    'duration' => $videoInfo['duration'],
+                ]);
+
+                // Create video targets for each platform
+                foreach ($request->platforms as $platform) {
+                    VideoTarget::create([
+                        'video_id' => $video->id,
+                        'platform' => $platform,
+                        'publish_at' => $request->publish_type === 'scheduled' ? $request->publish_at : null,
+                        'status' => 'pending',
+                    ]);
+                }
+            });
+
+            return redirect()->route('dashboard')
+                ->with('success', 'Video uploaded successfully and queued for publishing!');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['video' => $e->getMessage()])
+                ->withInput();
+        }
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Video $video): Response
+    {
+        $this->authorize('view', $video);
+
+        $video->load(['targets']);
+
+        return Inertia::render('Videos/Show', [
+            'video' => $video,
+        ]);
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Video $video): Response
+    {
+        $this->authorize('update', $video);
+
+        return Inertia::render('Videos/Edit', [
+            'video' => $video,
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Video $video): RedirectResponse
+    {
+        $this->authorize('update', $video);
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string|max:1000',
+        ]);
+
+        $video->update([
+            'title' => $request->title,
+            'description' => $request->description,
+        ]);
+
+        return redirect()->route('videos.show', $video)
+            ->with('success', 'Video updated successfully!');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Video $video): RedirectResponse
+    {
+        $this->authorize('delete', $video);
+
+        $video->delete();
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Video deleted successfully!');
+    }
+
+    /**
+     * Retry failed video target.
+     */
+    public function retryTarget(VideoTarget $target): RedirectResponse
+    {
+        $this->authorize('update', $target->video);
+
+        if ($target->status === 'failed') {
+            $target->update([
+                'status' => 'pending',
+                'error_message' => null,
+            ]);
+
+            return redirect()->back()
+                ->with('success', 'Video target queued for retry!');
+        }
+
+        return redirect()->back()
+            ->with('error', 'Only failed targets can be retried.');
+    }
+}

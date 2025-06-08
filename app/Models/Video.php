@@ -16,6 +16,10 @@ class Video extends Model
         'duration',
     ];
 
+    protected $appends = [
+        'formatted_duration',
+    ];
+
     /**
      * Get the user that owns the video.
      */
