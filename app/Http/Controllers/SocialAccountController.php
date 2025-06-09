@@ -30,6 +30,38 @@ class SocialAccountController extends Controller
             // Map platform to Socialite driver
             $driver = $this->mapPlatformToDriver($platform);
 
+            // Request appropriate scopes based on platform
+            if ($platform === 'youtube') {
+                // YouTube requires specific scopes for video uploading
+                return Socialite::driver($driver)
+                    ->scopes([
+                        'https://www.googleapis.com/auth/youtube.upload',
+                        'https://www.googleapis.com/auth/youtube',
+                        'https://www.googleapis.com/auth/userinfo.profile',
+                        'https://www.googleapis.com/auth/userinfo.email'
+                    ])
+                    ->redirect();
+            } elseif ($platform === 'instagram') {
+                // Instagram requires content publishing permissions
+                return Socialite::driver($driver)
+                    ->scopes([
+                        'instagram_content_publish',
+                        'instagram_basic',
+                        'pages_show_list',
+                        'pages_read_engagement'
+                    ])
+                    ->redirect();
+            } elseif ($platform === 'tiktok') {
+                // TikTok requires video upload and publish permissions
+                return Socialite::driver($driver)
+                    ->scopes([
+                        'user.info.basic',
+                        'video.upload',
+                        'video.publish'
+                    ])
+                    ->redirect();
+            }
+
             return Socialite::driver($driver)->redirect();
         } catch (\Exception $e) {
             \Log::error('OAuth redirect failed: ' . $e->getMessage());
@@ -51,7 +83,37 @@ class SocialAccountController extends Controller
 
         try {
             $driver = $this->mapPlatformToDriver($platform);
-            $socialUser = Socialite::driver($driver)->user();
+            
+            // Use same scopes for callback as redirect
+            if ($platform === 'youtube') {
+                $socialUser = Socialite::driver($driver)
+                    ->scopes([
+                        'https://www.googleapis.com/auth/youtube.upload',
+                        'https://www.googleapis.com/auth/youtube',
+                        'https://www.googleapis.com/auth/userinfo.profile',
+                        'https://www.googleapis.com/auth/userinfo.email'
+                    ])
+                    ->user();
+            } elseif ($platform === 'instagram') {
+                $socialUser = Socialite::driver($driver)
+                    ->scopes([
+                        'instagram_content_publish',
+                        'instagram_basic',
+                        'pages_show_list',
+                        'pages_read_engagement'
+                    ])
+                    ->user();
+            } elseif ($platform === 'tiktok') {
+                $socialUser = Socialite::driver($driver)
+                    ->scopes([
+                        'user.info.basic',
+                        'video.upload',
+                        'video.publish'
+                    ])
+                    ->user();
+            } else {
+                $socialUser = Socialite::driver($driver)->user();
+            }
 
             // Store or update social account
             SocialAccount::updateOrCreate(

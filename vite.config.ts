@@ -7,15 +7,34 @@ import { defineConfig } from 'vite';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.tsx'],
+            input: 'resources/js/app.tsx',
             ssr: 'resources/js/ssr.tsx',
             refresh: true,
         }),
         react(),
         tailwindcss(),
     ],
+    build: {
+        // Reduce resource usage for production builds
+        rollupOptions: {
+            maxParallelFileOps: 2, // Limit parallel operations
+        },
+        // Use less memory-intensive minification
+        minify: 'esbuild',
+        // Reduce chunk size warnings
+        chunkSizeWarningLimit: 1000,
+        // Disable source maps in production to save memory
+        sourcemap: false,
+    },
+    // Optimize dependencies
+    optimizeDeps: {
+        exclude: ['@tailwindcss/oxide-linux-x64-gnu'],
+    },
+    // Reduce memory usage
     esbuild: {
-        jsx: 'automatic',
+        target: 'es2020',
+        // Reduce memory usage during build
+        logLimit: 0,
     },
     resolve: {
         alias: {

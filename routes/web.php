@@ -32,5 +32,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('social.simulate');
 });
 
+// Public video access (needed for Instagram API)
+Route::get('storage/videos/{filename}', function ($filename) {
+    $path = storage_path('app/videos/' . $filename);
+    
+    if (!file_exists($path)) {
+        abort(404);
+    }
+    
+    return response()->file($path, [
+        'Content-Type' => 'video/mp4'
+    ]);
+})->name('video.public');
+
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

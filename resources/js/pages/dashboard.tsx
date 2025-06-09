@@ -77,7 +77,8 @@ export default function Dashboard({ videos, platforms, socialAccounts }: Dashboa
     const { flash } = usePage().props as { flash: FlashMessages };
 
     const handleConnectPlatform = (platform: string) => {
-        router.get(`/auth/${platform}`);
+        // Use window.location for OAuth to handle redirects properly
+        window.location.href = `/auth/${platform}`;
     };
 
     const handleSimulateConnection = (platform: string) => {
@@ -121,7 +122,7 @@ export default function Dashboard({ videos, platforms, socialAccounts }: Dashboa
                 <Alert className="bg-blue-50 border-blue-200">
                     <Info className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-800">
-                        <strong>Development Mode:</strong> OAuth providers are not configured. 
+                        <strong>Development Mode (happy debugging 🐛 ):</strong> OAuth providers are not configured. 
                         Use "Test Connection" buttons to simulate connections, or set up OAuth credentials in your .env file.
                         See the README.md for setup instructions.
                     </AlertDescription>

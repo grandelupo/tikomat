@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Video;
 use App\Models\VideoTarget;
 use App\Services\VideoProcessingService;
+use App\Services\VideoUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -17,10 +18,12 @@ class VideoController extends Controller
     use AuthorizesRequests;
 
     protected VideoProcessingService $videoService;
+    protected VideoUploadService $uploadService;
 
-    public function __construct(VideoProcessingService $videoService)
+    public function __construct(VideoProcessingService $videoService, VideoUploadService $uploadService)
     {
         $this->videoService = $videoService;
+        $this->uploadService = $uploadService;
     }
 
     /**
@@ -66,7 +69,8 @@ class VideoController extends Controller
             $this->videoService->validateVideo($request->file('video'));
             $videoInfo = $this->videoService->processVideo($request->file('video'));
 
-            DB::transaction(function () use ($request, $videoInfo) {
+            $video = null;
+            DB::transaction(function () use ($request, $videoInfo, &$video) {
                 // Create video record
                 $video = Video::create([
                     'user_id' => $request->user()->id,
@@ -86,6 +90,13 @@ class VideoController extends Controller
                     ]);
                 }
             });
+
+            // Dispatch upload jobs for immediate publishing
+            if ($request->publish_type === 'now') {
+                foreach ($video->targets as $target) {
+                    $this->uploadService->dispatchUploadJob($target);
+                }
+            }
 
             return redirect()->route('dashboard')
                 ->with('success', 'Video uploaded successfully and queued for publishing!');
@@ -164,17 +175,14 @@ class VideoController extends Controller
     {
         $this->authorize('update', $target->video);
 
-        if ($target->status === 'failed') {
-            $target->update([
-                'status' => 'pending',
-                'error_message' => null,
-            ]);
+        try {
+            $this->uploadService->retryFailedTarget($target);
 
             return redirect()->back()
                 ->with('success', 'Video target queued for retry!');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', $e->getMessage());
         }
-
-        return redirect()->back()
-            ->with('error', 'Only failed targets can be retried.');
     }
 }

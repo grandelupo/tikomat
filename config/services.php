@@ -44,19 +44,19 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/auth/youtube/callback',
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/youtube/callback',
     ],
 
     'instagram' => [
         'client_id' => env('INSTAGRAM_CLIENT_ID'),
         'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/auth/instagram/callback',
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/instagram/callback',
     ],
 
     'tiktok' => [
         'client_id' => env('TIKTOK_CLIENT_ID'),
         'client_secret' => env('TIKTOK_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/auth/tiktok/callback',
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/tiktok/callback',
     ],
 
 ];
