@@ -80,9 +80,9 @@ class DashboardController extends Controller
                 ];
             });
 
-        // For now, simplify subscription logic - all users get basic access
-        $allowedPlatforms = ['youtube', 'instagram', 'tiktok'];
-        $canCreateChannel = true;
+        // Get subscription info and allowed platforms
+        $allowedPlatforms = $user->getAllowedPlatforms();
+        $canCreateChannel = $user->canCreateChannel();
 
         return Inertia::render('Dashboard', [
             'channels' => $channels,
@@ -92,7 +92,12 @@ class DashboardController extends Controller
                 'slug' => $defaultChannel->slug,
             ],
             'recentVideos' => $recentVideos,
-            'subscription' => null, // Simplified for now
+            'subscription' => $user->hasActiveSubscription() ? [
+                'status' => 'active',
+                'is_active' => true,
+                'max_channels' => $user->getMaxChannels(),
+                'monthly_cost' => $user->getMonthlyCost(),
+            ] : null,
             'allowedPlatforms' => $allowedPlatforms,
             'canCreateChannel' => $canCreateChannel,
             'stats' => [
@@ -149,8 +154,8 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Available platforms - simplified for now
-        $allowedPlatforms = ['youtube', 'instagram', 'tiktok'];
+        // Available platforms based on subscription
+        $allowedPlatforms = $user->getAllowedPlatforms();
         $connectedPlatforms = $socialAccounts->pluck('platform')->toArray();
         
         $availablePlatforms = collect(['youtube', 'instagram', 'tiktok'])

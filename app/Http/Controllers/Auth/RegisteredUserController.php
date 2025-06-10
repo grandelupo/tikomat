@@ -40,6 +40,8 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'has_subscription' => false,
+            'allowed_platforms' => ['youtube'], // Free users start with YouTube only
         ]);
 
         event(new Registered($user));

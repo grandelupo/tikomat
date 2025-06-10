@@ -66,7 +66,7 @@ class SubscriptionController extends Controller
 
         try {
             // Create Stripe checkout session
-            $checkout = $user->newSubscription('default', 'price_pro_monthly')
+            $checkout = $user->newSubscription('default', env('STRIPE_PRICE_PRO_MONTHLY'))
                 ->checkout([
                     'success_url' => route('subscription.success'),
                     'cancel_url' => route('subscription.plans'),
@@ -74,7 +74,6 @@ class SubscriptionController extends Controller
                         'user_id' => $user->id,
                     ],
                 ]);
-
             return redirect($checkout->url);
         } catch (\Exception $e) {
             \Log::error('Stripe checkout failed: ' . $e->getMessage());
@@ -190,7 +189,7 @@ class SubscriptionController extends Controller
         try {
             // Add additional channel to subscription
             $subscription = $user->subscription('default');
-            $subscription->incrementQuantity(1, 'price_additional_channel');
+            $subscription->incrementQuantity(1, env('STRIPE_PRICE_ADDITIONAL_CHANNEL'));
             
             return redirect()->route('channels.create')
                 ->with('success', 'Additional channel added to your subscription! You can now create a new channel.');

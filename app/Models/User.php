@@ -92,8 +92,12 @@ class User extends Authenticatable
      */
     public function getAllowedPlatforms(): array
     {
-        // Simplified - all users get all platforms for now
-        return ['youtube', 'instagram', 'tiktok'];
+        // Free users only get YouTube, paid users get all platforms
+        if ($this->hasActiveSubscription()) {
+            return ['youtube', 'instagram', 'tiktok'];
+        }
+        
+        return ['youtube'];
     }
 
     /**
@@ -109,8 +113,10 @@ class User extends Authenticatable
      */
     public function canCreateChannel(): bool
     {
-        // Simplified - allow users to create channels
-        return true;
+        $maxChannels = $this->getMaxChannels();
+        $currentChannels = $this->channels()->count();
+        
+        return $currentChannels < $maxChannels;
     }
 
     /**
@@ -118,8 +124,21 @@ class User extends Authenticatable
      */
     public function getMaxChannels(): int
     {
-        // Simplified - allow unlimited channels for now
-        return 999;
+        // Free users get 1 channel, paid users get more
+        if ($this->hasActiveSubscription()) {
+            // Pro users get 3 base channels plus any additional channels
+            $subscription = $this->subscription('default');
+            if ($subscription && $subscription->hasPrice(env('STRIPE_PRICE_ADDITIONAL_CHANNEL'))) {
+                // Count additional channel subscriptions
+                $additionalChannels = $subscription->subscriptionItems()
+                    ->where('stripe_price', env('STRIPE_PRICE_ADDITIONAL_CHANNEL'))
+                    ->sum('quantity');
+                return 3 + $additionalChannels;
+            }
+            return 3;
+        }
+        
+        return 1;
     }
 
     /**
@@ -127,8 +146,8 @@ class User extends Authenticatable
      */
     public function hasActiveSubscription(): bool
     {
-        // Simplified - all users are considered active for now
-        return true;
+        // Check if user has an actual Stripe subscription
+        return $this->subscribed('default');
     }
 
     /**
@@ -145,7 +164,14 @@ class User extends Authenticatable
      */
     public function getMonthlyCost(): float
     {
-        // Simplified - no cost for now
-        return 0.00;
+        if (!$this->hasActiveSubscription()) {
+            return 0.00;
+        }
+
+        $baseCost = 0.60 * 30; // $0.60 per day for 30 days
+        $additionalChannels = max(0, $this->getMaxChannels() - 3);
+        $additionalCost = $additionalChannels * 0.20 * 30; // $0.20 per day per additional channel
+
+        return $baseCost + $additionalCost;
     }
 }

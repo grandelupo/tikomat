@@ -120,8 +120,7 @@ export default function Dashboard({
     };
 
     const handleUpgradeClick = () => {
-        // TODO: Implement subscription upgrade
-        alert('Subscription upgrade coming soon!');
+        router.visit('/subscription/plans');
     };
 
     return (
