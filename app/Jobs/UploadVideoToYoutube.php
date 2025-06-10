@@ -65,7 +65,25 @@ class UploadVideoToYoutube implements ShouldQueue
 
             // Check if token is expired and refresh if needed
             if ($socialAccount->token_expires_at && $socialAccount->token_expires_at->isPast()) {
-                $this->refreshToken($socialAccount);
+                Log::info('Token expired, attempting refresh', [
+                    'social_account_id' => $socialAccount->id,
+                    'expires_at' => $socialAccount->token_expires_at,
+                    'has_refresh_token' => !empty($socialAccount->refresh_token),
+                ]);
+                
+                if (!$socialAccount->refresh_token) {
+                    throw new \Exception('Access token expired and no refresh token available. Please reconnect your YouTube account.');
+                }
+                
+                try {
+                    $this->refreshToken($socialAccount);
+                } catch (\Exception $e) {
+                    Log::error('Token refresh failed', [
+                        'error' => $e->getMessage(),
+                        'social_account_id' => $socialAccount->id,
+                    ]);
+                    throw new \Exception('Failed to refresh access token. Please reconnect your YouTube account.');
+                }
             }
 
             // Initialize Google Client
@@ -146,17 +164,60 @@ class UploadVideoToYoutube implements ShouldQueue
             throw new \Exception('No refresh token available');
         }
 
-        $client = new GoogleClient();
-        $client->setClientId(config('services.google.client_id'));
-        $client->setClientSecret(config('services.google.client_secret'));
-        $client->refreshToken($socialAccount->refresh_token);
-
-        $newToken = $client->getAccessToken();
-        
-        $socialAccount->update([
-            'access_token' => $newToken['access_token'],
-            'token_expires_at' => now()->addSeconds($newToken['expires_in'])
+        Log::info('Refreshing Google access token', [
+            'social_account_id' => $socialAccount->id,
+            'client_id_set' => !empty(config('services.google.client_id')),
+            'client_secret_set' => !empty(config('services.google.client_secret')),
         ]);
+
+        try {
+            $client = new GoogleClient();
+            $client->setClientId(config('services.google.client_id'));
+            $client->setClientSecret(config('services.google.client_secret'));
+            
+            // Set the refresh token
+            $client->setAccessToken([
+                'refresh_token' => $socialAccount->refresh_token
+            ]);
+            
+            // Refresh the token
+            if ($client->isAccessTokenExpired()) {
+                $newToken = $client->fetchAccessTokenWithRefreshToken($socialAccount->refresh_token);
+                
+                if (isset($newToken['error'])) {
+                    throw new \Exception('Google API error: ' . $newToken['error_description'] ?? $newToken['error']);
+                }
+                
+                // Update the social account with new token
+                $updateData = [
+                    'access_token' => $newToken['access_token'],
+                ];
+                
+                // Update expiration if provided
+                if (isset($newToken['expires_in'])) {
+                    $updateData['token_expires_at'] = now()->addSeconds($newToken['expires_in']);
+                }
+                
+                // Update refresh token if a new one was provided
+                if (isset($newToken['refresh_token'])) {
+                    $updateData['refresh_token'] = $newToken['refresh_token'];
+                }
+                
+                $socialAccount->update($updateData);
+                
+                Log::info('Access token refreshed successfully', [
+                    'social_account_id' => $socialAccount->id,
+                    'new_expires_at' => $updateData['token_expires_at'] ?? 'not_set',
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Token refresh failed', [
+                'error' => $e->getMessage(),
+                'social_account_id' => $socialAccount->id,
+            ]);
+            throw new \Exception('Failed to refresh token: ' . $e->getMessage());
+        }
     }
 
     /**

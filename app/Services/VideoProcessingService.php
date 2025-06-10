@@ -58,9 +58,9 @@ class VideoProcessingService
         ]);
 
         try {
-            // Get video information using our thumbnail service (which has better FFprobe integration)
-            \Log::info('Getting video info with FFprobe');
-            $videoInfo = $this->thumbnailService->getVideoInfo($fullPath);
+            // Get video information using fallback method (no FFmpeg required)
+            \Log::info('Getting video info with fallback method (no FFmpeg)');
+            $videoInfo = $this->getVideoInfoFallback($fullPath);
             $duration = $videoInfo['duration'];
 
             \Log::info('Video info retrieved', [
@@ -86,11 +86,11 @@ class VideoProcessingService
                 'file_exists' => file_exists($permanentFullPath),
             ]);
 
-            // Generate thumbnail
+            // Generate thumbnail using GD library
             $thumbnailPath = '';
             try {
-                \Log::info('Generating thumbnail');
-                $thumbnailPath = $this->thumbnailService->generateThumbnail($permanentFullPath);
+                \Log::info('Generating thumbnail with GD library');
+                $thumbnailPath = $this->generateThumbnailWithGD($permanentFullPath);
                 \Log::info('Thumbnail generated successfully', ['thumbnail_path' => $thumbnailPath]);
             } catch (\Exception $e) {
                 \Log::warning('Thumbnail generation failed', [
@@ -271,5 +271,98 @@ class VideoProcessingService
             'has_video' => $fileSize > 0,
             'format' => $extension,
         ];
+    }
+
+    /**
+     * Generate thumbnail using GD library (no FFmpeg required).
+     */
+    private function generateThumbnailWithGD(string $videoPath): string
+    {
+        \Log::info('Generating thumbnail with GD library (no FFmpeg)', [
+            'video_path' => $videoPath,
+            'file_exists' => file_exists($videoPath),
+            'file_size' => file_exists($videoPath) ? filesize($videoPath) : 0,
+        ]);
+
+        // Create thumbnails directory if it doesn't exist
+        $thumbnailsDir = storage_path('app/public/thumbnails');
+        if (!file_exists($thumbnailsDir)) {
+            mkdir($thumbnailsDir, 0755, true);
+            \Log::info('Created thumbnails directory', ['dir' => $thumbnailsDir]);
+        }
+
+        // Generate unique filename
+        $outputFileName = \Str::uuid() . '.jpg';
+        $thumbnailPath = $thumbnailsDir . '/' . $outputFileName;
+
+        // Check if GD library is available
+        if (!function_exists('imagecreate')) {
+            \Log::error('GD library not available for thumbnail generation');
+            return '';
+        }
+
+        try {
+            \Log::info('Creating placeholder thumbnail with GD');
+            
+            // Create a 320x240 placeholder image
+            $image = imagecreate(320, 240);
+            
+            // Define colors
+            $darkBlue = imagecolorallocate($image, 30, 41, 59);    // Dark background
+            $lightGray = imagecolorallocate($image, 148, 163, 184); // Border/text
+            $white = imagecolorallocate($image, 255, 255, 255);     // Play button
+            $accent = imagecolorallocate($image, 59, 130, 246);     // Blue accent
+            
+            // Fill background
+            imagefill($image, 0, 0, $darkBlue);
+            
+            // Draw border
+            imagerectangle($image, 0, 0, 319, 239, $lightGray);
+            imagerectangle($image, 1, 1, 318, 238, $lightGray);
+            
+            // Draw play button (centered triangle)
+            $centerX = 160;
+            $centerY = 120;
+            $playButton = [
+                $centerX - 20, $centerY - 15,  // Top left
+                $centerX - 20, $centerY + 15,  // Bottom left
+                $centerX + 15, $centerY        // Right point
+            ];
+            imagefilledpolygon($image, $playButton, 3, $white);
+            
+            // Add circular background for play button
+            imagefilledellipse($image, $centerX, $centerY, 60, 60, $accent);
+            imagefilledpolygon($image, $playButton, 3, $white);
+            
+            // Add text
+            imagestring($image, 4, 135, 160, 'VIDEO', $white);
+            imagestring($image, 2, 115, 180, 'Thumbnail not available', $lightGray);
+            
+            // Get video filename for display
+            $filename = pathinfo($videoPath, PATHINFO_FILENAME);
+            $displayName = strlen($filename) > 25 ? substr($filename, 0, 25) . '...' : $filename;
+            imagestring($image, 2, 10, 10, $displayName, $lightGray);
+            
+            // Save image
+            if (imagejpeg($image, $thumbnailPath, 85)) {
+                imagedestroy($image);
+                \Log::info('GD thumbnail created successfully', [
+                    'path' => $thumbnailPath,
+                    'size' => filesize($thumbnailPath),
+                ]);
+                return '/storage/thumbnails/' . $outputFileName;
+            }
+            
+            imagedestroy($image);
+            \Log::error('Failed to save GD thumbnail');
+            return '';
+            
+        } catch (\Exception $e) {
+            \Log::error('GD thumbnail generation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return '';
+        }
     }
 } 
