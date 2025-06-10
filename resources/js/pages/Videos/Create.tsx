@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,41 +6,63 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
-import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock } from 'lucide-react';
+import { Head, useForm, Link } from '@inertiajs/react';
+import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info } from 'lucide-react';
 
-interface CreateVideoProps {
-    // Add any props passed from the controller
+interface Channel {
+    id: number;
+    name: string;
+    slug: string;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-    {
-        title: 'Upload Video',
-        href: '/videos/create',
-    },
-];
+interface CreateVideoProps {
+    channel: Channel;
+    availablePlatforms: string[];
+    defaultPlatforms: string[];
+    connectedPlatforms: string[];
+    allowedPlatforms: string[];
+}
 
-const platforms = [
-    { id: 'youtube', name: 'YouTube', icon: Youtube },
-    { id: 'instagram', name: 'Instagram', icon: Instagram },
-    { id: 'tiktok', name: 'TikTok', icon: VideoIcon },
-];
+const platformData = {
+    youtube: { name: 'YouTube', icon: Youtube, color: 'text-red-600' },
+    instagram: { name: 'Instagram', icon: Instagram, color: 'text-pink-600' },
+    tiktok: { name: 'TikTok', icon: VideoIcon, color: 'text-black' },
+};
 
-export default function CreateVideo({}: CreateVideoProps) {
-    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+export default function CreateVideo({ 
+    channel, 
+    availablePlatforms, 
+    defaultPlatforms, 
+    connectedPlatforms, 
+    allowedPlatforms 
+}: CreateVideoProps) {
+    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(defaultPlatforms);
     const [publishType, setPublishType] = useState<'now' | 'scheduled'>('now');
+    const [isDragOver, setIsDragOver] = useState(false);
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Dashboard',
+            href: '/dashboard',
+        },
+        {
+            title: channel.name,
+            href: `/channels/${channel.slug}`,
+        },
+        {
+            title: 'Upload Video',
+            href: `/channels/${channel.slug}/videos/create`,
+        },
+    ];
 
     const { data, setData, post, processing, errors, progress } = useForm({
         video: null as File | null,
         title: '',
         description: '',
-        platforms: [] as string[],
+        platforms: defaultPlatforms,
         publish_type: 'now',
         publish_at: '',
     });
@@ -66,7 +88,7 @@ export default function CreateVideo({}: CreateVideoProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/videos');
+        post(`/channels/${channel.slug}/videos`);
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,16 +98,87 @@ export default function CreateVideo({}: CreateVideoProps) {
         }
     };
 
+    const handleFileDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        
+        const files = e.dataTransfer.files;
+        if (files && files[0]) {
+            const file = files[0];
+            // Validate file type
+            if (file.type.startsWith('video/')) {
+                setData('video', file);
+            } else {
+                alert('Please select a valid video file');
+            }
+        }
+    }, [setData]);
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragOver(true);
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragOver(false);
+    }, []);
+
+    const validateFile = (file: File): string | null => {
+        // Check file size (100MB)
+        if (file.size > 100 * 1024 * 1024) {
+            return 'File size must be less than 100MB';
+        }
+        
+        // Check file type
+        if (!file.type.startsWith('video/')) {
+            return 'Please select a valid video file';
+        }
+        
+        return null;
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Upload Video" />
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Upload Video</h1>
-                    <p className="text-muted-foreground">
-                        Upload a video to publish across your connected social media platforms
-                    </p>
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">Upload Video to {channel.name}</h1>
+                        <p className="text-muted-foreground">
+                            Upload a video to publish across your connected social media platforms
+                        </p>
+                    </div>
+                    <Link href={`/channels/${channel.slug}`}>
+                        <Button variant="outline">
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back to Channel
+                        </Button>
+                    </Link>
                 </div>
+
+                {/* Platform Status Alert */}
+                {availablePlatforms.length === 0 && (
+                    <Alert className="bg-yellow-50 border-yellow-200">
+                        <Info className="h-4 w-4 text-yellow-600" />
+                        <AlertDescription className="text-yellow-800">
+                            <strong>No connected platforms:</strong> You need to connect at least one social media platform to this channel before uploading videos.
+                            <Link href={`/channels/${channel.slug}`} className="ml-1 underline">
+                                Connect platforms now
+                            </Link>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {allowedPlatforms.length === 1 && (
+                    <Alert className="bg-blue-50 border-blue-200">
+                        <AlertDescription className="text-blue-800">
+                            <strong>Free Plan:</strong> You currently have access to YouTube only. 
+                            Upgrade to Pro to unlock Instagram and TikTok publishing.
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 <Card className="max-w-2xl">
                     <CardHeader>
@@ -99,12 +192,21 @@ export default function CreateVideo({}: CreateVideoProps) {
                             {/* Video Upload */}
                             <div className="space-y-2">
                                 <Label htmlFor="video">Video File</Label>
-                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                                <div 
+                                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                                        isDragOver 
+                                            ? 'border-blue-400 bg-blue-50' 
+                                            : 'border-gray-300 hover:border-gray-400'
+                                    }`}
+                                    onDrop={handleFileDrop}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                >
+                                    <Upload className={`mx-auto h-12 w-12 ${isDragOver ? 'text-blue-500' : 'text-gray-400'}`} />
                                     <div className="mt-4">
                                         <Label htmlFor="video" className="cursor-pointer">
                                             <span className="mt-2 block text-sm font-medium text-gray-900">
-                                                Click to upload or drag and drop
+                                                {isDragOver ? 'Drop your video here' : 'Click to upload or drag and drop'}
                                             </span>
                                             <span className="mt-1 block text-xs text-gray-500">
                                                 MP4, MOV, AVI, WMV, WebM up to 100MB (max 60 seconds)
@@ -120,19 +222,25 @@ export default function CreateVideo({}: CreateVideoProps) {
                                     </div>
                                 </div>
                                 {data.video && (
-                                    <p className="text-sm text-green-600">
-                                        Selected: {data.video.name}
-                                    </p>
+                                    <div className="text-sm text-green-600 bg-green-50 p-2 rounded border border-green-200">
+                                        <strong>Selected:</strong> {data.video.name} ({(data.video.size / (1024 * 1024)).toFixed(2)} MB)
+                                    </div>
                                 )}
                                 {errors.video && (
                                     <p className="text-sm text-red-600">{errors.video}</p>
                                 )}
                                 {progress && (
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div 
-                                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                            style={{ width: `${progress.percentage}%` }}
-                                        ></div>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span>Uploading...</span>
+                                            <span>{progress.percentage}%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div 
+                                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                style={{ width: `${progress.percentage}%` }}
+                                            ></div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -169,31 +277,74 @@ export default function CreateVideo({}: CreateVideoProps) {
                             {/* Platform Selection */}
                             <div className="space-y-3">
                                 <Label>Select Platforms</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Choose which platforms to publish this video to
+                                </p>
                                 <div className="grid grid-cols-1 gap-3">
-                                    {platforms.map((platform) => {
+                                    {Object.entries(platformData).map(([platformKey, platform]) => {
                                         const IconComponent = platform.icon;
+                                        const isAvailable = availablePlatforms.includes(platformKey);
+                                        const isConnected = connectedPlatforms.includes(platformKey);
+                                        const isAllowed = allowedPlatforms.includes(platformKey);
+                                        const isChecked = selectedPlatforms.includes(platformKey);
+                                        
                                         return (
-                                            <div key={platform.id} className="flex items-center space-x-3">
+                                            <div 
+                                                key={platformKey} 
+                                                className={`flex items-center space-x-3 p-3 border rounded-lg ${
+                                                    !isAvailable ? 'bg-gray-50 border-gray-200' : 'border-gray-300'
+                                                }`}
+                                            >
                                                 <Checkbox
-                                                    id={platform.id}
-                                                    checked={selectedPlatforms.includes(platform.id)}
+                                                    id={platformKey}
+                                                    checked={isChecked}
+                                                    disabled={!isAvailable}
                                                     onCheckedChange={(checked) => 
-                                                        handlePlatformChange(platform.id, checked as boolean)
+                                                        handlePlatformChange(platformKey, checked as boolean)
                                                     }
                                                 />
-                                                <Label 
-                                                    htmlFor={platform.id}
-                                                    className="flex items-center space-x-2 cursor-pointer"
-                                                >
-                                                    <IconComponent className="h-4 w-4" />
-                                                    <span>{platform.name}</span>
-                                                </Label>
+                                                <div className="flex items-center space-x-3 flex-1">
+                                                    <IconComponent className={`h-5 w-5 ${platform.color}`} />
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center space-x-2">
+                                                            <Label 
+                                                                htmlFor={platformKey}
+                                                                className={`font-medium cursor-pointer ${!isAvailable ? 'text-gray-400' : ''}`}
+                                                            >
+                                                                {platform.name}
+                                                            </Label>
+                                                            {!isAllowed && (
+                                                                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                                                                    Pro Only
+                                                                </span>
+                                                            )}
+                                                            {isAllowed && !isConnected && (
+                                                                <span className="text-xs bg-yellow-100 text-yellow-600 px-2 py-1 rounded">
+                                                                    Not Connected
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {!isAvailable && (
+                                                            <p className="text-xs text-gray-400">
+                                                                {!isAllowed ? 'Upgrade to access this platform' : 'Connect this platform to your channel'}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         );
                                     })}
                                 </div>
                                 {errors.platforms && (
                                     <p className="text-sm text-red-600">{errors.platforms}</p>
+                                )}
+                                
+                                {availablePlatforms.length === 0 && (
+                                    <Alert className="bg-yellow-50 border-yellow-200">
+                                        <AlertDescription className="text-yellow-800">
+                                            No platforms available for upload. Please connect at least one platform to this channel.
+                                        </AlertDescription>
+                                    </Alert>
                                 )}
                             </div>
 
@@ -239,16 +390,17 @@ export default function CreateVideo({}: CreateVideoProps) {
 
                             {/* Submit Button */}
                             <div className="flex justify-end space-x-4">
-                                <Button 
-                                    type="button" 
-                                    variant="outline"
-                                    onClick={() => window.history.back()}
-                                >
-                                    Cancel
-                                </Button>
+                                <Link href={`/channels/${channel.slug}`}>
+                                    <Button 
+                                        type="button" 
+                                        variant="outline"
+                                    >
+                                        Cancel
+                                    </Button>
+                                </Link>
                                 <Button 
                                     type="submit" 
-                                    disabled={processing || !data.video || selectedPlatforms.length === 0}
+                                    disabled={processing || !data.video || selectedPlatforms.length === 0 || availablePlatforms.length === 0}
                                 >
                                     {processing ? 'Uploading...' : 'Upload Video'}
                                 </Button>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SocialAccount;
+use App\Models\Channel;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Laravel\Socialite\Facades\Socialite;
@@ -13,16 +14,27 @@ class SocialAccountController extends Controller
     /**
      * Redirect to social media provider for authentication.
      */
-    public function redirect(string $platform): RedirectResponse
+    public function redirect(Channel $channel, string $platform, Request $request): RedirectResponse
     {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
         if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
+        }
+
+        // Check if user can access this platform
+        if (!$request->user()->canAccessPlatform($platform)) {
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('error', 'This platform is not available with your current plan.');
         }
 
         // Check if OAuth credentials are configured
         if (!$this->isOAuthConfigured($platform)) {
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'OAuth credentials for ' . ucfirst($platform) . ' are not configured. Please check your .env file and add the required credentials.');
         }
 
@@ -66,7 +78,7 @@ class SocialAccountController extends Controller
         } catch (\Exception $e) {
             \Log::error('OAuth redirect failed: ' . $e->getMessage());
             
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Failed to initiate OAuth for ' . ucfirst($platform) . ': ' . $e->getMessage());
         }
     }
@@ -74,10 +86,15 @@ class SocialAccountController extends Controller
     /**
      * Handle callback from social media provider.
      */
-    public function callback(string $platform, Request $request): RedirectResponse
+    public function callback(Channel $channel, string $platform, Request $request): RedirectResponse
     {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
         if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
         }
 
@@ -119,6 +136,7 @@ class SocialAccountController extends Controller
             SocialAccount::updateOrCreate(
                 [
                     'user_id' => Auth::id(),
+                    'channel_id' => $channel->id,
                     'platform' => $platform,
                 ],
                 [
@@ -129,13 +147,13 @@ class SocialAccountController extends Controller
                 ]
             );
 
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('success', ucfirst($platform) . ' account connected successfully!');
 
         } catch (\Exception $e) {
             \Log::error('OAuth callback failed: ' . $e->getMessage());
             
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Failed to connect ' . ucfirst($platform) . ' account: ' . $e->getMessage());
         }
     }
@@ -143,34 +161,51 @@ class SocialAccountController extends Controller
     /**
      * Disconnect a social media account.
      */
-    public function disconnect(string $platform): RedirectResponse
+    public function disconnect(Channel $channel, string $platform, Request $request): RedirectResponse
     {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
         if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
         }
 
         SocialAccount::where('user_id', Auth::id())
+            ->where('channel_id', $channel->id)
             ->where('platform', $platform)
             ->delete();
 
-        return redirect()->route('dashboard')
+        return redirect()->route('channels.show', $channel->slug)
             ->with('success', ucfirst($platform) . ' account disconnected successfully!');
     }
 
     /**
      * Simulate connection for development (when OAuth is not configured).
      */
-    public function simulateConnection(string $platform): RedirectResponse
+    public function simulateConnection(Channel $channel, string $platform, Request $request): RedirectResponse
     {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
         if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
+        }
+
+        // Check if user can access this platform
+        if (!$request->user()->canAccessPlatform($platform)) {
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('error', 'This platform is not available with your current plan.');
         }
 
         // Only allow in development environment
         if (!app()->environment('local')) {
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'This feature is only available in development mode.');
         }
 
@@ -178,6 +213,7 @@ class SocialAccountController extends Controller
         SocialAccount::updateOrCreate(
             [
                 'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
                 'platform' => $platform,
             ],
             [
@@ -187,7 +223,7 @@ class SocialAccountController extends Controller
             ]
         );
 
-        return redirect()->route('dashboard')
+        return redirect()->route('channels.show', $channel->slug)
             ->with('success', ucfirst($platform) . ' account connected successfully! (Development Mode)');
     }
 

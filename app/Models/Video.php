@@ -10,9 +10,11 @@ class Video extends Model
 {
     protected $fillable = [
         'user_id',
+        'channel_id',
         'title',
         'description',
         'original_file_path',
+        'thumbnail_path',
         'duration',
     ];
 
@@ -34,6 +36,22 @@ class Video extends Model
     public function targets(): HasMany
     {
         return $this->hasMany(VideoTarget::class);
+    }
+
+    /**
+     * Get the video targets for the video.
+     */
+    public function videoTargets(): HasMany
+    {
+        return $this->hasMany(VideoTarget::class);
+    }
+
+    /**
+     * Get the channel that owns the video.
+     */
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channel::class);
     }
 
     /**

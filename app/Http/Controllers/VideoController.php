@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Video;
 use App\Models\VideoTarget;
+use App\Models\Channel;
 use App\Services\VideoProcessingService;
 use App\Services\VideoUploadService;
 use Illuminate\Http\Request;
@@ -44,16 +45,39 @@ class VideoController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(): Response
+    public function create(Channel $channel, Request $request): Response
     {
-        return Inertia::render('Videos/Create');
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        // Get connected platforms for this channel
+        $connectedPlatforms = $channel->socialAccounts->pluck('platform')->toArray();
+        $allowedPlatforms = $request->user()->getAllowedPlatforms();
+        
+        // Filter connected platforms by what user is allowed to access
+        $availablePlatforms = array_intersect($connectedPlatforms, $allowedPlatforms);
+
+        return Inertia::render('Videos/Create', [
+            'channel' => $channel,
+            'availablePlatforms' => $availablePlatforms,
+            'defaultPlatforms' => $channel->default_platforms_list,
+            'connectedPlatforms' => $connectedPlatforms,
+            'allowedPlatforms' => $allowedPlatforms,
+        ]);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Channel $channel, Request $request): RedirectResponse
     {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
         $request->validate([
             'video' => 'required|file|mimes:mp4,mov,avi,wmv,webm|max:102400', // 100MB max
             'title' => 'required|string|max:255',
@@ -64,20 +88,40 @@ class VideoController extends Controller
             'publish_at' => 'required_if:publish_type,scheduled|nullable|date|after:now',
         ]);
 
+        // Validate that user can access selected platforms
+        $allowedPlatforms = $request->user()->getAllowedPlatforms();
+        $connectedPlatforms = $channel->socialAccounts->pluck('platform')->toArray();
+        
+        foreach ($request->platforms as $platform) {
+            if (!in_array($platform, $allowedPlatforms)) {
+                return redirect()->back()
+                    ->withErrors(['platforms' => "Platform '{$platform}' is not available with your current plan."])
+                    ->withInput();
+            }
+            
+            if (!in_array($platform, $connectedPlatforms)) {
+                return redirect()->back()
+                    ->withErrors(['platforms' => "Platform '{$platform}' is not connected to this channel."])
+                    ->withInput();
+            }
+        }
+
         try {
             // Validate and process video
             $this->videoService->validateVideo($request->file('video'));
             $videoInfo = $this->videoService->processVideo($request->file('video'));
 
             $video = null;
-            DB::transaction(function () use ($request, $videoInfo, &$video) {
+            DB::transaction(function () use ($request, $videoInfo, $channel, &$video) {
                 // Create video record
                 $video = Video::create([
                     'user_id' => $request->user()->id,
+                    'channel_id' => $channel->id,
                     'title' => $request->title,
                     'description' => $request->description,
                     'original_file_path' => $videoInfo['path'],
                     'duration' => $videoInfo['duration'],
+                    'thumbnail_path' => $videoInfo['thumbnail_path'] ?? null,
                 ]);
 
                 // Create video targets for each platform
@@ -91,6 +135,9 @@ class VideoController extends Controller
                 }
             });
 
+            // Update channel default platforms based on user selection
+            $channel->updateDefaultPlatforms($request->platforms);
+
             // Dispatch upload jobs for immediate publishing
             if ($request->publish_type === 'now') {
                 foreach ($video->targets as $target) {
@@ -98,7 +145,7 @@ class VideoController extends Controller
                 }
             }
 
-            return redirect()->route('dashboard')
+            return redirect()->route('channels.show', $channel->slug)
                 ->with('success', 'Video uploaded successfully and queued for publishing!');
 
         } catch (\Exception $e) {

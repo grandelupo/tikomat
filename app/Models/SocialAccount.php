@@ -9,6 +9,7 @@ class SocialAccount extends Model
 {
     protected $fillable = [
         'user_id',
+        'channel_id',
         'platform',
         'access_token',
         'refresh_token',
@@ -30,6 +31,14 @@ class SocialAccount extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the channel that owns the social account.
+     */
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channel::class);
     }
 
     /**

@@ -11,9 +11,12 @@ class VideoProcessingService
 {
     protected ?FFMpeg $ffmpeg = null;
     protected ?FFProbe $ffprobe = null;
+    protected ThumbnailService $thumbnailService;
 
-    public function __construct()
+    public function __construct(ThumbnailService $thumbnailService)
     {
+        $this->thumbnailService = $thumbnailService;
+        
         try {
             // Configuration for FFMpeg
             $configuration = [
@@ -41,8 +44,9 @@ class VideoProcessingService
         $fullPath = Storage::path($tempPath);
 
         try {
-            // Get video duration
-            $duration = $this->getVideoDuration($fullPath);
+            // Get video information using our thumbnail service (which has better FFprobe integration)
+            $videoInfo = $this->thumbnailService->getVideoInfo($fullPath);
+            $duration = $videoInfo['duration'];
 
             // Validate duration (max 60 seconds)
             if ($duration > 60) {
@@ -51,16 +55,29 @@ class VideoProcessingService
 
             // Store the file permanently
             $permanentPath = $file->store('videos', 'local');
+            $permanentFullPath = Storage::path($permanentPath);
+
+            // Generate thumbnail
+            $thumbnailPath = '';
+            try {
+                $thumbnailPath = $this->thumbnailService->generateThumbnail($permanentFullPath);
+            } catch (\Exception $e) {
+                \Log::warning('Thumbnail generation failed: ' . $e->getMessage());
+            }
 
             // Clean up temp file
             Storage::delete($tempPath);
 
             return [
                 'path' => $permanentPath,
-                'duration' => $duration,
+                'duration' => (int) round($duration),
                 'size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
                 'original_name' => $file->getClientOriginalName(),
+                'thumbnail_path' => $thumbnailPath,
+                'width' => $videoInfo['width'],
+                'height' => $videoInfo['height'],
+                'format' => $videoInfo['format'],
             ];
         } catch (\Exception $e) {
             // Clean up temp file on error
@@ -120,5 +137,13 @@ class VideoProcessingService
         }
 
         return true;
+    }
+
+    /**
+     * Generate thumbnail for existing video.
+     */
+    public function generateThumbnailForVideo(string $videoPath): string
+    {
+        return $this->thumbnailService->generateThumbnail(Storage::path($videoPath));
     }
 } 

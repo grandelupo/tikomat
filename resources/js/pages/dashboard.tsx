@@ -1,62 +1,84 @@
+import { Head, Link, router } from '@inertiajs/react';
+import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Youtube, Instagram, Video, Clock, CheckCircle, XCircle, AlertCircle, Info } from 'lucide-react';
+import { 
+    Plus, 
+    Youtube, 
+    Instagram, 
+    Video as VideoIcon, 
+    Users, 
+    BarChart3,
+    Clock,
+    CheckCircle,
+    AlertCircle,
+    XCircle,
+    Crown,
+    Zap
+} from 'lucide-react';
+import React from 'react';
+
+interface Channel {
+    id: number;
+    name: string;
+    description: string;
+    slug: string;
+    is_default: boolean;
+    social_accounts_count: number;
+    videos_count: number;
+    connected_platforms: string[];
+    default_platforms: string[];
+}
 
 interface Video {
     id: number;
     title: string;
     description: string;
     duration: number;
-    formatted_duration: string;
+    thumbnail_path: string | null;
     created_at: string;
-    targets: VideoTarget[];
-}
-
-interface VideoTarget {
-    id: number;
-    platform: string;
-    status: 'pending' | 'processing' | 'success' | 'failed';
-    publish_at: string | null;
-    error_message: string | null;
-}
-
-interface Platform {
-    name: string;
-    connected: boolean;
-    icon: string;
-}
-
-interface DashboardProps {
-    videos: {
-        data: Video[];
-        links: any;
-        meta: any;
+    channel: {
+        id: number;
+        name: string;
     };
-    platforms: Record<string, Platform>;
-    socialAccounts: Record<string, any>;
+    targets: Array<{
+        platform: string;
+        status: string;
+        error_message: string | null;
+        publish_at: string | null;
+    }>;
 }
 
-interface FlashMessages {
-    success?: string;
-    error?: string;
+interface Subscription {
+    status: string;
+    is_active: boolean;
+    max_channels: number;
+    daily_rate: number;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-];
+interface Props {
+    channels: Channel[];
+    defaultChannel: {
+        id: number;
+        name: string;
+        slug: string;
+    };
+    recentVideos: Video[];
+    subscription: Subscription | null;
+    allowedPlatforms: string[];
+    canCreateChannel: boolean;
+    stats: {
+        totalChannels: number;
+        totalVideos: number;
+        connectedPlatforms: number;
+    };
+}
 
 const platformIcons = {
     youtube: Youtube,
     instagram: Instagram,
-    tiktok: Video,
+    tiktok: VideoIcon,
 };
 
 const statusColors = {
@@ -68,222 +90,287 @@ const statusColors = {
 
 const statusIcons = {
     pending: Clock,
-    processing: AlertCircle,
+    processing: BarChart3,
     success: CheckCircle,
     failed: XCircle,
 };
 
-export default function Dashboard({ videos, platforms, socialAccounts }: DashboardProps) {
-    const { flash } = usePage().props as { flash: FlashMessages };
+const breadcrumbs = [
+    {
+        title: 'Dashboard',
+        href: '/dashboard',
+    },
+];
 
-    const handleConnectPlatform = (platform: string) => {
-        // Use window.location for OAuth to handle redirects properly
-        window.location.href = `/auth/${platform}`;
+export default function Dashboard({ 
+    channels, 
+    defaultChannel, 
+    recentVideos, 
+    subscription, 
+    allowedPlatforms, 
+    canCreateChannel, 
+    stats 
+}: Props) {
+    const handleChannelClick = (slug: string) => {
+        router.visit(`/channels/${slug}`);
     };
 
-    const handleSimulateConnection = (platform: string) => {
-        router.post(`/simulate-oauth/${platform}`);
+    const handleCreateChannel = () => {
+        router.visit('/channels/create');
     };
 
-    const handleDisconnectPlatform = (platform: string) => {
-        if (confirm(`Are you sure you want to disconnect your ${platforms[platform].name} account?`)) {
-            router.delete(`/social/${platform}`);
-        }
-    };
-
-    const handleRetryTarget = (targetId: number) => {
-        router.post(`/video-targets/${targetId}/retry`);
+    const handleUpgradeClick = () => {
+        // TODO: Implement subscription upgrade
+        alert('Subscription upgrade coming soon!');
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
+            
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
-                {/* Flash Messages */}
-                {flash?.success && (
-                    <Alert className="bg-green-50 border-green-200">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <AlertDescription className="text-green-800">
-                            {flash.success}
-                        </AlertDescription>
-                    </Alert>
-                )}
-                
-                {flash?.error && (
-                    <Alert className="bg-red-50 border-red-200">
-                        <XCircle className="h-4 w-4 text-red-600" />
-                        <AlertDescription className="text-red-800">
-                            {flash.error}
-                        </AlertDescription>
-                    </Alert>
-                )}
-
-                {/* OAuth Configuration Notice */}
-                <Alert className="bg-blue-50 border-blue-200">
-                    <Info className="h-4 w-4 text-blue-600" />
-                    <AlertDescription className="text-blue-800">
-                        <strong>Development Mode (happy debugging 🐛 ):</strong> OAuth providers are not configured. 
-                        Use "Test Connection" buttons to simulate connections, or set up OAuth credentials in your .env file.
-                        See the README.md for setup instructions.
-                    </AlertDescription>
-                </Alert>
-
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
                         <p className="text-muted-foreground">
-                            Manage your videos and social media connections
+                            Manage your channels and videos across all platforms
                         </p>
                     </div>
-                    <Link href="/videos/create">
-                        <Button size="lg">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Upload Video
-                        </Button>
-                    </Link>
+                    <div className="flex items-center space-x-4">
+                        {!subscription?.is_active && (
+                            <Button onClick={handleUpgradeClick} className="bg-gradient-to-r from-blue-600 to-purple-600">
+                                <Zap className="w-4 h-4 mr-2" />
+                                Upgrade to Pro
+                            </Button>
+                        )}
+                        {canCreateChannel && (
+                            <Button onClick={handleCreateChannel} variant="outline">
+                                <Plus className="w-4 h-4 mr-2" />
+                                New Channel
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
-                {/* Platform Connections */}
-                <div className="grid gap-4 md:grid-cols-3">
-                    {Object.entries(platforms).map(([key, platform]) => {
-                        const IconComponent = platformIcons[key as keyof typeof platformIcons];
-                        return (
-                            <Card key={key}>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">
-                                        {platform.name}
-                                    </CardTitle>
-                                    <IconComponent className="h-4 w-4 text-muted-foreground" />
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Channels</CardTitle>
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.totalChannels}</div>
+                            <p className="text-xs text-muted-foreground">
+                                {subscription?.is_active ? `${subscription.max_channels - stats.totalChannels} remaining` : 'Free plan: 1 channel'}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Videos</CardTitle>
+                            <VideoIcon className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.totalVideos}</div>
+                            <p className="text-xs text-muted-foreground">
+                                Across all channels
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Connected Platforms</CardTitle>
+                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{stats.connectedPlatforms}</div>
+                            <p className="text-xs text-muted-foreground">
+                                {allowedPlatforms.length} platforms available
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Subscription Status */}
+                {!subscription?.is_active && (
+                    <Card className="border-blue-200 bg-blue-50">
+                        <CardHeader>
+                            <CardTitle className="flex items-center">
+                                <Crown className="w-5 h-5 mr-2 text-blue-600" />
+                                Upgrade to Pro
+                            </CardTitle>
+                            <CardDescription>
+                                Unlock all platforms and create up to 3 channels for just $0.60/day
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium">Pro Features:</p>
+                                    <ul className="text-sm text-gray-600 space-y-1">
+                                        <li>• Instagram & TikTok publishing</li>
+                                        <li>• Up to 3 channels</li>
+                                        <li>• Priority support</li>
+                                    </ul>
+                                </div>
+                                <Button onClick={handleUpgradeClick} className="bg-blue-600 hover:bg-blue-700">
+                                    Upgrade Now
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Channels Grid */}
+                <div>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-semibold">Your Channels</h3>
+                        {canCreateChannel && (
+                            <Button onClick={handleCreateChannel} size="sm" variant="outline">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add Channel
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {channels.map((channel) => (
+                            <Card 
+                                key={channel.id} 
+                                className="cursor-pointer hover:shadow-lg transition-shadow"
+                                onClick={() => handleChannelClick(channel.slug)}
+                            >
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="flex items-center">
+                                            {channel.is_default && (
+                                                <Crown className="w-4 h-4 mr-2 text-yellow-500" />
+                                            )}
+                                            {channel.name}
+                                        </CardTitle>
+                                        {channel.is_default && (
+                                            <Badge variant="secondary">Default</Badge>
+                                        )}
+                                    </div>
+                                    <CardDescription>{channel.description}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <Badge 
-                                            variant={platform.connected ? "default" : "secondary"}
-                                            className={platform.connected ? "bg-green-100 text-green-800" : ""}
-                                        >
-                                            {platform.connected ? 'Connected' : 'Not Connected'}
-                                        </Badge>
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        {platform.connected ? (
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm"
-                                                onClick={() => handleDisconnectPlatform(key)}
-                                                className="w-full"
-                                            >
-                                                Disconnect
-                                            </Button>
-                                        ) : (
-                                            <>
-                                                <Button 
-                                                    size="sm"
-                                                    onClick={() => handleConnectPlatform(key)}
-                                                    className="w-full"
-                                                >
-                                                    Connect (OAuth)
-                                                </Button>
-                                                <Button 
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleSimulateConnection(key)}
-                                                    className="w-full text-xs"
-                                                >
-                                                    Test Connection
-                                                </Button>
-                                            </>
-                                        )}
+                                    <div className="space-y-4">
+                                        {/* Connected Platforms */}
+                                        <div>
+                                            <p className="text-sm font-medium mb-2">Connected Platforms</p>
+                                            <div className="flex space-x-2">
+                                                {channel.connected_platforms.length > 0 ? (
+                                                    channel.connected_platforms.map((platform) => {
+                                                        const Icon = platformIcons[platform as keyof typeof platformIcons];
+                                                        return (
+                                                            <div key={platform} className="flex items-center space-x-1">
+                                                                <Icon className="w-4 h-4" />
+                                                                <span className="text-xs capitalize">{platform}</span>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <span className="text-xs text-gray-500">No platforms connected</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Stats */}
+                                        <div className="flex justify-between text-sm text-gray-600">
+                                            <span>{channel.videos_count} videos</span>
+                                            <span>{channel.social_accounts_count} connections</span>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
-                        );
-                    })}
+                        ))}
+                    </div>
                 </div>
 
                 {/* Recent Videos */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Videos</CardTitle>
-                        <CardDescription>
-                            Your uploaded videos and their publishing status
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {videos.data.length === 0 ? (
-                            <div className="text-center py-8">
-                                <Video className="mx-auto h-12 w-12 text-muted-foreground" />
-                                <h3 className="mt-2 text-sm font-semibold text-gray-900">No videos</h3>
-                                <p className="mt-1 text-sm text-gray-500">
-                                    Get started by uploading your first video.
-                                </p>
-                                <div className="mt-6">
-                                    <Link href="/videos/create">
-                                        <Button>
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Upload Video
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {videos.data.map((video) => (
-                                    <div key={video.id} className="border rounded-lg p-4">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <h3 className="font-semibold text-lg">{video.title}</h3>
-                                                <p className="text-sm text-muted-foreground mt-1">
-                                                    {video.description}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground mt-2">
-                                                    Duration: {video.formatted_duration} • 
-                                                    Uploaded {new Date(video.created_at).toLocaleDateString()}
-                                                </p>
+                <div>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-semibold">Recent Videos</h3>
+                        <Link href={`/channels/${defaultChannel.slug}/videos/create`}>
+                            <Button size="sm">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Upload Video
+                            </Button>
+                        </Link>
+                    </div>
+
+                    {recentVideos.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {recentVideos.map((video) => (
+                                <Card key={video.id}>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">{video.title}</CardTitle>
+                                        <CardDescription>
+                                            {video.channel.name} • {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-3">
+                                            {/* Thumbnail placeholder */}
+                                            <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                                                {video.thumbnail_path ? (
+                                                    <img 
+                                                        src={video.thumbnail_path} 
+                                                        alt={video.title}
+                                                        className="w-full h-full object-cover rounded-lg"
+                                                    />
+                                                ) : (
+                                                    <VideoIcon className="w-8 h-8 text-gray-400" />
+                                                )}
                                             </div>
-                                            <Link href={`/videos/${video.id}`}>
-                                                <Button variant="outline" size="sm">
-                                                    View Details
-                                                </Button>
-                                            </Link>
+
+                                            {/* Platform Status */}
+                                            <div className="space-y-2">
+                                                {video.targets.map((target, index) => {
+                                                    const StatusIcon = statusIcons[target.status as keyof typeof statusIcons];
+                                                    return (
+                                                        <div key={index} className="flex items-center justify-between">
+                                                            <div className="flex items-center space-x-2">
+                                                                {React.createElement(platformIcons[target.platform as keyof typeof platformIcons], { className: "w-4 h-4" })}
+                                                                <span className="text-sm capitalize">{target.platform}</span>
+                                                            </div>
+                                                            <Badge className={statusColors[target.status as keyof typeof statusColors]}>
+                                                                <StatusIcon className="w-3 h-3 mr-1" />
+                                                                {target.status}
+                                                            </Badge>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                        
-                                        {/* Platform Status */}
-                                        <div className="mt-4 flex flex-wrap gap-2">
-                                            {video.targets.map((target) => {
-                                                const StatusIcon = statusIcons[target.status];
-                                                const PlatformIcon = platformIcons[target.platform as keyof typeof platformIcons];
-                                                
-                                                return (
-                                                    <div key={target.id} className="flex items-center gap-2">
-                                                        <Badge 
-                                                            variant="secondary"
-                                                            className={`${statusColors[target.status]} flex items-center gap-1`}
-                                                        >
-                                                            <PlatformIcon className="h-3 w-3" />
-                                                            <StatusIcon className="h-3 w-3" />
-                                                            {target.platform} - {target.status}
-                                                        </Badge>
-                                                        {target.status === 'failed' && (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleRetryTarget(target.id)}
-                                                            >
-                                                                Retry
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : (
+                        <Card>
+                            <CardContent className="text-center py-12">
+                                <VideoIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">No videos yet</h3>
+                                <p className="text-gray-600 mb-4">
+                                    Upload your first video to get started with cross-platform publishing.
+                                </p>
+                                <Link href={`/channels/${defaultChannel.slug}/videos/create`}>
+                                    <Button>
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Upload Your First Video
+                                    </Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
             </div>
         </AppLayout>
     );
-}
+} 
