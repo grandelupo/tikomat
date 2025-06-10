@@ -154,7 +154,7 @@ export default function Dashboard({
 
                 {/* Subscription Status */}
                 {!subscription?.is_active && (
-                    <Card className="border-blue-200 bg-blue-50">
+                    <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
                         <CardHeader>
                             <CardTitle className="flex items-center">
                                 <Crown className="w-5 h-5 mr-2 text-blue-600" />

@@ -132,7 +132,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                 {/* Plans Grid */}
                 <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto w-full">
                     {/* Free Plan */}
-                    <Card className={`relative ${user.current_plan === 'free' ? 'border-blue-200 bg-blue-50' : ''}`}>
+                    <Card className={`relative ${user.current_plan === 'free' ? 'border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800' : ''}`}>
                         {user.current_plan === 'free' && (
                             <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600">
                                 Current Plan
@@ -255,7 +255,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
 
                 {/* Additional Information */}
                 <div className="max-w-2xl mx-auto text-center space-y-4">
-                    <div className="bg-gray-50 p-6 rounded-lg">
+                    <div className="bg-gray-50 p-6 rounded-lg dark:bg-gray-900">
                         <h3 className="font-semibold mb-2">Need More Channels?</h3>
                         <p className="text-sm text-muted-foreground mb-3">
                             Pro plan includes 3 channels. Additional channels are just $0.20/day each.
