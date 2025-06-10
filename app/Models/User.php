@@ -77,13 +77,7 @@ class User extends Authenticatable
         return $this->hasMany(Channel::class);
     }
 
-    /**
-     * Get the user's subscription.
-     */
-    public function subscription(): HasOne
-    {
-        return $this->hasOne(Subscription::class);
-    }
+
 
     /**
      * Get the user's default channel.
@@ -98,13 +92,8 @@ class User extends Authenticatable
      */
     public function getAllowedPlatforms(): array
     {
-        // If user has an active subscription, return all platforms
-        if ($this->subscribed('default')) {
-            return ['youtube', 'instagram', 'tiktok'];
-        }
-
-        // Free users only get YouTube
-        return ['youtube'];
+        // Simplified - all users get all platforms for now
+        return ['youtube', 'instagram', 'tiktok'];
     }
 
     /**
@@ -120,10 +109,8 @@ class User extends Authenticatable
      */
     public function canCreateChannel(): bool
     {
-        $maxChannels = $this->getMaxChannels();
-        $currentChannels = $this->channels()->count();
-        
-        return $currentChannels < $maxChannels;
+        // Simplified - allow users to create channels
+        return true;
     }
 
     /**
@@ -131,21 +118,8 @@ class User extends Authenticatable
      */
     public function getMaxChannels(): int
     {
-        if ($this->subscribed('default')) {
-            // Pro users get 3 base channels plus any additional channels
-            $subscription = $this->subscription('default');
-            if ($subscription && $subscription->hasPrice('price_additional_channel')) {
-                // Count additional channel subscriptions
-                $additionalChannels = $subscription->subscriptionItems()
-                    ->where('stripe_price', 'price_additional_channel')
-                    ->sum('quantity');
-                return 3 + $additionalChannels;
-            }
-            return 3;
-        }
-
-        // Free users get 1 channel
-        return 1;
+        // Simplified - allow unlimited channels for now
+        return 999;
     }
 
     /**
@@ -153,7 +127,8 @@ class User extends Authenticatable
      */
     public function hasActiveSubscription(): bool
     {
-        return $this->subscribed('default');
+        // Simplified - all users are considered active for now
+        return true;
     }
 
     /**
@@ -161,9 +136,7 @@ class User extends Authenticatable
      */
     public function getCurrentPlan(): string
     {
-        if ($this->subscribed('default')) {
-            return 'pro';
-        }
+        // Simplified - all users are on free plan for now
         return 'free';
     }
 
@@ -172,14 +145,7 @@ class User extends Authenticatable
      */
     public function getMonthlyCost(): float
     {
-        if (!$this->subscribed('default')) {
-            return 0.00;
-        }
-
-        $baseCost = 0.60 * 30; // $0.60 per day for 30 days
-        $additionalChannels = max(0, $this->getMaxChannels() - 3);
-        $additionalCost = $additionalChannels * 0.20 * 30; // $0.20 per day per additional channel
-
-        return $baseCost + $additionalCost;
+        // Simplified - no cost for now
+        return 0.00;
     }
 }
