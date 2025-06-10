@@ -113,10 +113,6 @@ export default function ChannelShow({
         window.location.href = `/channels/${channel.slug}/auth/${platform}`;
     };
 
-    const handleSimulateConnection = (platform: string) => {
-        router.post(`/channels/${channel.slug}/simulate-oauth/${platform}`);
-    };
-
     const handleDisconnectPlatform = (platform: string) => {
         if (confirm(`Are you sure you want to disconnect ${platform} from this channel?`)) {
             router.delete(`/channels/${channel.slug}/social/${platform}`);

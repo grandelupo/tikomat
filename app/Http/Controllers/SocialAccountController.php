@@ -42,6 +42,14 @@ class SocialAccountController extends Controller
             // Map platform to Socialite driver
             $driver = $this->mapPlatformToDriver($platform);
 
+            // Create state parameter with channel information
+            $state = base64_encode(json_encode([
+                'channel_slug' => $channel->slug,
+                'user_id' => $request->user()->id,
+                'platform' => $platform,
+                'timestamp' => time()
+            ]));
+
             // Request appropriate scopes based on platform
             if ($platform === 'youtube') {
                 // YouTube requires specific scopes for video uploading
@@ -52,6 +60,7 @@ class SocialAccountController extends Controller
                         'https://www.googleapis.com/auth/userinfo.profile',
                         'https://www.googleapis.com/auth/userinfo.email'
                     ])
+                    ->with(['state' => $state])
                     ->redirect();
             } elseif ($platform === 'instagram') {
                 // Instagram requires content publishing permissions
@@ -62,6 +71,7 @@ class SocialAccountController extends Controller
                         'pages_show_list',
                         'pages_read_engagement'
                     ])
+                    ->with(['state' => $state])
                     ->redirect();
             } elseif ($platform === 'tiktok') {
                 // TikTok requires video upload and publish permissions
@@ -71,10 +81,13 @@ class SocialAccountController extends Controller
                         'video.upload',
                         'video.publish'
                     ])
+                    ->with(['state' => $state])
                     ->redirect();
             }
 
-            return Socialite::driver($driver)->redirect();
+            return Socialite::driver($driver)
+                ->with(['state' => $state])
+                ->redirect();
         } catch (\Exception $e) {
             \Log::error('OAuth redirect failed: ' . $e->getMessage());
             
@@ -101,36 +114,10 @@ class SocialAccountController extends Controller
         try {
             $driver = $this->mapPlatformToDriver($platform);
             
-            // Use same scopes for callback as redirect
-            if ($platform === 'youtube') {
-                $socialUser = Socialite::driver($driver)
-                    ->scopes([
-                        'https://www.googleapis.com/auth/youtube.upload',
-                        'https://www.googleapis.com/auth/youtube',
-                        'https://www.googleapis.com/auth/userinfo.profile',
-                        'https://www.googleapis.com/auth/userinfo.email'
-                    ])
-                    ->user();
-            } elseif ($platform === 'instagram') {
-                $socialUser = Socialite::driver($driver)
-                    ->scopes([
-                        'instagram_content_publish',
-                        'instagram_basic',
-                        'pages_show_list',
-                        'pages_read_engagement'
-                    ])
-                    ->user();
-            } elseif ($platform === 'tiktok') {
-                $socialUser = Socialite::driver($driver)
-                    ->scopes([
-                        'user.info.basic',
-                        'video.upload',
-                        'video.publish'
-                    ])
-                    ->user();
-            } else {
-                $socialUser = Socialite::driver($driver)->user();
-            }
+            \Log::info('OAuth callback for channel: ' . $channel->slug . ', platform: ' . $platform);
+            
+            // Get OAuth user data
+            $socialUser = Socialite::driver($driver)->user();
 
             // Store or update social account
             SocialAccount::updateOrCreate(
@@ -147,11 +134,13 @@ class SocialAccountController extends Controller
                 ]
             );
 
+            \Log::info('OAuth connection successful for channel: ' . $channel->slug . ', platform: ' . $platform);
+
             return redirect()->route('channels.show', $channel->slug)
                 ->with('success', ucfirst($platform) . ' account connected successfully!');
 
         } catch (\Exception $e) {
-            \Log::error('OAuth callback failed: ' . $e->getMessage());
+            \Log::error('OAuth callback failed for channel: ' . $channel->slug . ', platform: ' . $platform . ' - ' . $e->getMessage());
             
             return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Failed to connect ' . ucfirst($platform) . ' account: ' . $e->getMessage());
@@ -251,5 +240,78 @@ class SocialAccountController extends Controller
             'tiktok' => 'tiktok',
             default => throw new \InvalidArgumentException('Unsupported platform: ' . $platform),
         };
+    }
+
+    /**
+     * Handle general OAuth callback that determines which channel to connect based on state parameter.
+     */
+    public function generalCallback(string $platform, Request $request): RedirectResponse
+    {
+        if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Invalid platform selected.');
+        }
+
+        try {
+            // Extract state parameter to get channel information
+            $stateParam = $request->input('state');
+            
+            if (!$stateParam) {
+                throw new \Exception('Missing state parameter');
+            }
+
+            $stateData = json_decode(base64_decode($stateParam), true);
+            
+            if (!$stateData || !isset($stateData['channel_slug']) || !isset($stateData['user_id'])) {
+                throw new \Exception('Invalid state parameter');
+            }
+
+            // Verify the user matches (security check)
+            if ($stateData['user_id'] !== Auth::id()) {
+                throw new \Exception('State parameter user mismatch');
+            }
+
+            // Check if state is not too old (1 hour max)
+            if (isset($stateData['timestamp']) && (time() - $stateData['timestamp']) > 3600) {
+                throw new \Exception('State parameter expired');
+            }
+
+            // Find the channel
+            $channel = Channel::where('slug', $stateData['channel_slug'])
+                ->where('user_id', Auth::id())
+                ->first();
+
+            if (!$channel) {
+                throw new \Exception('Channel not found or access denied');
+            }
+
+            // Get OAuth user data
+            $driver = $this->mapPlatformToDriver($platform);
+            $socialUser = Socialite::driver($driver)->user();
+
+            // Store or update social account
+            SocialAccount::updateOrCreate(
+                [
+                    'user_id' => Auth::id(),
+                    'channel_id' => $channel->id,
+                    'platform' => $platform,
+                ],
+                [
+                    'access_token' => $socialUser->token,
+                    'refresh_token' => $socialUser->refreshToken,
+                    'token_expires_at' => $socialUser->expiresIn ? 
+                        now()->addSeconds($socialUser->expiresIn) : null,
+                ]
+            );
+
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('success', ucfirst($platform) . ' account connected successfully!');
+
+        } catch (\Exception $e) {
+            \Log::error('General OAuth callback failed: ' . $e->getMessage());
+            
+            return redirect()->route('dashboard')
+                ->with('error', 'Failed to connect ' . ucfirst($platform) . ' account: ' . $e->getMessage());
+        }
     }
 }

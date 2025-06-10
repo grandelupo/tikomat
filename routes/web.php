@@ -39,6 +39,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('channels/{channel:slug}/social/{platform}', [SocialAccountController::class, 'disconnect'])
         ->name('social.disconnect');
     
+    // General OAuth callbacks (for OAuth providers that need exact URLs)
+    Route::get('auth/{platform}/callback', [SocialAccountController::class, 'generalCallback'])
+        ->name('social.general-callback');
+    
     // Development: Simulate OAuth connection
     Route::post('channels/{channel:slug}/simulate-oauth/{platform}', [SocialAccountController::class, 'simulateConnection'])
         ->name('social.simulate');
