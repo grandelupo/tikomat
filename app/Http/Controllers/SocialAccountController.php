@@ -253,23 +253,29 @@ class SocialAccountController extends Controller
         }
 
         \Log::info('General OAuth callback URL: ' . $request->fullUrl());
+        \Log::info('General OAuth callback request data: ', $request->all());
 
         try {
             // Extract state parameter to get channel information
             $stateParam = $request->input('state');
+            \Log::info('State parameter received: ' . $stateParam);
             
             if (!$stateParam) {
                 throw new \Exception('Missing state parameter');
             }
 
             $stateData = json_decode(base64_decode($stateParam), true);
+            \Log::info('Decoded state data: ', $stateData ?: []);
             
             if (!$stateData || !isset($stateData['channel_slug']) || !isset($stateData['user_id'])) {
-                throw new \Exception('Invalid state parameter');
+                throw new \Exception('Invalid state parameter - missing required fields');
             }
 
             // Verify the user matches (security check)
-            if ($stateData['user_id'] !== Auth::id()) {
+            $currentUserId = Auth::id();
+            \Log::info('Current user ID: ' . $currentUserId . ', State user ID: ' . $stateData['user_id']);
+            
+            if ($stateData['user_id'] !== $currentUserId) {
                 throw new \Exception('State parameter user mismatch');
             }
 
@@ -279,6 +285,7 @@ class SocialAccountController extends Controller
             }
 
             // Find the channel
+            \Log::info('Looking for channel with slug: ' . $stateData['channel_slug']);
             $channel = Channel::where('slug', $stateData['channel_slug'])
                 ->where('user_id', Auth::id())
                 ->first();
@@ -287,12 +294,17 @@ class SocialAccountController extends Controller
                 throw new \Exception('Channel not found or access denied');
             }
 
+            \Log::info('Found channel: ' . $channel->name . ' (ID: ' . $channel->id . ')');
+
             // Get OAuth user data
             $driver = $this->mapPlatformToDriver($platform);
-            $socialUser = Socialite::driver($driver)->user();
+            \Log::info('Using driver: ' . $driver . ' for platform: ' . $platform);
+            
+            $socialUser = Socialite::driver($driver)->stateless()->user();
+            \Log::info('OAuth user retrieved successfully, token length: ' . strlen($socialUser->token));
 
             // Store or update social account
-            SocialAccount::updateOrCreate(
+            $socialAccount = SocialAccount::updateOrCreate(
                 [
                     'user_id' => Auth::id(),
                     'channel_id' => $channel->id,
@@ -306,11 +318,21 @@ class SocialAccountController extends Controller
                 ]
             );
 
+            \Log::info('Social account created/updated successfully: ' . $socialAccount->id);
+
             return redirect()->route('channels.show', $channel->slug)
                 ->with('success', ucfirst($platform) . ' account connected successfully!');
 
         } catch (\Exception $e) {
-            \Log::error('General OAuth callback failed: ' . $e->getMessage());
+            \Log::error('General OAuth callback failed: ' . $e->getMessage(), [
+                'exception' => $e,
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'platform' => $platform,
+                'user_id' => Auth::id(),
+                'request_data' => $request->all()
+            ]);
             
             return redirect()->route('dashboard')
                 ->with('error', 'Failed to connect ' . ucfirst($platform) . ' account: ' . $e->getMessage());
