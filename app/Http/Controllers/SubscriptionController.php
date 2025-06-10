@@ -22,6 +22,7 @@ class SubscriptionController extends Controller
                 'current_plan' => $user->getCurrentPlan(),
                 'has_subscription' => $user->hasActiveSubscription(),
                 'monthly_cost' => $user->getMonthlyCost(),
+                'daily_cost' => $user->getDailyCost(),
                 'channels_count' => $user->channels()->count(),
                 'max_channels' => $user->getMaxChannels(),
             ],

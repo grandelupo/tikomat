@@ -4,6 +4,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\SocialAccountController;
 use App\Http\Controllers\ChannelController;
+use App\Http\Controllers\StatsController;
 use App\Http\Controllers\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -15,6 +16,9 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
+    // Stats
+    Route::get('stats', [StatsController::class, 'index'])->name('stats');
     
     // Channel routes
     Route::get('channels/{channel:slug}', [DashboardController::class, 'channel'])->name('channels.show');

@@ -9,6 +9,7 @@ interface User {
     current_plan: string;
     has_subscription: boolean;
     monthly_cost: number;
+    daily_cost: number;
     channels_count: number;
     max_channels: number;
 }
@@ -73,7 +74,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                                 <CardTitle className="text-blue-800">Current Plan: Pro</CardTitle>
                             </div>
                             <CardDescription className="text-blue-600">
-                                ${user.monthly_cost.toFixed(2)}/month
+                                ${user.daily_cost.toFixed(2)}/day
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="text-center space-y-2">
@@ -115,8 +116,8 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                         <CardHeader className="text-center">
                             <CardTitle className="text-2xl">{plans.free.name}</CardTitle>
                             <div className="text-3xl font-bold">
-                                ${plans.free.price}
-                                <span className="text-base font-normal text-muted-foreground">/month</span>
+                                ${(plans.free.price/30).toFixed(2)}
+                                <span className="text-base font-normal text-muted-foreground">/day</span>
                             </div>
                             <CardDescription>Perfect for getting started</CardDescription>
                         </CardHeader>
@@ -167,8 +168,8 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                                 <CardTitle className="text-2xl text-purple-800">{plans.pro.name}</CardTitle>
                             </div>
                             <div className="text-3xl font-bold text-purple-800">
-                                ${plans.pro.price.toFixed(2)}
-                                <span className="text-base font-normal text-muted-foreground">/month</span>
+                                ${(plans.pro.price/30).toFixed(2)}
+                                <span className="text-base font-normal text-muted-foreground">/day</span>
                             </div>
                             <CardDescription>For serious content creators</CardDescription>
                         </CardHeader>
@@ -221,7 +222,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                     <div className="bg-gray-50 p-6 rounded-lg">
                         <h3 className="font-semibold mb-2">Need More Channels?</h3>
                         <p className="text-sm text-muted-foreground mb-3">
-                            Pro plan includes 3 channels. Additional channels are just $6/month each.
+                            Pro plan includes 3 channels. Additional channels are just $0.20/day each.
                         </p>
                         {user.has_subscription && user.channels_count >= user.max_channels && (
                             <Button size="sm" onClick={handleAddChannel}>

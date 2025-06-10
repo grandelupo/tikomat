@@ -68,11 +68,6 @@ interface Props {
     subscription: Subscription | null;
     allowedPlatforms: string[];
     canCreateChannel: boolean;
-    stats: {
-        totalChannels: number;
-        totalVideos: number;
-        connectedPlatforms: number;
-    };
 }
 
 const platformIcons = {
@@ -108,8 +103,7 @@ export default function Dashboard({
     recentVideos, 
     subscription, 
     allowedPlatforms, 
-    canCreateChannel, 
-    stats 
+    canCreateChannel
 }: Props) {
     const handleChannelClick = (slug: string) => {
         router.visit(`/channels/${slug}`);
@@ -122,6 +116,12 @@ export default function Dashboard({
     const handleUpgradeClick = () => {
         router.visit('/subscription/plans');
     };
+
+    // Defensive checks for null/undefined data
+    const safeChannels = channels || [];
+    const safeRecentVideos = recentVideos || [];
+    const safeAllowedPlatforms = allowedPlatforms || [];
+    const safeDefaultChannel = defaultChannel || { slug: '#', name: 'Default Channel', id: 0 };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -150,48 +150,6 @@ export default function Dashboard({
                             </Button>
                         )}
                     </div>
-                </div>
-
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Channels</CardTitle>
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.totalChannels}</div>
-                            <p className="text-xs text-muted-foreground">
-                                {subscription?.is_active ? `${subscription.max_channels - stats.totalChannels} remaining` : 'Free plan: 1 channel'}
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Videos</CardTitle>
-                            <VideoIcon className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.totalVideos}</div>
-                            <p className="text-xs text-muted-foreground">
-                                Across all channels
-                            </p>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Connected Platforms</CardTitle>
-                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.connectedPlatforms}</div>
-                            <p className="text-xs text-muted-foreground">
-                                {allowedPlatforms.length} platforms available
-                            </p>
-                        </CardContent>
-                    </Card>
                 </div>
 
                 {/* Subscription Status */}
@@ -237,7 +195,7 @@ export default function Dashboard({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {channels.map((channel) => (
+                        {safeChannels.map((channel) => (
                             <Card 
                                 key={channel.id} 
                                 className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -249,13 +207,13 @@ export default function Dashboard({
                                             {channel.is_default && (
                                                 <Crown className="w-4 h-4 mr-2 text-yellow-500" />
                                             )}
-                                            {channel.name}
+                                            {channel.name || 'Unnamed Channel'}
                                         </CardTitle>
                                         {channel.is_default && (
                                             <Badge variant="secondary">Default</Badge>
                                         )}
                                     </div>
-                                    <CardDescription>{channel.description}</CardDescription>
+                                    <CardDescription>{channel.description || 'No description'}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-4">
@@ -263,7 +221,7 @@ export default function Dashboard({
                                         <div>
                                             <p className="text-sm font-medium mb-2">Connected Platforms</p>
                                             <div className="flex space-x-2">
-                                                {channel.connected_platforms.length > 0 ? (
+                                                {(channel.connected_platforms || []).length > 0 ? (
                                                     channel.connected_platforms.map((platform) => {
                                                         const Icon = platformIcons[platform as keyof typeof platformIcons];
                                                         return (
@@ -281,8 +239,8 @@ export default function Dashboard({
 
                                         {/* Stats */}
                                         <div className="flex justify-between text-sm text-gray-600">
-                                            <span>{channel.videos_count} videos</span>
-                                            <span>{channel.social_accounts_count} connections</span>
+                                            <span>{channel.videos_count || 0} videos</span>
+                                            <span>{channel.social_accounts_count || 0} connections</span>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -295,7 +253,7 @@ export default function Dashboard({
                 <div>
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-semibold">Recent Videos</h3>
-                        <Link href={`/channels/${defaultChannel.slug}/videos/create`}>
+                        <Link href={`/channels/${safeDefaultChannel.slug}/videos/create`}>
                             <Button size="sm">
                                 <Plus className="w-4 h-4 mr-2" />
                                 Upload Video
@@ -303,14 +261,14 @@ export default function Dashboard({
                         </Link>
                     </div>
 
-                    {recentVideos.length > 0 ? (
+                    {safeRecentVideos.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {recentVideos.map((video) => (
+                            {safeRecentVideos.map((video) => (
                                 <Card key={video.id}>
                                     <CardHeader>
-                                        <CardTitle className="text-base">{video.title}</CardTitle>
+                                        <CardTitle className="text-base">{video.title || 'Untitled Video'}</CardTitle>
                                         <CardDescription>
-                                            {video.channel.name} • {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
+                                            {video.channel?.name || 'Unknown Channel'} • {Math.floor((video.duration || 0) / 60)}:{((video.duration || 0) % 60).toString().padStart(2, '0')}
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent>
@@ -320,7 +278,7 @@ export default function Dashboard({
                                                 {video.thumbnail_path ? (
                                                     <img 
                                                         src={video.thumbnail_path} 
-                                                        alt={video.title}
+                                                        alt={video.title || 'Video thumbnail'}
                                                         className="w-full h-full object-cover rounded-lg"
                                                     />
                                                 ) : (
@@ -330,7 +288,7 @@ export default function Dashboard({
 
                                             {/* Platform Status */}
                                             <div className="space-y-2">
-                                                {video.targets.map((target, index) => {
+                                                {(video.targets || []).map((target, index) => {
                                                     const StatusIcon = statusIcons[target.status as keyof typeof statusIcons];
                                                     return (
                                                         <div key={index} className="flex items-center justify-between">
@@ -359,7 +317,7 @@ export default function Dashboard({
                                 <p className="text-gray-600 mb-4">
                                     Upload your first video to get started with cross-platform publishing.
                                 </p>
-                                <Link href={`/channels/${defaultChannel.slug}/videos/create`}>
+                                <Link href={`/channels/${safeDefaultChannel.slug}/videos/create`}>
                                     <Button>
                                         <Plus className="w-4 h-4 mr-2" />
                                         Upload Your First Video

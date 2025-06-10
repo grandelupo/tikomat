@@ -23,12 +23,22 @@ class DashboardController extends Controller
         $defaultChannel = $user->channels()->where('is_default', true)->first();
         
         if (!$defaultChannel) {
-            $defaultChannel = $user->channels()->create([
-                'name' => $user->name . "'s Channel",
-                'description' => 'Default channel for ' . $user->name,
-                'is_default' => true,
-                'default_platforms' => ['youtube']
-            ]);
+            try {
+                $defaultChannel = $user->channels()->create([
+                    'name' => $user->name . "'s Channel",
+                    'description' => 'Default channel for ' . $user->name,
+                    'is_default' => true,
+                    'default_platforms' => ['youtube']
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to create default channel: ' . $e->getMessage());
+                // Create a fallback channel data if creation fails
+                $defaultChannel = (object) [
+                    'id' => 0,
+                    'name' => $user->name . "'s Channel",
+                    'slug' => 'default'
+                ];
+            }
         }
 
         // Get all user channels
@@ -43,14 +53,14 @@ class DashboardController extends Controller
             ->map(function ($channel) {
                 return [
                     'id' => $channel->id,
-                    'name' => $channel->name,
-                    'description' => $channel->description,
-                    'slug' => $channel->slug,
-                    'is_default' => $channel->is_default,
-                    'social_accounts_count' => $channel->social_accounts_count,
-                    'videos_count' => $channel->videos_count,
-                    'connected_platforms' => $channel->socialAccounts->pluck('platform')->toArray(),
-                    'default_platforms' => $channel->default_platforms_list,
+                    'name' => $channel->name ?? 'Unnamed Channel',
+                    'description' => $channel->description ?? 'No description',
+                    'slug' => $channel->slug ?? 'default',
+                    'is_default' => $channel->is_default ?? false,
+                    'social_accounts_count' => $channel->social_accounts_count ?? 0,
+                    'videos_count' => $channel->videos_count ?? 0,
+                    'connected_platforms' => $channel->socialAccounts ? $channel->socialAccounts->pluck('platform')->toArray() : [],
+                    'default_platforms' => $channel->default_platforms_list ?? [],
                 ];
             });
 
@@ -63,20 +73,23 @@ class DashboardController extends Controller
             ->map(function ($video) {
                 return [
                     'id' => $video->id,
-                    'title' => $video->title,
-                    'description' => $video->description,
-                    'duration' => $video->duration,
+                    'title' => $video->title ?? 'Untitled Video',
+                    'description' => $video->description ?? '',
+                    'duration' => $video->duration ?? 0,
                     'thumbnail_path' => $video->thumbnail_path,
                     'created_at' => $video->created_at,
-                    'channel' => $video->channel,
-                    'targets' => $video->videoTargets->map(function ($target) {
+                    'channel' => $video->channel ? [
+                        'id' => $video->channel->id,
+                        'name' => $video->channel->name ?? 'Unknown Channel'
+                    ] : ['id' => 0, 'name' => 'Unknown Channel'],
+                    'targets' => $video->videoTargets ? $video->videoTargets->map(function ($target) {
                         return [
-                            'platform' => $target->platform,
-                            'status' => $target->status,
+                            'platform' => $target->platform ?? 'unknown',
+                            'status' => $target->status ?? 'pending',
                             'error_message' => $target->error_message,
                             'publish_at' => $target->publish_at,
                         ];
-                    }),
+                    }) : [],
                 ];
             });
 
@@ -87,9 +100,9 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'channels' => $channels,
             'defaultChannel' => [
-                'id' => $defaultChannel->id,
-                'name' => $defaultChannel->name,
-                'slug' => $defaultChannel->slug,
+                'id' => $defaultChannel->id ?? 0,
+                'name' => $defaultChannel->name ?? 'Default Channel',
+                'slug' => $defaultChannel->slug ?? 'default',
             ],
             'recentVideos' => $recentVideos,
             'subscription' => $user->hasActiveSubscription() ? [
@@ -100,13 +113,6 @@ class DashboardController extends Controller
             ] : null,
             'allowedPlatforms' => $allowedPlatforms,
             'canCreateChannel' => $canCreateChannel,
-            'stats' => [
-                'totalChannels' => $channels->count(),
-                'totalVideos' => $recentVideos->count(),
-                'connectedPlatforms' => $channels->flatMap(function ($channel) {
-                    return $channel['connected_platforms'];
-                })->unique()->count(),
-            ],
         ]);
     }
 

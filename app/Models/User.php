@@ -174,4 +174,12 @@ class User extends Authenticatable
 
         return $baseCost + $additionalCost;
     }
+
+    /*
+     * Calculate daily cost for user's subscription.
+     */
+    public function getDailyCost(): float
+    {
+        return $this->getMonthlyCost() / 30;
+    }
 }

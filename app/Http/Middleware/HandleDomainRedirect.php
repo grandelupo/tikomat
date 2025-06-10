@@ -16,10 +16,10 @@ class HandleDomainRedirect
         // Only redirect in production
         if (app()->environment('production')) {
             $host = $request->getHost();
-            $preferredDomain = 'www.tikomat.karolkrakowski.pl';
+            $preferredDomain = parse_url(env('APP_URL'), PHP_URL_HOST);
             
-            // If accessing without www, redirect to www version
-            if ($host === 'tikomat.karolkrakowski.pl') {
+            // If accessing with www, redirect to non-www version
+            if ($host === 'www.' . $preferredDomain) {
                 return redirect()->away('https://' . $preferredDomain . $request->getRequestUri(), 301);
             }
         }
