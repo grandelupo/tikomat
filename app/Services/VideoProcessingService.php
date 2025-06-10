@@ -22,8 +22,8 @@ class VideoProcessingService
         try {
             // Configuration for FFMpeg
             $configuration = [
-                'ffmpeg.binaries'  => ['/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg', 'ffmpeg'],
-                'ffprobe.binaries' => ['/usr/local/bin/ffprobe', '/usr/bin/ffprobe', 'ffprobe'],
+                'ffmpeg.binaries'  => ['~/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg', 'ffmpeg'],
+                'ffprobe.binaries' => ['~/bin/ffprobe', '/usr/local/bin/ffprobe', '/usr/bin/ffprobe', 'ffprobe'],
                 'timeout'          => 3600, // The timeout for the underlying process
                 'ffmpeg.threads'   => 12,   // The number of threads that FFMpeg should use
             ];

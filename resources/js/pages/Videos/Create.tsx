@@ -220,9 +220,9 @@ export default function CreateVideo({
 
                 {/* Platform Status Alert */}
                 {availablePlatforms.length === 0 && (
-                    <Alert className="bg-yellow-50 border-yellow-200">
+                    <Alert className="bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800">
                         <Info className="h-4 w-4 text-yellow-600" />
-                        <AlertDescription className="text-yellow-800">
+                        <AlertDescription className="text-yellow-800 dark:text-yellow-200">
                             <strong>No connected platforms:</strong> You need to connect at least one social media platform to this channel before uploading videos.
                             <Link href={`/channels/${channel.slug}`} className="ml-1 underline">
                                 Connect platforms now
@@ -232,8 +232,8 @@ export default function CreateVideo({
                 )}
 
                 {allowedPlatforms.length === 1 && (
-                    <Alert className="bg-blue-50 border-blue-200">
-                        <AlertDescription className="text-blue-800">
+                    <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                        <AlertDescription className="text-blue-800 dark:text-blue-200">
                             <strong>Free Plan:</strong> You currently have access to YouTube only. 
                             Upgrade to Pro to unlock Instagram and TikTok publishing.
                         </AlertDescription>

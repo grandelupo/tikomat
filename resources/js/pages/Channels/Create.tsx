@@ -185,8 +185,8 @@ export default function ChannelCreate({ allowedPlatforms }: Props) {
                                     </div>
 
                                     {allowedPlatforms.length === 1 && (
-                                        <Alert className="bg-blue-50 border-blue-200">
-                                            <AlertDescription className="text-blue-800">
+                                        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                                            <AlertDescription className="text-blue-800 dark:text-blue-200">
                                                 <strong>Free Plan:</strong> You currently have access to YouTube only. 
                                                 Upgrade to Pro to unlock Instagram and TikTok publishing for just $0.60/day.
                                             </AlertDescription>
