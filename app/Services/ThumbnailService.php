@@ -14,10 +14,17 @@ class ThumbnailService
      */
     public function generateThumbnail(string $videoPath, ?string $outputFileName = null): string
     {
+        \Log::info('Starting thumbnail generation', [
+            'video_path' => $videoPath,
+            'file_exists' => file_exists($videoPath),
+            'file_size' => file_exists($videoPath) ? filesize($videoPath) : 0,
+        ]);
+
         // Create thumbnails directory if it doesn't exist
         $thumbnailsDir = storage_path('app/public/thumbnails');
         if (!file_exists($thumbnailsDir)) {
             mkdir($thumbnailsDir, 0755, true);
+            \Log::info('Created thumbnails directory', ['dir' => $thumbnailsDir]);
         }
 
         // Generate unique filename if not provided
@@ -26,6 +33,12 @@ class ThumbnailService
         }
 
         $thumbnailPath = $thumbnailsDir . '/' . $outputFileName;
+
+        \Log::info('Thumbnail generation settings', [
+            'output_file' => $outputFileName,
+            'thumbnail_path' => $thumbnailPath,
+            'thumbnails_dir_writable' => is_writable($thumbnailsDir),
+        ]);
 
         // Use FFmpeg to extract thumbnail at 2 seconds (to avoid black frames)
         $process = new Process([
@@ -40,13 +53,28 @@ class ThumbnailService
         ]);
 
         try {
+            \Log::info('Running FFmpeg command', [
+                'command' => $process->getCommandLine(),
+                'timeout' => $process->getTimeout(),
+            ]);
+
             $process->mustRun();
+            
+            \Log::info('FFmpeg command completed successfully', [
+                'output' => $process->getOutput(),
+                'thumbnail_exists' => file_exists($thumbnailPath),
+                'thumbnail_size' => file_exists($thumbnailPath) ? filesize($thumbnailPath) : 0,
+            ]);
             
             // Return the public URL path
             return '/storage/thumbnails/' . $outputFileName;
         } catch (ProcessFailedException $exception) {
             // Log the error
-            \Log::error('FFmpeg thumbnail generation failed: ' . $exception->getMessage());
+            \Log::error('FFmpeg thumbnail generation failed', [
+                'error' => $exception->getMessage(),
+                'error_output' => $process->getErrorOutput(),
+                'command' => $process->getCommandLine(),
+            ]);
             
             // Try alternative approach - extract frame at 10% of video duration
             return $this->generateThumbnailAlternative($videoPath, $outputFileName);
@@ -58,6 +86,8 @@ class ThumbnailService
      */
     private function generateThumbnailAlternative(string $videoPath, string $outputFileName): string
     {
+        \Log::info('Starting alternative thumbnail generation');
+        
         $thumbnailPath = storage_path('app/public/thumbnails/' . $outputFileName);
 
         // Get video duration first
@@ -73,9 +103,16 @@ class ThumbnailService
             $durationProcess->mustRun();
             $duration = (float) trim($durationProcess->getOutput());
             
+            \Log::info('Alternative method - video duration retrieved', ['duration' => $duration]);
+            
             // Extract thumbnail at 10% of video duration (but at least 1 second)
             $seekTime = max(1, $duration * 0.1);
             $seekTimeFormatted = gmdate('H:i:s', $seekTime);
+
+            \Log::info('Alternative method - generating at seek time', [
+                'seek_time' => $seekTime,
+                'seek_formatted' => $seekTimeFormatted,
+            ]);
 
             $process = new Process([
                 'ffmpeg',
@@ -89,10 +126,19 @@ class ThumbnailService
             ]);
 
             $process->mustRun();
+            
+            \Log::info('Alternative FFmpeg completed successfully', [
+                'thumbnail_exists' => file_exists($thumbnailPath),
+                'thumbnail_size' => file_exists($thumbnailPath) ? filesize($thumbnailPath) : 0,
+            ]);
+            
             return '/storage/thumbnails/' . $outputFileName;
             
         } catch (ProcessFailedException $exception) {
-            \Log::error('Alternative FFmpeg thumbnail generation failed: ' . $exception->getMessage());
+            \Log::error('Alternative FFmpeg thumbnail generation failed', [
+                'error' => $exception->getMessage(),
+                'error_output' => $process->getErrorOutput(),
+            ]);
             
             // Return default thumbnail path
             return $this->createDefaultThumbnail($outputFileName);
@@ -104,25 +150,63 @@ class ThumbnailService
      */
     private function createDefaultThumbnail(string $outputFileName): string
     {
+        \Log::info('Creating default thumbnail (FFmpeg not available)', ['filename' => $outputFileName]);
+        
         // Create a simple colored rectangle as default thumbnail
         $thumbnailPath = storage_path('app/public/thumbnails/' . $outputFileName);
         
-        // Create a 320x240 gray image using ImageMagick or return placeholder
+        // Create a 320x240 gray image using GD library or return placeholder
         if (function_exists('imagecreate')) {
+            \Log::info('Creating thumbnail with GD library');
+            
             $image = imagecreate(320, 240);
-            $gray = imagecolorallocate($image, 128, 128, 128);
+            $darkGray = imagecolorallocate($image, 64, 64, 64);
+            $lightGray = imagecolorallocate($image, 192, 192, 192);
             $white = imagecolorallocate($image, 255, 255, 255);
             
-            imagefill($image, 0, 0, $gray);
-            imagestring($image, 5, 110, 115, 'VIDEO', $white);
+            // Fill background
+            imagefill($image, 0, 0, $darkGray);
             
-            imagejpeg($image, $thumbnailPath, 80);
+            // Draw border
+            imagerectangle($image, 0, 0, 319, 239, $lightGray);
+            
+            // Add play button symbol (triangle)
+            $playButton = [
+                130, 100,  // Top point
+                130, 140,  // Bottom left
+                170, 120   // Right point
+            ];
+            imagefilledpolygon($image, $playButton, 3, $white);
+            
+            // Add text
+            imagestring($image, 3, 125, 150, 'VIDEO', $white);
+            imagestring($image, 2, 110, 170, 'Preview not available', $lightGray);
+            
+            // Save image
+            if (imagejpeg($image, $thumbnailPath, 85)) {
+                imagedestroy($image);
+                \Log::info('Default thumbnail created successfully', [
+                    'path' => $thumbnailPath,
+                    'size' => filesize($thumbnailPath),
+                ]);
+                return '/storage/thumbnails/' . $outputFileName;
+            }
+            
             imagedestroy($image);
-            
-            return '/storage/thumbnails/' . $outputFileName;
         }
         
-        // Return null if we can't create a thumbnail
+        // If GD library is not available, try to copy a placeholder image
+        $placeholderPath = public_path('placeholder-video.jpg');
+        if (file_exists($placeholderPath)) {
+            if (copy($placeholderPath, $thumbnailPath)) {
+                \Log::info('Copied placeholder thumbnail');
+                return '/storage/thumbnails/' . $outputFileName;
+            }
+        }
+        
+        \Log::warning('Could not create default thumbnail - no GD library or placeholder available');
+        
+        // Return empty string if we can't create a thumbnail
         return '';
     }
 

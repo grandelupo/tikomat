@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\Log;
 
 class VideoController extends Controller
 {
@@ -107,9 +108,27 @@ class VideoController extends Controller
         }
 
         try {
+            Log::info('Starting video upload process', [
+                'user_id' => $request->user()->id,
+                'channel_id' => $channel->id,
+                'title' => $request->title,
+                'platforms' => $request->platforms,
+                'publish_type' => $request->publish_type,
+                'file_name' => $request->file('video')->getClientOriginalName(),
+                'file_size' => $request->file('video')->getSize(),
+                'mime_type' => $request->file('video')->getMimeType(),
+            ]);
+
             // Validate and process video
             $this->videoService->validateVideo($request->file('video'));
+            Log::info('Video validation passed');
+
             $videoInfo = $this->videoService->processVideo($request->file('video'));
+            Log::info('Video processing completed', [
+                'duration' => $videoInfo['duration'],
+                'thumbnail_path' => $videoInfo['thumbnail_path'] ?? 'none',
+                'file_path' => $videoInfo['path'],
+            ]);
 
             $video = null;
             DB::transaction(function () use ($request, $videoInfo, $channel, &$video) {
@@ -124,13 +143,26 @@ class VideoController extends Controller
                     'thumbnail_path' => $videoInfo['thumbnail_path'] ?? null,
                 ]);
 
+                Log::info('Video record created', [
+                    'video_id' => $video->id,
+                    'duration' => $video->duration,
+                    'thumbnail_path' => $video->thumbnail_path,
+                ]);
+
                 // Create video targets for each platform
                 foreach ($request->platforms as $platform) {
-                    VideoTarget::create([
+                    $target = VideoTarget::create([
                         'video_id' => $video->id,
                         'platform' => $platform,
                         'publish_at' => $request->publish_type === 'scheduled' ? $request->publish_at : null,
                         'status' => 'pending',
+                    ]);
+
+                    Log::info('Video target created', [
+                        'target_id' => $target->id,
+                        'platform' => $platform,
+                        'status' => $target->status,
+                        'publish_at' => $target->publish_at,
                     ]);
                 }
             });
@@ -140,15 +172,34 @@ class VideoController extends Controller
 
             // Dispatch upload jobs for immediate publishing
             if ($request->publish_type === 'now') {
+                Log::info('Dispatching immediate upload jobs for video', ['video_id' => $video->id]);
                 foreach ($video->targets as $target) {
+                    Log::info('Dispatching job for target', [
+                        'target_id' => $target->id,
+                        'platform' => $target->platform,
+                    ]);
                     $this->uploadService->dispatchUploadJob($target);
                 }
+            } else {
+                Log::info('Video scheduled for later publishing', [
+                    'video_id' => $video->id,
+                    'publish_at' => $request->publish_at,
+                ]);
             }
+
+            Log::info('Video upload process completed successfully', ['video_id' => $video->id]);
 
             return redirect()->route('channels.show', $channel->slug)
                 ->with('success', 'Video uploaded successfully and queued for publishing!');
 
         } catch (\Exception $e) {
+            Log::error('Video upload failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user()->id,
+                'file_name' => $request->file('video')->getClientOriginalName() ?? 'unknown',
+            ]);
+
             return redirect()->back()
                 ->withErrors(['video' => $e->getMessage()])
                 ->withInput();
