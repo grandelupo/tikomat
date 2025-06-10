@@ -43,6 +43,7 @@ interface Video {
     thumbnail_path: string | null;
     created_at: string;
     targets: Array<{
+        id: number;
         platform: string;
         status: string;
         error_message: string | null;
@@ -116,6 +117,13 @@ export default function ChannelShow({
     const handleDisconnectPlatform = (platform: string) => {
         if (confirm(`Are you sure you want to disconnect ${platform} from this channel?`)) {
             router.delete(`/channels/${channel.slug}/social/${platform}`);
+        }
+    };
+
+    const handleForceReconnectPlatform = (platform: string) => {
+        if (confirm(`Force reconnect ${platform}? This will revoke current permissions and ask you to choose an account again.`)) {
+            // Use window.location for OAuth to handle redirects properly
+            window.location.href = `/channels/${channel.slug}/auth/${platform}?force=true`;
         }
     };
 
@@ -199,14 +207,26 @@ export default function ChannelShow({
                                                     Upgrade to Pro to unlock {platform.label}
                                                 </div>
                                             ) : isConnected ? (
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="sm"
-                                                    onClick={() => handleDisconnectPlatform(platform.name)}
-                                                    className="w-full"
-                                                >
-                                                    Disconnect
-                                                </Button>
+                                                <>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm"
+                                                        onClick={() => handleDisconnectPlatform(platform.name)}
+                                                        className="w-full"
+                                                    >
+                                                        Disconnect
+                                                    </Button>
+                                                    {platform.name === 'youtube' && (
+                                                        <Button 
+                                                            variant="outline" 
+                                                            size="sm"
+                                                            onClick={() => handleForceReconnectPlatform(platform.name)}
+                                                            className="w-full text-xs"
+                                                        >
+                                                            🔄 Force Reconnect
+                                                        </Button>
+                                                    )}
+                                                </>
                                             ) : (
                                                 <Button 
                                                     size="sm"

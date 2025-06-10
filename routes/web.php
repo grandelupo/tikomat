@@ -38,6 +38,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('social.callback');
     Route::delete('channels/{channel:slug}/social/{platform}', [SocialAccountController::class, 'disconnect'])
         ->name('social.disconnect');
+    Route::post('channels/{channel:slug}/social/{platform}/force-reconnect', [SocialAccountController::class, 'forceReconnect'])
+        ->name('social.force-reconnect');
     
     // General OAuth callbacks (for OAuth providers that need exact URLs)
     Route::get('auth/{platform}/callback', [SocialAccountController::class, 'generalCallback'])

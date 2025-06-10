@@ -84,8 +84,9 @@ class DashboardController extends Controller
                     ] : ['id' => 0, 'name' => 'Unknown Channel'],
                     'targets' => $video->videoTargets ? $video->videoTargets->map(function ($target) {
                         return [
-                            'platform' => $target->platform ?? 'unknown',
-                            'status' => $target->status ?? 'pending',
+                            'id' => $target->id,
+                            'platform' => $target->platform,
+                            'status' => $target->status,
                             'error_message' => $target->error_message,
                             'publish_at' => $target->publish_at,
                         ];
@@ -151,6 +152,7 @@ class DashboardController extends Controller
                     'created_at' => $video->created_at,
                     'targets' => $video->videoTargets->map(function ($target) {
                         return [
+                            'id' => $target->id,
                             'platform' => $target->platform,
                             'status' => $target->status,
                             'error_message' => $target->error_message,

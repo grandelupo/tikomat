@@ -38,6 +38,13 @@ class SocialAccountController extends Controller
                 ->with('error', 'OAuth credentials for ' . ucfirst($platform) . ' are not configured. Please check your .env file and add the required credentials.');
         }
 
+        // Check if this is a force reconnect (revoke existing permissions)
+        $forceReconnect = $request->boolean('force');
+        
+        if ($forceReconnect && $platform === 'youtube') {
+            $this->revokeGooglePermissions($request->user()->id, $channel->id);
+        }
+
         try {
             // Map platform to Socialite driver
             $driver = $this->mapPlatformToDriver($platform);
@@ -47,8 +54,16 @@ class SocialAccountController extends Controller
                 'channel_slug' => $channel->slug,
                 'user_id' => $request->user()->id,
                 'platform' => $platform,
-                'timestamp' => time()
+                'timestamp' => time(),
+                'force' => $forceReconnect
             ]));
+
+            \Log::info('Starting OAuth redirect', [
+                'platform' => $platform,
+                'driver' => $driver,
+                'channel_slug' => $channel->slug,
+                'force_reconnect' => $forceReconnect,
+            ]);
 
             // Request appropriate scopes based on platform
             if ($platform === 'youtube') {
@@ -60,7 +75,12 @@ class SocialAccountController extends Controller
                         'https://www.googleapis.com/auth/userinfo.profile',
                         'https://www.googleapis.com/auth/userinfo.email'
                     ])
-                    ->with(['state' => $state])
+                    ->with([
+                        'state' => $state,
+                        'access_type' => 'offline',        // Required for refresh token
+                        'prompt' => 'select_account consent', // Force account selection and consent
+                        'include_granted_scopes' => 'true'  // Include previously granted scopes
+                    ])
                     ->redirect();
             } elseif ($platform === 'instagram') {
                 // Instagram requires content publishing permissions
@@ -71,7 +91,10 @@ class SocialAccountController extends Controller
                         'pages_show_list',
                         'pages_read_engagement'
                     ])
-                    ->with(['state' => $state])
+                    ->with([
+                        'state' => $state,
+                        'prompt' => 'select_account consent' // Force account selection
+                    ])
                     ->redirect();
             } elseif ($platform === 'tiktok') {
                 // TikTok requires video upload and publish permissions
@@ -81,12 +104,20 @@ class SocialAccountController extends Controller
                         'video.upload',
                         'video.publish'
                     ])
-                    ->with(['state' => $state])
+                    ->with([
+                        'state' => $state,
+                        'prompt' => 'select_account consent' // Force account selection
+                    ])
                     ->redirect();
             }
 
+            // Fallback for any other cases
             return Socialite::driver($driver)
-                ->with(['state' => $state])
+                ->with([
+                    'state' => $state,
+                    'access_type' => 'offline',
+                    'prompt' => 'select_account consent'
+                ])
                 ->redirect();
         } catch (\Exception $e) {
             \Log::error('OAuth redirect failed: ' . $e->getMessage());
@@ -301,7 +332,31 @@ class SocialAccountController extends Controller
             \Log::info('Using driver: ' . $driver . ' for platform: ' . $platform);
             
             $socialUser = Socialite::driver($driver)->stateless()->user();
-            \Log::info('OAuth user retrieved successfully, token length: ' . strlen($socialUser->token));
+            \Log::info('OAuth user retrieved successfully', [
+                'has_token' => !empty($socialUser->token),
+                'token_length' => strlen($socialUser->token ?? ''),
+                'has_refresh_token' => !empty($socialUser->refreshToken),
+                'refresh_token_length' => strlen($socialUser->refreshToken ?? ''),
+                'expires_in' => $socialUser->expiresIn ?? 'not_set',
+                'user_id' => $socialUser->getId() ?? 'not_set',
+                'user_email' => $socialUser->getEmail() ?? 'not_set',
+            ]);
+
+            // Validate we have the required tokens
+            if (empty($socialUser->token)) {
+                throw new \Exception('No access token received from ' . ucfirst($platform));
+            }
+
+            // For Google/YouTube, we need a refresh token for long-term access
+            if ($platform === 'youtube' && empty($socialUser->refreshToken)) {
+                \Log::warning('YouTube OAuth completed but no refresh token received. User may need to revoke access and reconnect.', [
+                    'user_id' => Auth::id(),
+                    'channel_id' => $channel->id,
+                ]);
+                
+                return redirect()->route('channels.show', $channel->slug)
+                    ->with('warning', 'YouTube connected successfully, but no refresh token was provided. You may need to reconnect the account if uploads fail after the token expires.');
+            }
 
             // Store or update social account
             $socialAccount = SocialAccount::updateOrCreate(
@@ -318,7 +373,12 @@ class SocialAccountController extends Controller
                 ]
             );
 
-            \Log::info('Social account created/updated successfully: ' . $socialAccount->id);
+            \Log::info('Social account created/updated successfully', [
+                'account_id' => $socialAccount->id,
+                'has_access_token' => !empty($socialAccount->access_token),
+                'has_refresh_token' => !empty($socialAccount->refresh_token),
+                'expires_at' => $socialAccount->token_expires_at?->toISOString() ?? 'never',
+            ]);
 
             return redirect()->route('channels.show', $channel->slug)
                 ->with('success', ucfirst($platform) . ' account connected successfully!');
@@ -337,5 +397,58 @@ class SocialAccountController extends Controller
             return redirect()->route('dashboard')
                 ->with('error', 'Failed to connect ' . ucfirst($platform) . ' account: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Revoke Google permissions to force fresh consent.
+     */
+    private function revokeGooglePermissions(int $userId, int $channelId): void
+    {
+        try {
+            $socialAccount = SocialAccount::where('user_id', $userId)
+                ->where('channel_id', $channelId)
+                ->where('platform', 'youtube')
+                ->first();
+
+            if ($socialAccount && $socialAccount->access_token && $socialAccount->access_token !== 'fake_token_for_development') {
+                \Log::info('Revoking Google permissions', [
+                    'user_id' => $userId,
+                    'channel_id' => $channelId,
+                    'social_account_id' => $socialAccount->id,
+                ]);
+
+                // Revoke the token via Google API
+                $client = new \Google\Client();
+                $client->setClientId(config('services.google.client_id'));
+                $client->setClientSecret(config('services.google.client_secret'));
+                $client->revokeToken($socialAccount->access_token);
+
+                // Delete the social account to force fresh connection
+                $socialAccount->delete();
+                
+                \Log::info('Google permissions revoked successfully');
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to revoke Google permissions: ' . $e->getMessage());
+            // Continue anyway - we'll still get fresh consent
+        }
+    }
+
+    /**
+     * Force reconnect route for problematic accounts.
+     */
+    public function forceReconnect(Channel $channel, string $platform, Request $request): RedirectResponse
+    {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        // Redirect to regular OAuth with force=true parameter
+        return redirect()->route('social.redirect', [
+            'channel' => $channel->slug,
+            'platform' => $platform,
+            'force' => 'true'
+        ]);
     }
 }
