@@ -10,6 +10,8 @@ class HandleDomainRedirect
 {
     /**
      * Handle an incoming request.
+     *
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -24,6 +26,17 @@ class HandleDomainRedirect
             }
         }
 
-        return $next($request);
+        $response = $next($request);
+
+        // Add security headers for HTTPS
+        if ($request->secure()) {
+            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+            $response->headers->set('X-Content-Type-Options', 'nosniff');
+            $response->headers->set('X-Frame-Options', 'DENY');
+            $response->headers->set('X-XSS-Protection', '1; mode=block');
+            $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        }
+
+        return $response;
     }
 } 

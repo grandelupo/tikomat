@@ -6,7 +6,7 @@ export default function AppLogoIcon(props: HTMLAttributes<HTMLImageElement>) {
     return (
         <img 
             {...props}
-            src="/logo.png" 
+            src={`${window.location.protocol}//${window.location.host}/logo.png`} 
             alt={appName + " Logo"} 
             className={`object-contain ${props.className || ''}`}
         />

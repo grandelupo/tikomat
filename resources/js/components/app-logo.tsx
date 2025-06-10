@@ -5,7 +5,7 @@ export default function AppLogo() {
         <>
             <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-md">
                 <img 
-                    src="/logo.png" 
+                    src={`${window.location.protocol}//${window.location.host}/logo.png`} 
                     alt={appName + " Logo"} 
                     className="size-5 object-contain"
                 />
