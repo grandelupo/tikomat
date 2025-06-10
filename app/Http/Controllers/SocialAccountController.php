@@ -252,6 +252,8 @@ class SocialAccountController extends Controller
                 ->with('error', 'Invalid platform selected.');
         }
 
+        \Log::info('General OAuth callback URL: ' . $request->fullUrl());
+
         try {
             // Extract state parameter to get channel information
             $stateParam = $request->input('state');
