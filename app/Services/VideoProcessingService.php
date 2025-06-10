@@ -4,6 +4,7 @@ namespace App\Services;
 
 use FFMpeg\FFMpeg;
 use FFMpeg\FFProbe;
+use FFMpeg\Coordinate\TimeCode;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
@@ -22,8 +23,18 @@ class VideoProcessingService
         try {
             // Configuration for FFMpeg
             $configuration = [
-                'ffmpeg.binaries'  => ['~/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg', 'ffmpeg'],
-                'ffprobe.binaries' => ['~/bin/ffprobe', '/usr/local/bin/ffprobe', '/usr/bin/ffprobe', 'ffprobe'],
+                'ffmpeg.binaries'  => [
+                    env('FFMPEG_PATH', '/usr/local/bin/ffmpeg'),
+                    '/usr/local/bin/ffmpeg',
+                    '/usr/bin/ffmpeg',
+                    'ffmpeg'
+                ],
+                'ffprobe.binaries' => [
+                    env('FFPROBE_PATH', '/usr/local/bin/ffprobe'),
+                    '/usr/local/bin/ffprobe',
+                    '/usr/bin/ffprobe',
+                    'ffprobe'
+                ],
                 'timeout'          => 3600, // The timeout for the underlying process
                 'ffmpeg.threads'   => 12,   // The number of threads that FFMpeg should use
             ];
@@ -349,47 +360,148 @@ class VideoProcessingService
      */
     private function tryExtractVideoFrame(string $videoPath, string $outputPath): bool
     {
+        // Check if FFmpeg is available via our configured instance
+        if (!$this->ffmpeg) {
+            \Log::info('FFmpeg not configured for frame extraction');
+            return false;
+        }
+
         try {
-            // Check if FFmpeg is available
-            $checkProcess = new \Symfony\Component\Process\Process(['which', 'ffmpeg']);
-            $checkProcess->run();
-            
-            if (!$checkProcess->isSuccessful()) {
-                \Log::info('FFmpeg not available for frame extraction');
-                return false;
-            }
-
-            \Log::info('Attempting real frame extraction with FFmpeg');
-
-            // Extract frame at 1 second (avoid black frames at the start)
-            $extractProcess = new \Symfony\Component\Process\Process([
-                'ffmpeg',
-                '-i', $videoPath,
-                '-ss', '00:00:01',           // Seek to 1 second
-                '-vframes', '1',             // Extract only 1 frame
-                '-q:v', '2',                 // High quality
-                '-vf', 'scale=320:240',      // Resize to thumbnail size
-                '-y',                        // Overwrite output files
-                $outputPath
+            \Log::info('Attempting real frame extraction with configured FFmpeg', [
+                'input' => $videoPath,
+                'output' => $outputPath,
             ]);
 
-            $extractProcess->setTimeout(30); // 30 second timeout
-            $extractProcess->run();
-
-            if ($extractProcess->isSuccessful() && file_exists($outputPath) && filesize($outputPath) > 1000) {
-                \Log::info('Real frame extraction successful', [
-                    'output_size' => filesize($outputPath),
-                ]);
-                return true;
+            // Open the video file
+            $video = $this->ffmpeg->open($videoPath);
+            
+            // Extract frame at 1 second (avoid black frames at the start)
+            $frame = $video->frame(TimeCode::fromSeconds(1));
+            
+            // Create a temporary file for the full-size frame
+            $tempFramePath = dirname($outputPath) . '/temp_frame_' . uniqid() . '.jpg';
+            
+            // Save the full-size frame first
+            $frame->save($tempFramePath);
+            
+            // Check if the frame was extracted successfully
+            if (file_exists($tempFramePath) && filesize($tempFramePath) > 1000) {
+                // Now resize the frame using GD library
+                if ($this->resizeImageWithGD($tempFramePath, $outputPath, 320, 240)) {
+                    // Clean up temp file
+                    unlink($tempFramePath);
+                    
+                    \Log::info('Real frame extraction and resize successful', [
+                        'output_size' => filesize($outputPath),
+                        'dimensions' => '320x240',
+                    ]);
+                    return true;
+                } else {
+                    // Clean up temp file
+                    if (file_exists($tempFramePath)) {
+                        unlink($tempFramePath);
+                    }
+                }
+            } else {
+                // Clean up temp file if it exists
+                if (file_exists($tempFramePath)) {
+                    unlink($tempFramePath);
+                }
             }
 
-            \Log::warning('Frame extraction failed', [
-                'exit_code' => $extractProcess->getExitCode(),
-                'error_output' => $extractProcess->getErrorOutput(),
+            \Log::warning('Frame extraction produced empty or small file', [
+                'temp_file_exists' => file_exists($tempFramePath),
+                'temp_file_size' => file_exists($tempFramePath) ? filesize($tempFramePath) : 0,
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Frame extraction exception', ['error' => $e->getMessage()]);
+            \Log::error('FFmpeg frame extraction exception', [
+                'error' => $e->getMessage(),
+                'video_path' => $videoPath,
+                'class' => get_class($e),
+            ]);
+        }
+
+        return false;
+    }
+
+    /**
+     * Resize image using GD library.
+     */
+    private function resizeImageWithGD(string $sourcePath, string $outputPath, int $width, int $height): bool
+    {
+        try {
+            // Get source image info
+            $imageInfo = getimagesize($sourcePath);
+            if (!$imageInfo) {
+                \Log::error('Could not get image info for resizing', ['source' => $sourcePath]);
+                return false;
+            }
+
+            $sourceWidth = $imageInfo[0];
+            $sourceHeight = $imageInfo[1];
+            $imageType = $imageInfo[2];
+
+            // Create source image resource based on type
+            switch ($imageType) {
+                case IMAGETYPE_JPEG:
+                    $sourceImage = imagecreatefromjpeg($sourcePath);
+                    break;
+                case IMAGETYPE_PNG:
+                    $sourceImage = imagecreatefrompng($sourcePath);
+                    break;
+                default:
+                    \Log::error('Unsupported image type for resizing', ['type' => $imageType]);
+                    return false;
+            }
+
+            if (!$sourceImage) {
+                \Log::error('Could not create source image resource');
+                return false;
+            }
+
+            // Create target image
+            $targetImage = imagecreatetruecolor($width, $height);
+            
+            // Enable alpha blending for PNG transparency
+            imagealphablending($targetImage, false);
+            imagesavealpha($targetImage, true);
+
+            // Resize image
+            $success = imagecopyresampled(
+                $targetImage, $sourceImage,
+                0, 0, 0, 0,
+                $width, $height, $sourceWidth, $sourceHeight
+            );
+
+            if ($success) {
+                // Save resized image as JPEG
+                $result = imagejpeg($targetImage, $outputPath, 90);
+                
+                // Clean up resources
+                imagedestroy($sourceImage);
+                imagedestroy($targetImage);
+                
+                if ($result) {
+                    \Log::info('Image resized successfully with GD', [
+                        'from' => "{$sourceWidth}x{$sourceHeight}",
+                        'to' => "{$width}x{$height}",
+                        'output_size' => filesize($outputPath),
+                    ]);
+                    return true;
+                }
+            }
+
+            // Clean up resources on failure
+            imagedestroy($sourceImage);
+            imagedestroy($targetImage);
+
+        } catch (\Exception $e) {
+            \Log::error('GD image resize failed', [
+                'error' => $e->getMessage(),
+                'source' => $sourcePath,
+                'output' => $outputPath,
+            ]);
         }
 
         return false;
