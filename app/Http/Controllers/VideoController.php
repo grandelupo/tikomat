@@ -82,7 +82,7 @@ class VideoController extends Controller
         $request->validate([
             'video' => 'required|file|mimes:mp4,mov,avi,wmv,webm|max:102400', // 100MB max
             'title' => 'required|string|max:255',
-            'description' => 'required|string|max:1000',
+            'description' => 'nullable|string|max:1000',
             'platforms' => 'required|array|min:1',
             'platforms.*' => 'in:youtube,instagram,tiktok',
             'publish_type' => 'required|in:now,scheduled',
@@ -241,7 +241,7 @@ class VideoController extends Controller
 
         $request->validate([
             'title' => 'required|string|max:255',
-            'description' => 'required|string|max:1000',
+            'description' => 'nullable|string|max:1000',
         ]);
 
         $video->update([

@@ -244,28 +244,29 @@ class VideoProcessingService
      */
     private function getVideoInfoFallback(string $videoPath): array
     {
-        \Log::info('Using fallback video info detection');
+        \Log::info('Using enhanced fallback video info detection');
         
         // Try to get basic file info
         $fileSize = file_exists($videoPath) ? filesize($videoPath) : 0;
         $extension = pathinfo($videoPath, PATHINFO_EXTENSION);
         
-        \Log::info('Fallback video info', [
+        \Log::info('Enhanced fallback video info', [
             'file_exists' => file_exists($videoPath),
             'file_size' => $fileSize,
             'extension' => $extension,
         ]);
         
-        // Return safe defaults for videos under 100MB (assume they're under 60 seconds)
-        $assumedDuration = 30; // Safe assumption for social media videos
+        // Estimate duration based on file size and format
+        $estimatedDuration = $this->estimateVideoDuration($fileSize, $extension);
         
-        // If file is very large, it might exceed duration limit
-        if ($fileSize > 50 * 1024 * 1024) { // 50MB+
-            $assumedDuration = 45; // Still under 60s limit but closer
-        }
+        \Log::info('Duration estimation', [
+            'file_size_mb' => round($fileSize / (1024 * 1024), 2),
+            'estimated_duration' => $estimatedDuration,
+            'estimation_method' => 'file_size_based',
+        ]);
         
         return [
-            'duration' => (float) $assumedDuration,
+            'duration' => (float) $estimatedDuration,
             'width' => 1920, // Assume HD video
             'height' => 1080,
             'has_video' => $fileSize > 0,
@@ -274,11 +275,48 @@ class VideoProcessingService
     }
 
     /**
-     * Generate thumbnail using GD library (no FFmpeg required).
+     * Estimate video duration based on file size and format.
+     */
+    private function estimateVideoDuration(int $fileSize, string $extension): int
+    {
+        // Different video formats have different compression rates
+        // These are rough estimates for typical social media videos
+        
+        $compressionRates = [
+            'mp4' => 8,    // MB per minute (good compression)
+            'mov' => 12,   // MB per minute (less compression) 
+            'avi' => 15,   // MB per minute (poor compression)
+            'wmv' => 10,   // MB per minute (moderate compression)
+            'webm' => 6,   // MB per minute (excellent compression)
+        ];
+        
+        $fileSizeMB = $fileSize / (1024 * 1024);
+        $compressionRate = $compressionRates[strtolower($extension)] ?? 10; // Default 10MB/min
+        
+        // Estimate duration in minutes, then convert to seconds
+        $estimatedMinutes = $fileSizeMB / $compressionRate;
+        $estimatedSeconds = (int) round($estimatedMinutes * 60);
+        
+        // Apply reasonable bounds for social media videos
+        $estimatedSeconds = max(5, min(55, $estimatedSeconds)); // Between 5-55 seconds
+        
+        \Log::info('Duration estimation details', [
+            'file_size_mb' => round($fileSizeMB, 2),
+            'compression_rate' => $compressionRate,
+            'estimated_minutes' => round($estimatedMinutes, 2),
+            'estimated_seconds' => $estimatedSeconds,
+            'format' => $extension,
+        ]);
+        
+        return $estimatedSeconds;
+    }
+
+    /**
+     * Generate thumbnail using enhanced method: FFmpeg frame extraction with GD fallback.
      */
     private function generateThumbnailWithGD(string $videoPath): string
     {
-        \Log::info('Generating thumbnail with GD library (no FFmpeg)', [
+        \Log::info('Generating thumbnail with enhanced method', [
             'video_path' => $videoPath,
             'file_exists' => file_exists($videoPath),
             'file_size' => file_exists($videoPath) ? filesize($videoPath) : 0,
@@ -295,74 +333,152 @@ class VideoProcessingService
         $outputFileName = \Str::uuid() . '.jpg';
         $thumbnailPath = $thumbnailsDir . '/' . $outputFileName;
 
-        // Check if GD library is available
+        // Try to extract actual video frame first
+        if ($this->tryExtractVideoFrame($videoPath, $thumbnailPath)) {
+            \Log::info('Successfully extracted real video frame');
+            return '/storage/thumbnails/' . $outputFileName;
+        }
+
+        // Fallback to enhanced GD placeholder
+        \Log::info('Using enhanced GD library placeholder fallback');
+        return $this->createEnhancedGDPlaceholder($videoPath, $thumbnailPath, $outputFileName);
+    }
+
+    /**
+     * Try to extract actual video frame using FFmpeg.
+     */
+    private function tryExtractVideoFrame(string $videoPath, string $outputPath): bool
+    {
+        try {
+            // Check if FFmpeg is available
+            $checkProcess = new \Symfony\Component\Process\Process(['which', 'ffmpeg']);
+            $checkProcess->run();
+            
+            if (!$checkProcess->isSuccessful()) {
+                \Log::info('FFmpeg not available for frame extraction');
+                return false;
+            }
+
+            \Log::info('Attempting real frame extraction with FFmpeg');
+
+            // Extract frame at 1 second (avoid black frames at the start)
+            $extractProcess = new \Symfony\Component\Process\Process([
+                'ffmpeg',
+                '-i', $videoPath,
+                '-ss', '00:00:01',           // Seek to 1 second
+                '-vframes', '1',             // Extract only 1 frame
+                '-q:v', '2',                 // High quality
+                '-vf', 'scale=320:240',      // Resize to thumbnail size
+                '-y',                        // Overwrite output files
+                $outputPath
+            ]);
+
+            $extractProcess->setTimeout(30); // 30 second timeout
+            $extractProcess->run();
+
+            if ($extractProcess->isSuccessful() && file_exists($outputPath) && filesize($outputPath) > 1000) {
+                \Log::info('Real frame extraction successful', [
+                    'output_size' => filesize($outputPath),
+                ]);
+                return true;
+            }
+
+            \Log::warning('Frame extraction failed', [
+                'exit_code' => $extractProcess->getExitCode(),
+                'error_output' => $extractProcess->getErrorOutput(),
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Frame extraction exception', ['error' => $e->getMessage()]);
+        }
+
+        return false;
+    }
+
+    /**
+     * Create enhanced GD placeholder thumbnail.
+     */
+    private function createEnhancedGDPlaceholder(string $videoPath, string $thumbnailPath, string $outputFileName): string
+    {
         if (!function_exists('imagecreate')) {
-            \Log::error('GD library not available for thumbnail generation');
+            \Log::error('GD library not available');
             return '';
         }
 
         try {
-            \Log::info('Creating placeholder thumbnail with GD');
+            \Log::info('Creating enhanced placeholder with GD');
             
-            // Create a 320x240 placeholder image
-            $image = imagecreate(320, 240);
+            // Create true color image
+            $image = imagecreatetruecolor(320, 240);
             
-            // Define colors
-            $darkBlue = imagecolorallocate($image, 30, 41, 59);    // Dark background
-            $lightGray = imagecolorallocate($image, 148, 163, 184); // Border/text
-            $white = imagecolorallocate($image, 255, 255, 255);     // Play button
-            $accent = imagecolorallocate($image, 59, 130, 246);     // Blue accent
+            // Define modern colors
+            $darkBg = imagecolorallocate($image, 17, 24, 39);       // Dark background
+            $borderColor = imagecolorallocate($image, 75, 85, 99);  // Gray border
+            $accentColor = imagecolorallocate($image, 59, 130, 246); // Blue accent
+            $white = imagecolorallocate($image, 255, 255, 255);     // White text
+            $lightGray = imagecolorallocate($image, 156, 163, 175); // Light gray
             
             // Fill background
-            imagefill($image, 0, 0, $darkBlue);
+            imagefill($image, 0, 0, $darkBg);
             
             // Draw border
-            imagerectangle($image, 0, 0, 319, 239, $lightGray);
-            imagerectangle($image, 1, 1, 318, 238, $lightGray);
+            imagerectangle($image, 0, 0, 319, 239, $borderColor);
             
-            // Draw play button (centered triangle)
+            // Draw play button background circle
             $centerX = 160;
             $centerY = 120;
+            imagefilledellipse($image, $centerX, $centerY, 70, 70, $accentColor);
+            
+            // Draw play button triangle
             $playButton = [
-                $centerX - 20, $centerY - 15,  // Top left
-                $centerX - 20, $centerY + 15,  // Bottom left
-                $centerX + 15, $centerY        // Right point
+                $centerX - 12, $centerY - 18,
+                $centerX - 12, $centerY + 18,
+                $centerX + 18, $centerY
             ];
             imagefilledpolygon($image, $playButton, 3, $white);
             
-            // Add circular background for play button
-            imagefilledellipse($image, $centerX, $centerY, 60, 60, $accent);
-            imagefilledpolygon($image, $playButton, 3, $white);
-            
-            // Add text
-            imagestring($image, 4, 135, 160, 'VIDEO', $white);
-            imagestring($image, 2, 115, 180, 'Thumbnail not available', $lightGray);
-            
-            // Get video filename for display
+            // Add video info
             $filename = pathinfo($videoPath, PATHINFO_FILENAME);
-            $displayName = strlen($filename) > 25 ? substr($filename, 0, 25) . '...' : $filename;
-            imagestring($image, 2, 10, 10, $displayName, $lightGray);
+            $fileSize = file_exists($videoPath) ? filesize($videoPath) : 0;
+            $displayName = strlen($filename) > 30 ? substr($filename, 0, 27) . '...' : $filename;
             
-            // Save image
-            if (imagejpeg($image, $thumbnailPath, 85)) {
+            // Add text elements
+            imagestring($image, 3, 10, 10, $displayName, $lightGray);
+            imagestring($image, 4, 135, 170, 'VIDEO', $white);
+            imagestring($image, 2, 120, 190, $this->formatBytes($fileSize), $lightGray);
+            imagestring($image, 2, 105, 210, 'Preview not available', $lightGray);
+            
+            // Save with high quality
+            if (imagejpeg($image, $thumbnailPath, 90)) {
                 imagedestroy($image);
-                \Log::info('GD thumbnail created successfully', [
-                    'path' => $thumbnailPath,
+                \Log::info('Enhanced placeholder created', [
                     'size' => filesize($thumbnailPath),
                 ]);
                 return '/storage/thumbnails/' . $outputFileName;
             }
             
             imagedestroy($image);
-            \Log::error('Failed to save GD thumbnail');
             return '';
             
         } catch (\Exception $e) {
-            \Log::error('GD thumbnail generation failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            \Log::error('Enhanced placeholder creation failed', ['error' => $e->getMessage()]);
             return '';
+        }
+    }
+
+    /**
+     * Format bytes into human readable format.
+     */
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes >= 1073741824) {
+            return number_format($bytes / 1073741824, 2) . ' GB';
+        } elseif ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 2) . ' MB';
+        } elseif ($bytes >= 1024) {
+            return number_format($bytes / 1024, 2) . ' KB';
+        } else {
+            return $bytes . ' B';
         }
     }
 } 

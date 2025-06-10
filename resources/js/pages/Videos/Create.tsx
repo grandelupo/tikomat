@@ -42,6 +42,7 @@ export default function CreateVideo({
     const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(defaultPlatforms);
     const [publishType, setPublishType] = useState<'now' | 'scheduled'>('now');
     const [isDragOver, setIsDragOver] = useState(false);
+    const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -88,6 +89,16 @@ export default function CreateVideo({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Clear previous client errors
+        setClientErrors({});
+        
+        // Run client-side validation
+        if (!validateForm()) {
+            return; // Stop submission if validation fails
+        }
+        
+        // If validation passes, submit the form
         post(`/channels/${channel.slug}/videos`);
     };
 
@@ -136,6 +147,55 @@ export default function CreateVideo({
         }
         
         return null;
+    };
+
+    const validateForm = (): boolean => {
+        const newErrors: Record<string, string> = {};
+        
+        // Validate title
+        if (!data.title.trim()) {
+            newErrors.title = 'Title is required';
+        } else if (data.title.length > 255) {
+            newErrors.title = 'Title must be less than 255 characters';
+        }
+
+        // Description is optional now
+        if (data.description && data.description.length > 1000) {
+            newErrors.description = 'Description must be less than 1000 characters';
+        }
+
+        // Validate platforms
+        if (selectedPlatforms.length === 0) {
+            newErrors.platforms = 'Please select at least one platform';
+        }
+
+        // Validate scheduled date
+        if (publishType === 'scheduled') {
+            if (!data.publish_at) {
+                newErrors.publish_at = 'Please select a publish date and time';
+            } else {
+                const publishDate = new Date(data.publish_at);
+                const now = new Date();
+                const minTime = new Date(now.getTime() + 5 * 60000); // 5 minutes from now
+                
+                if (publishDate <= minTime) {
+                    newErrors.publish_at = 'Publish date must be at least 5 minutes from now';
+                }
+            }
+        }
+
+        // Validate video file
+        if (!data.video) {
+            newErrors.video = 'Please select a video file';
+        } else {
+            const fileError = validateFile(data.video);
+            if (fileError) {
+                newErrors.video = fileError;
+            }
+        }
+
+        setClientErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     return (
@@ -195,20 +255,20 @@ export default function CreateVideo({
                                 <div 
                                     className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                                         isDragOver 
-                                            ? 'border-blue-400 bg-blue-50' 
-                                            : 'border-gray-300 hover:border-gray-400'
+                                            ? 'border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20' 
+                                            : 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'
                                     }`}
                                     onDrop={handleFileDrop}
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
                                 >
-                                    <Upload className={`mx-auto h-12 w-12 ${isDragOver ? 'text-blue-500' : 'text-gray-400'}`} />
+                                    <Upload className={`mx-auto h-12 w-12 ${isDragOver ? 'text-blue-500' : 'text-gray-400 dark:text-gray-500'}`} />
                                     <div className="mt-4">
                                         <Label htmlFor="video" className="cursor-pointer">
-                                            <span className="mt-2 block text-sm font-medium text-gray-900">
+                                            <span className="mt-2 block text-sm font-medium text-gray-900 dark:text-gray-100">
                                                 {isDragOver ? 'Drop your video here' : 'Click to upload or drag and drop'}
                                             </span>
-                                            <span className="mt-1 block text-xs text-gray-500">
+                                            <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
                                                 MP4, MOV, AVI, WMV, WebM up to 100MB (max 60 seconds)
                                             </span>
                                         </Label>
@@ -222,20 +282,20 @@ export default function CreateVideo({
                                     </div>
                                 </div>
                                 {data.video && (
-                                    <div className="text-sm text-green-600 bg-green-50 p-2 rounded border border-green-200">
+                                    <div className="text-sm text-green-600 bg-green-50 p-2 rounded border border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800">
                                         <strong>Selected:</strong> {data.video.name} ({(data.video.size / (1024 * 1024)).toFixed(2)} MB)
                                     </div>
                                 )}
-                                {errors.video && (
-                                    <p className="text-sm text-red-600">{errors.video}</p>
+                                {(errors.video || clientErrors.video) && (
+                                    <p className="text-sm text-red-600 dark:text-red-400">{errors.video || clientErrors.video}</p>
                                 )}
                                 {progress && (
                                     <div className="space-y-2">
-                                        <div className="flex justify-between text-sm">
+                                        <div className="flex justify-between text-sm dark:text-gray-300">
                                             <span>Uploading...</span>
                                             <span>{progress.percentage}%</span>
                                         </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                                             <div 
                                                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                                                 style={{ width: `${progress.percentage}%` }}
@@ -254,14 +314,14 @@ export default function CreateVideo({
                                     onChange={(e) => setData('title', e.target.value)}
                                     placeholder="Enter video title"
                                 />
-                                {errors.title && (
-                                    <p className="text-sm text-red-600">{errors.title}</p>
+                                {(errors.title || clientErrors.title) && (
+                                    <p className="text-sm text-red-600">{errors.title || clientErrors.title}</p>
                                 )}
                             </div>
 
                             {/* Description */}
                             <div className="space-y-2">
-                                <Label htmlFor="description">Description</Label>
+                                <Label htmlFor="description">Description (Optional)</Label>
                                 <Textarea
                                     id="description"
                                     value={data.description}
@@ -269,8 +329,8 @@ export default function CreateVideo({
                                     placeholder="Enter video description"
                                     rows={4}
                                 />
-                                {errors.description && (
-                                    <p className="text-sm text-red-600">{errors.description}</p>
+                                {(errors.description || clientErrors.description) && (
+                                    <p className="text-sm text-red-600">{errors.description || clientErrors.description}</p>
                                 )}
                             </div>
 
@@ -292,7 +352,9 @@ export default function CreateVideo({
                                             <div 
                                                 key={platformKey} 
                                                 className={`flex items-center space-x-3 p-3 border rounded-lg ${
-                                                    !isAvailable ? 'bg-gray-50 border-gray-200' : 'border-gray-300'
+                                                    !isAvailable 
+                                                        ? 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700' 
+                                                        : 'border-gray-300 dark:border-gray-600'
                                                 }`}
                                             >
                                                 <Checkbox
@@ -309,23 +371,27 @@ export default function CreateVideo({
                                                         <div className="flex items-center space-x-2">
                                                             <Label 
                                                                 htmlFor={platformKey}
-                                                                className={`font-medium cursor-pointer ${!isAvailable ? 'text-gray-400' : ''}`}
+                                                                className={`font-medium cursor-pointer ${
+                                                                    !isAvailable 
+                                                                        ? 'text-gray-400 dark:text-gray-500' 
+                                                                        : ''
+                                                                }`}
                                                             >
                                                                 {platform.name}
                                                             </Label>
                                                             {!isAllowed && (
-                                                                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                                                                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded dark:bg-blue-900/30 dark:text-blue-300">
                                                                     Pro Only
                                                                 </span>
                                                             )}
                                                             {isAllowed && !isConnected && (
-                                                                <span className="text-xs bg-yellow-100 text-yellow-600 px-2 py-1 rounded">
+                                                                <span className="text-xs bg-yellow-100 text-yellow-600 px-2 py-1 rounded dark:bg-yellow-900/30 dark:text-yellow-300">
                                                                     Not Connected
                                                                 </span>
                                                             )}
                                                         </div>
                                                         {!isAvailable && (
-                                                            <p className="text-xs text-gray-400">
+                                                            <p className="text-xs text-gray-400 dark:text-gray-500">
                                                                 {!isAllowed ? 'Upgrade to access this platform' : 'Connect this platform to your channel'}
                                                             </p>
                                                         )}
@@ -335,13 +401,13 @@ export default function CreateVideo({
                                         );
                                     })}
                                 </div>
-                                {errors.platforms && (
-                                    <p className="text-sm text-red-600">{errors.platforms}</p>
+                                {(errors.platforms || clientErrors.platforms) && (
+                                    <p className="text-sm text-red-600">{errors.platforms || clientErrors.platforms}</p>
                                 )}
                                 
                                 {availablePlatforms.length === 0 && (
-                                    <Alert className="bg-yellow-50 border-yellow-200">
-                                        <AlertDescription className="text-yellow-800">
+                                    <Alert className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
+                                        <AlertDescription className="text-yellow-800 dark:text-yellow-200">
                                             No platforms available for upload. Please connect at least one platform to this channel.
                                         </AlertDescription>
                                     </Alert>
@@ -373,16 +439,24 @@ export default function CreateVideo({
 
                                 {publishType === 'scheduled' && (
                                     <div className="space-y-2">
-                                        <Label htmlFor="publish_at">Publish Date & Time</Label>
+                                        <Label htmlFor="publish_at">Publish Date & Time (Your Local Time)</Label>
                                         <Input
                                             id="publish_at"
                                             type="datetime-local"
                                             value={data.publish_at}
                                             onChange={(e) => setData('publish_at', e.target.value)}
-                                            min={new Date().toISOString().slice(0, 16)}
+                                            min={(() => {
+                                                const now = new Date();
+                                                // Add 5 minutes to current time as minimum
+                                                now.setMinutes(now.getMinutes() + 5);
+                                                return now.toISOString().slice(0, 16);
+                                            })()}
                                         />
-                                        {errors.publish_at && (
-                                            <p className="text-sm text-red-600">{errors.publish_at}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Time will be converted to your local timezone. Minimum: 5 minutes from now.
+                                        </p>
+                                        {(errors.publish_at || clientErrors.publish_at) && (
+                                            <p className="text-sm text-red-600 dark:text-red-400">{errors.publish_at || clientErrors.publish_at}</p>
                                         )}
                                     </div>
                                 )}
