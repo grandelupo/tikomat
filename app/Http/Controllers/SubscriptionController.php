@@ -55,7 +55,7 @@ class SubscriptionController extends Controller
     /**
      * Create a subscription checkout session.
      */
-    public function checkout(Request $request): RedirectResponse
+    public function checkout(Request $request)
     {
         $user = $request->user();
         
@@ -65,22 +65,56 @@ class SubscriptionController extends Controller
                 ->with('info', 'You already have an active subscription.');
         }
 
+        $stripePrice = env('STRIPE_PRICE_PRO_MONTHLY');
+        if (!$stripePrice) {
+            \Log::error('STRIPE_PRICE_PRO_MONTHLY environment variable not set');
+            return back()->with('error', 'Subscription pricing not configured. Please contact support.');
+        }
+
         try {
+            \Log::info('Creating Stripe checkout session', [
+                'user_id' => $user->id,
+                'stripe_price' => $stripePrice,
+                'success_url' => route('subscription.success'),
+                'cancel_url' => route('subscription.plans'),
+            ]);
+
             // Create Stripe checkout session
-            $checkout = $user->newSubscription('default', env('STRIPE_PRICE_PRO_MONTHLY'))
+            $checkout = $user->newSubscription('default', $stripePrice)
                 ->checkout([
                     'success_url' => route('subscription.success'),
                     'cancel_url' => route('subscription.plans'),
                     'metadata' => [
                         'user_id' => $user->id,
                     ],
+                    // Add additional options for better reliability
+                    'payment_method_types' => ['card'],
+                    'allow_promotion_codes' => true,
+                    // Mode already set by newSubscription method
                 ]);
+
+            \Log::info('Stripe checkout session created successfully', [
+                'session_id' => $checkout->id,
+                'checkout_url' => $checkout->url,
+            ]);
+
+            // Return JSON response for Inertia.js to handle
+            if ($request->wantsJson() || $request->header('X-Inertia')) {
+                return response()->json([
+                    'checkout_url' => $checkout->url
+                ]);
+            }
+                
             return redirect($checkout->url);
         } catch (\Exception $e) {
-            \Log::error('Stripe checkout failed: ' . $e->getMessage());
+            \Log::error('Stripe checkout failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'stripe_price' => $stripePrice,
+            ]);
             
-            return redirect()->route('subscription.plans')
-                ->with('error', 'Unable to create checkout session. Please try again.');
+            return back()->with('error', 'Unable to create checkout session: ' . $e->getMessage());
         }
     }
 
@@ -202,5 +236,48 @@ class SubscriptionController extends Controller
         }
     }
 
+    /**
+     * Simulate subscription for development (when Stripe is not configured).
+     */
+    public function simulateSubscription(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        
+        // Only allow in development environment
+        if (!app()->environment('local')) {
+            return redirect()->route('subscription.plans')
+                ->with('error', 'This feature is only available in development mode.');
+        }
 
+        // If user already has a subscription, redirect to billing
+        if ($user->hasActiveSubscription()) {
+            return redirect()->route('subscription.billing')
+                ->with('info', 'You already have an active subscription.');
+        }
+
+        try {
+            // Create a fake subscription for testing
+            $user->subscriptions()->create([
+                'name' => 'default',
+                'stripe_id' => 'sub_fake_' . uniqid(),
+                'stripe_status' => 'active',
+                'stripe_price' => 'price_fake_pro_monthly',
+                'quantity' => 1,
+                'trial_ends_at' => null,
+                'ends_at' => null,
+            ]);
+
+            \Log::info('Simulated subscription created for development', [
+                'user_id' => $user->id,
+            ]);
+
+            return redirect()->route('subscription.success')
+                ->with('success', 'Subscription activated successfully! (Development Mode)');
+        } catch (\Exception $e) {
+            \Log::error('Failed to simulate subscription: ' . $e->getMessage());
+            
+            return redirect()->route('subscription.plans')
+                ->with('error', 'Unable to simulate subscription: ' . $e->getMessage());
+        }
+    }
 } 

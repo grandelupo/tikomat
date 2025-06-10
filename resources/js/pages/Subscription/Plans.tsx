@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check, Crown, Zap, Youtube, Instagram, Video as VideoIcon } from 'lucide-react';
+import axios from 'axios';
 
 interface User {
     current_plan: string;
@@ -40,8 +41,32 @@ export default function SubscriptionPlans({ user, plans }: Props) {
         },
     ];
 
-    const handleUpgrade = () => {
-        router.post('/subscription/checkout');
+    const handleUpgrade = async () => {
+        try {
+            const response = await axios.post('/subscription/checkout', {}, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                }
+            });
+            
+            if (response.data.checkout_url) {
+                window.location.href = response.data.checkout_url;
+            }
+        } catch (error: any) {
+            console.error('Checkout failed:', error);
+            // You could show an error message here
+            if (error.response?.data?.message) {
+                alert('Checkout failed: ' + error.response.data.message);
+            } else {
+                alert('Checkout failed. Please try again.');
+            }
+        }
+    };
+
+    const handleSimulateSubscription = () => {
+        router.post('/subscription/simulate');
     };
 
     const handleManageBilling = () => {
@@ -204,13 +229,24 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                                         Current Plan
                                     </Button>
                                 ) : (
-                                    <Button 
-                                        className="w-full bg-purple-600 hover:bg-purple-700"
-                                        onClick={handleUpgrade}
-                                    >
-                                        <Zap className="w-4 h-4 mr-2" />
-                                        Upgrade to Pro
-                                    </Button>
+                                    <div className="space-y-2">
+                                        <Button 
+                                            className="w-full bg-purple-600 hover:bg-purple-700"
+                                            onClick={handleUpgrade}
+                                        >
+                                            <Zap className="w-4 h-4 mr-2" />
+                                            Upgrade to Pro
+                                        </Button>
+                                        {import.meta.env.DEV && (
+                                            <Button 
+                                                variant="outline"
+                                                className="w-full text-xs"
+                                                onClick={handleSimulateSubscription}
+                                            >
+                                                Simulate Pro (Dev Only)
+                                            </Button>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </CardContent>

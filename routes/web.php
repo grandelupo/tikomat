@@ -56,6 +56,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('cancel', [SubscriptionController::class, 'cancel'])->name('cancel');
         Route::post('resume', [SubscriptionController::class, 'resume'])->name('resume');
         Route::post('add-channel', [SubscriptionController::class, 'addChannel'])->name('add-channel');
+        
+        // Development: Simulate subscription
+        Route::post('simulate', [SubscriptionController::class, 'simulateSubscription'])->name('simulate');
     });
 });
 
