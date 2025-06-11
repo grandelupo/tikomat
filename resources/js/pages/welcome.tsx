@@ -146,7 +146,7 @@ export default function Welcome() {
                                 Start Free Trial
                                 <ArrowRight className="ml-2 w-5 h-5" />
                             </Button>
-                        </Link>
+                            </Link>
                         <Button size="lg" variant="outline" className="text-lg px-8 py-3">
                             <Play className="mr-2 w-5 h-5" />
                             Watch Demo
@@ -411,4 +411,4 @@ export default function Welcome() {
             </footer>
         </>
     );
-} 
+}

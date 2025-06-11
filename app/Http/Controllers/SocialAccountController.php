@@ -151,19 +151,22 @@ class SocialAccountController extends Controller
             $socialUser = Socialite::driver($driver)->user();
 
             // Store or update social account
-            SocialAccount::updateOrCreate(
-                [
-                    'user_id' => Auth::id(),
-                    'channel_id' => $channel->id,
-                    'platform' => $platform,
-                ],
-                [
-                    'access_token' => $socialUser->token,
-                    'refresh_token' => $socialUser->refreshToken,
-                    'token_expires_at' => $socialUser->expiresIn ? 
-                        now()->addSeconds($socialUser->expiresIn) : null,
-                ]
-            );
+            // First, delete any existing social account for this user+platform combination
+            // to avoid conflicts with the old unique constraint
+            SocialAccount::where('user_id', Auth::id())
+                ->where('platform', $platform)
+                ->delete();
+            
+            // Now create the new social account
+            $socialAccount = SocialAccount::create([
+                'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
+                'platform' => $platform,
+                'access_token' => $socialUser->token,
+                'refresh_token' => $socialUser->refreshToken,
+                'token_expires_at' => $socialUser->expiresIn ? 
+                    now()->addSeconds($socialUser->expiresIn) : null,
+            ]);
 
             \Log::info('OAuth connection successful for channel: ' . $channel->slug . ', platform: ' . $platform);
 
@@ -230,18 +233,21 @@ class SocialAccountController extends Controller
         }
 
         // Create a fake social account for testing
-        SocialAccount::updateOrCreate(
-            [
-                'user_id' => Auth::id(),
-                'channel_id' => $channel->id,
-                'platform' => $platform,
-            ],
-            [
-                'access_token' => 'fake_token_for_development',
-                'refresh_token' => 'fake_refresh_token',
-                'token_expires_at' => now()->addDays(30),
-            ]
-        );
+        // First, delete any existing social account for this user+platform combination
+        // to avoid conflicts with the old unique constraint
+        SocialAccount::where('user_id', Auth::id())
+            ->where('platform', $platform)
+            ->delete();
+        
+        // Now create the new social account
+        SocialAccount::create([
+            'user_id' => Auth::id(),
+            'channel_id' => $channel->id,
+            'platform' => $platform,
+            'access_token' => 'fake_token_for_development',
+            'refresh_token' => 'fake_refresh_token',
+            'token_expires_at' => now()->addDays(30),
+        ]);
 
         return redirect()->route('channels.show', $channel->slug)
             ->with('success', ucfirst($platform) . ' account connected successfully! (Development Mode)');
@@ -359,19 +365,22 @@ class SocialAccountController extends Controller
             }
 
             // Store or update social account
-            $socialAccount = SocialAccount::updateOrCreate(
-                [
-                    'user_id' => Auth::id(),
-                    'channel_id' => $channel->id,
-                    'platform' => $platform,
-                ],
-                [
-                    'access_token' => $socialUser->token,
-                    'refresh_token' => $socialUser->refreshToken,
-                    'token_expires_at' => $socialUser->expiresIn ? 
-                        now()->addSeconds($socialUser->expiresIn) : null,
-                ]
-            );
+            // First, delete any existing social account for this user+platform combination
+            // to avoid conflicts with the old unique constraint
+            SocialAccount::where('user_id', Auth::id())
+                ->where('platform', $platform)
+                ->delete();
+            
+            // Now create the new social account
+            $socialAccount = SocialAccount::create([
+                'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
+                'platform' => $platform,
+                'access_token' => $socialUser->token,
+                'refresh_token' => $socialUser->refreshToken,
+                'token_expires_at' => $socialUser->expiresIn ? 
+                    now()->addSeconds($socialUser->expiresIn) : null,
+            ]);
 
             \Log::info('Social account created/updated successfully', [
                 'account_id' => $socialAccount->id,
