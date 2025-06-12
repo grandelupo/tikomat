@@ -166,7 +166,7 @@ class DashboardController extends Controller
         $allowedPlatforms = $user->getAllowedPlatforms();
         $connectedPlatforms = $socialAccounts->pluck('platform')->toArray();
         
-        $availablePlatforms = collect(['youtube', 'instagram', 'tiktok'])
+        $availablePlatforms = collect(['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])
             ->map(function ($platform) use ($allowedPlatforms, $connectedPlatforms) {
                 return [
                     'name' => $platform,

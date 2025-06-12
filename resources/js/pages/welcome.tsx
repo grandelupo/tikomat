@@ -15,7 +15,11 @@ import {
     Shield,
     ArrowRight,
     Star,
-    Play
+    Play,
+    Facebook,
+    Twitter,
+    Camera,
+    Palette
 } from 'lucide-react';
 
 export default function Welcome() {
@@ -70,6 +74,30 @@ export default function Welcome() {
             icon: VideoIcon,
             description: "Publish your videos to TikTok for maximum reach",
             color: "text-black"
+        },
+        {
+            name: "Facebook",
+            icon: Facebook,
+            description: "Share videos on your Facebook pages and profiles",
+            color: "text-blue-600"
+        },
+        {
+            name: "Twitter",
+            icon: Twitter,
+            description: "Post video content to engage your Twitter audience",
+            color: "text-blue-400"
+        },
+        {
+            name: "Snapchat",
+            icon: Camera,
+            description: "Create engaging video content for Snapchat",
+            color: "text-yellow-500"
+        },
+        {
+            name: "Pinterest",
+            icon: Palette,
+            description: "Pin video content to reach Pinterest users",
+            color: "text-red-500"
         }
     ];
 

@@ -5,6 +5,10 @@ namespace App\Services;
 use App\Jobs\UploadVideoToYoutube;
 use App\Jobs\UploadVideoToTiktok;
 use App\Jobs\UploadVideoToInstagram;
+use App\Jobs\UploadVideoToFacebook;
+use App\Jobs\UploadVideoToSnapchat;
+use App\Jobs\UploadVideoToPinterest;
+use App\Jobs\UploadVideoToTwitter;
 use App\Models\VideoTarget;
 use Illuminate\Support\Facades\Log;
 
@@ -52,6 +56,26 @@ class VideoUploadService
                 case 'tiktok':
                     Log::info('Dispatching TikTok upload job for target: ' . $target->id);
                     UploadVideoToTiktok::dispatch($target);
+                    break;
+
+                case 'facebook':
+                    Log::info('Dispatching Facebook upload job for target: ' . $target->id);
+                    UploadVideoToFacebook::dispatch($target);
+                    break;
+
+                case 'snapchat':
+                    Log::info('Dispatching Snapchat upload job for target: ' . $target->id);
+                    UploadVideoToSnapchat::dispatch($target);
+                    break;
+
+                case 'pinterest':
+                    Log::info('Dispatching Pinterest upload job for target: ' . $target->id);
+                    UploadVideoToPinterest::dispatch($target);
+                    break;
+
+                case 'twitter':
+                    Log::info('Dispatching Twitter upload job for target: ' . $target->id);
+                    UploadVideoToTwitter::dispatch($target);
                     break;
 
                 default:

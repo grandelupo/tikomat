@@ -94,7 +94,7 @@ class User extends Authenticatable
     {
         // Free users only get YouTube, paid users get all platforms
         if ($this->hasActiveSubscription()) {
-            return ['youtube', 'instagram', 'tiktok'];
+            return ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'];
         }
         
         return ['youtube'];

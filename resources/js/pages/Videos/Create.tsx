@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm, Link } from '@inertiajs/react';
-import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info } from 'lucide-react';
+import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info, Facebook, Twitter, Camera, Palette } from 'lucide-react';
 
 interface Channel {
     id: number;
@@ -30,6 +30,10 @@ const platformData = {
     youtube: { name: 'YouTube', icon: Youtube, color: 'text-red-600' },
     instagram: { name: 'Instagram', icon: Instagram, color: 'text-pink-600' },
     tiktok: { name: 'TikTok', icon: VideoIcon, color: 'text-black' },
+    facebook: { name: 'Facebook', icon: Facebook, color: 'text-blue-600' },
+    snapchat: { name: 'Snapchat', icon: Camera, color: 'text-yellow-500' },
+    pinterest: { name: 'Pinterest', icon: Palette, color: 'text-red-500' },
+    twitter: { name: 'Twitter', icon: Twitter, color: 'text-blue-400' },
 };
 
 export default function CreateVideo({ 

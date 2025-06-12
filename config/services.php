@@ -59,4 +59,28 @@ return [
         'redirect' => rtrim(env('APP_URL'), '/') . '/auth/tiktok/callback',
     ],
 
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/facebook/callback',
+    ],
+
+    'snapchat' => [
+        'client_id' => env('SNAPCHAT_CLIENT_ID'),
+        'client_secret' => env('SNAPCHAT_CLIENT_SECRET'),
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/snapchat/callback',
+    ],
+
+    'pinterest' => [
+        'client_id' => env('PINTEREST_CLIENT_ID'),
+        'client_secret' => env('PINTEREST_CLIENT_SECRET'),
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/pinterest/callback',
+    ],
+
+    'twitter' => [
+        'client_id' => env('TWITTER_CLIENT_ID'),
+        'client_secret' => env('TWITTER_CLIENT_SECRET'),
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/twitter/callback',
+    ],
+
 ];

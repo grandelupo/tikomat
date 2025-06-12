@@ -21,7 +21,7 @@ class SocialAccountController extends Controller
             abort(403);
         }
 
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
+        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
             return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
         }
@@ -109,6 +109,59 @@ class SocialAccountController extends Controller
                         'prompt' => 'select_account consent' // Force account selection
                     ])
                     ->redirect();
+            } elseif ($platform === 'facebook') {
+                // Facebook requires pages and video publishing permissions
+                return Socialite::driver($driver)
+                    ->scopes([
+                        'pages_manage_posts',
+                        'pages_read_engagement',
+                        'pages_show_list',
+                        'publish_video'
+                    ])
+                    ->with([
+                        'state' => $state,
+                        'prompt' => 'select_account consent'
+                    ])
+                    ->redirect();
+            } elseif ($platform === 'snapchat') {
+                // Snapchat requires creative and media permissions
+                return Socialite::driver($driver)
+                    ->scopes([
+                        'snapchat-marketing-api',
+                        'snapchat-profile-api'
+                    ])
+                    ->with([
+                        'state' => $state,
+                        'prompt' => 'select_account consent'
+                    ])
+                    ->redirect();
+            } elseif ($platform === 'pinterest') {
+                // Pinterest requires board and pin creation permissions
+                return Socialite::driver($driver)
+                    ->scopes([
+                        'boards:read',
+                        'boards:write',
+                        'pins:read',
+                        'pins:write'
+                    ])
+                    ->with([
+                        'state' => $state,
+                        'prompt' => 'select_account consent'
+                    ])
+                    ->redirect();
+            } elseif ($platform === 'twitter') {
+                // Twitter requires tweet and media permissions
+                return Socialite::driver($driver)
+                    ->scopes([
+                        'tweet.read',
+                        'tweet.write',
+                        'users.read'
+                    ])
+                    ->with([
+                        'state' => $state,
+                        'prompt' => 'select_account consent'
+                    ])
+                    ->redirect();
             }
 
             // Fallback for any other cases
@@ -137,7 +190,7 @@ class SocialAccountController extends Controller
             abort(403);
         }
 
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
+        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
             return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
         }
@@ -191,7 +244,7 @@ class SocialAccountController extends Controller
             abort(403);
         }
 
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
+        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
             return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
         }
@@ -215,7 +268,7 @@ class SocialAccountController extends Controller
             abort(403);
         }
 
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
+        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
             return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
         }
@@ -275,6 +328,10 @@ class SocialAccountController extends Controller
             'youtube' => 'google',
             'instagram' => 'instagram',
             'tiktok' => 'tiktok',
+            'facebook' => 'facebook',
+            'snapchat' => 'snapchat',
+            'pinterest' => 'pinterest',
+            'twitter' => 'twitter',
             default => throw new \InvalidArgumentException('Unsupported platform: ' . $platform),
         };
     }
@@ -284,7 +341,7 @@ class SocialAccountController extends Controller
      */
     public function generalCallback(string $platform, Request $request): RedirectResponse
     {
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok'])) {
+        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
             return redirect()->route('dashboard')
                 ->with('error', 'Invalid platform selected.');
         }

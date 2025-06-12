@@ -15,7 +15,11 @@ import {
     AlertCircle,
     XCircle,
     Crown,
-    Zap
+    Zap,
+    Facebook,
+    Camera,
+    Palette,
+    Twitter
 } from 'lucide-react';
 import React from 'react';
 
@@ -74,6 +78,10 @@ const platformIcons = {
     youtube: Youtube,
     instagram: Instagram,
     tiktok: VideoIcon,
+    facebook: Facebook,
+    snapchat: Camera,
+    pinterest: Palette,
+    twitter: Twitter,
 };
 
 const statusColors = {

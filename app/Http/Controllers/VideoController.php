@@ -84,7 +84,7 @@ class VideoController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'platforms' => 'required|array|min:1',
-            'platforms.*' => 'in:youtube,instagram,tiktok',
+            'platforms.*' => 'in:youtube,instagram,tiktok,facebook,snapchat,pinterest,twitter',
             'publish_type' => 'required|in:now,scheduled',
             'publish_at' => 'required_if:publish_type,scheduled|nullable|date|after:now',
         ]);
