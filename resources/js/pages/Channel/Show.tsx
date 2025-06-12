@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
     Plus, 
     Youtube, 
@@ -176,97 +177,18 @@ export default function ChannelShow({
                     </div>
                 </div>
 
-                {/* Platform Connections */}
-                <div>
-                    <h3 className="text-lg font-semibold mb-4">Platform Connections</h3>
-                    <div className="grid gap-4 md:grid-cols-3">
-                        {availablePlatforms.map((platform) => {
-                            const IconComponent = platformIcons[platform.name as keyof typeof platformIcons];
-                            const isConnected = platform.connected;
-                            const isComingSoon = platform.coming_soon;
-                            
-                            return (
-                                <Card key={platform.name}>
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">
-                                            {platform.label}
-                                        </CardTitle>
-                                        <IconComponent className="h-4 w-4 text-muted-foreground" />
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="flex items-center justify-between mb-3">
-                                            {isComingSoon ? (
-                                                <Badge variant="secondary" className="bg-gray-100 text-gray-600">
-                                                    Coming Soon
-                                                </Badge>
-                                            ) : (
-                                                <Badge 
-                                                    variant={isConnected ? "default" : "secondary"}
-                                                    className={isConnected ? "bg-green-100 text-green-800" : ""}
-                                                >
-                                                    {isConnected ? 'Connected' : 'Not Connected'}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <div className="flex flex-col gap-2">
-                                            {isComingSoon ? (
-                                                <div className="text-xs text-gray-500 text-center py-2">
-                                                    <Zap className="w-4 h-4 mx-auto mb-1" />
-                                                    Upgrade to Pro to unlock {platform.label}
-                                                </div>
-                                            ) : isConnected ? (
-                                                <>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm"
-                                                        onClick={() => handleDisconnectPlatform(platform.name)}
-                                                        className="w-full"
-                                                    >
-                                                        Disconnect
-                                                    </Button>
-                                                    {platform.name === 'youtube' && (
-                                                        <Button 
-                                                            variant="outline" 
-                                                            size="sm"
-                                                            onClick={() => handleForceReconnectPlatform(platform.name)}
-                                                            className="w-full text-xs"
-                                                        >
-                                                            🔄 Force Reconnect
-                                                        </Button>
-                                                    )}
-                                                </>
-                                            ) : (
-                                                <Button 
-                                                    size="sm"
-                                                    onClick={() => handleConnectPlatform(platform.name)}
-                                                    className="w-full"
-                                                >
-                                                    Connect {platform.label}
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
-                    </div>
-                </div>
+                {/* Tabs */}
+                <Tabs defaultValue="videos" className="w-full">
+                    <TabsList>
+                        <TabsTrigger value="videos">Videos</TabsTrigger>
+                        <TabsTrigger value="platforms">Platform Connections</TabsTrigger>
+                    </TabsList>
 
-                {/* Recent Videos */}
-                <div>
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-semibold">Recent Videos</h3>
-                        <Link href={`/channels/${channel.slug}/videos/create`}>
-                            <Button size="sm">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Upload Video
-                            </Button>
-                        </Link>
-                    </div>
-
-                    {videos.data.length > 0 ? (
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <TabsContent value="videos">
+                        {/* Recent Videos */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Recent Videos</h3>
+                            <div className="grid gap-4">
                                 {videos.data.map((video) => (
                                     <Card key={video.id}>
                                         <CardHeader>
@@ -339,32 +261,75 @@ export default function ChannelShow({
                                     </Card>
                                 ))}
                             </div>
-
-                            {/* Pagination */}
-                            {videos.links && (
-                                <div className="flex justify-center">
-                                    {/* Add pagination component here if needed */}
-                                </div>
-                            )}
                         </div>
-                    ) : (
-                        <Card>
-                            <CardContent className="text-center py-12">
-                                <VideoIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-gray-900 mb-2">No videos yet</h3>
-                                <p className="text-gray-600 mb-4">
-                                    Upload your first video to this channel to get started.
-                                </p>
-                                <Link href={`/channels/${channel.slug}/videos/create`}>
-                                    <Button>
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Upload Your First Video
-                                    </Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
+                    </TabsContent>
+
+                    <TabsContent value="platforms">
+                        {/* Platform Connections */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Platform Connections</h3>
+                            <div className="grid gap-4 md:grid-cols-3">
+                                {availablePlatforms.map((platform) => {
+                                    const IconComponent = platformIcons[platform.name as keyof typeof platformIcons];
+                                    const isConnected = platform.connected;
+                                    
+                                    return (
+                                        <Card key={platform.name}>
+                                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                                <CardTitle className="text-sm font-medium">
+                                                    {platform.label}
+                                                </CardTitle>
+                                                <IconComponent className="h-4 w-4 text-muted-foreground" />
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <Badge 
+                                                        variant={isConnected ? "default" : "secondary"}
+                                                        className={isConnected ? "bg-green-100 text-green-800" : ""}
+                                                    >
+                                                        {isConnected ? 'Connected' : 'Not Connected'}
+                                                    </Badge>
+                                                </div>
+                                                <div className="flex flex-col gap-2">
+                                                    {isConnected ? (
+                                                        <>
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm"
+                                                                onClick={() => handleDisconnectPlatform(platform.name)}
+                                                                className="w-full"
+                                                            >
+                                                                Disconnect
+                                                            </Button>
+                                                            {platform.name === 'youtube' && (
+                                                                <Button 
+                                                                    variant="outline" 
+                                                                    size="sm"
+                                                                    onClick={() => handleForceReconnectPlatform(platform.name)}
+                                                                    className="w-full text-xs"
+                                                                >
+                                                                    🔄 Force Reconnect
+                                                                </Button>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <Button 
+                                                            size="sm"
+                                                            onClick={() => handleConnectPlatform(platform.name)}
+                                                            className="w-full"
+                                                        >
+                                                            Connect {platform.label}
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </TabsContent>
+                </Tabs>
             </div>
         </AppLayout>
     );
