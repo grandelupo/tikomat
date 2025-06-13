@@ -45,7 +45,7 @@ class UserUpgradeToPro extends Command
                 return 0;
             }
 
-            // Create or update subscription
+            // Create or update subscription with indefinite timeframe
             $subscription = $user->subscriptions()->updateOrCreate(
                 ['name' => 'default'],
                 [
@@ -54,7 +54,9 @@ class UserUpgradeToPro extends Command
                     'stripe_price' => 'price_pro_monthly',
                     'quantity' => 1,
                     'trial_ends_at' => null,
-                    'ends_at' => null,
+                    'ends_at' => null, // null means indefinite
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]
             );
 
@@ -63,7 +65,7 @@ class UserUpgradeToPro extends Command
                 $user->update(['stripe_id' => 'cus_manual_' . time()]);
             }
 
-            $this->info("Successfully upgraded {$email} to Pro status!");
+            $this->info("Successfully upgraded {$email} to Pro status with indefinite subscription!");
             return 0;
         } catch (\Exception $e) {
             $this->error("Failed to upgrade user: " . $e->getMessage());

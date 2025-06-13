@@ -9,21 +9,19 @@ class Subscription extends Model
 {
     protected $fillable = [
         'user_id',
-        'stripe_subscription_id',
-        'stripe_customer_id',
-        'status',
-        'max_channels',
-        'daily_rate',
-        'current_period_start',
-        'current_period_end',
+        'name',
+        'stripe_id',
+        'stripe_status',
+        'stripe_price',
+        'quantity',
         'trial_ends_at',
+        'ends_at',
     ];
 
     protected $casts = [
-        'daily_rate' => 'decimal:2',
-        'current_period_start' => 'datetime',
-        'current_period_end' => 'datetime',
         'trial_ends_at' => 'datetime',
+        'ends_at' => 'datetime',
+        'quantity' => 'integer',
     ];
 
     /**
@@ -39,7 +37,8 @@ class Subscription extends Model
      */
     public function isActive(): bool
     {
-        return $this->status === 'active';
+        return $this->stripe_status === 'active' && 
+               (!$this->ends_at || $this->ends_at->isFuture());
     }
 
     /**
@@ -48,37 +47,6 @@ class Subscription extends Model
     public function isInTrial(): bool
     {
         return $this->trial_ends_at && $this->trial_ends_at->isFuture();
-    }
-
-    /**
-     * Calculate daily rate based on number of channels.
-     */
-    public static function calculateDailyRate(int $channelCount): float
-    {
-        $baseRate = 0.60; // $0.60 for first 3 channels
-        
-        if ($channelCount <= 3) {
-            return $baseRate;
-        }
-        
-        $additionalChannels = $channelCount - 3;
-        $additionalRate = $additionalChannels * 0.20; // $0.20 per additional channel
-        
-        return $baseRate + $additionalRate;
-    }
-
-    /**
-     * Check if user can create more channels.
-     */
-    public function canCreateChannel(int $currentChannelCount): bool
-    {
-        // Free users can have 1 channel with YouTube only
-        if (!$this->isActive()) {
-            return $currentChannelCount < 1;
-        }
-        
-        // Paid users can have up to max_channels
-        return $currentChannelCount < $this->max_channels;
     }
 
     /**
@@ -91,5 +59,25 @@ class Subscription extends Model
         }
         
         return ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter']; // Paid users get all platforms
+    }
+
+    /**
+     * Get the maximum number of channels allowed for this subscription.
+     */
+    public function getMaxChannels(): int
+    {
+        if (!$this->isActive()) {
+            return 1; // Free users get 1 channel
+        }
+        
+        return 3; // Pro users get 3 channels
+    }
+
+    /**
+     * Check if user can create more channels.
+     */
+    public function canCreateChannel(int $currentChannelCount): bool
+    {
+        return $currentChannelCount < $this->getMaxChannels();
     }
 }
