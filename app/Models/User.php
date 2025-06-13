@@ -147,7 +147,18 @@ class User extends Authenticatable
     public function hasActiveSubscription(): bool
     {
         // Check if user has an actual Stripe subscription
-        return $this->subscribed('default');
+        if ($this->subscribed('default')) {
+            return true;
+        }
+
+        // Check for manual subscription created via command line
+        return $this->subscriptions()
+            ->where('stripe_status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', now());
+            })
+            ->exists();
     }
 
     /**
