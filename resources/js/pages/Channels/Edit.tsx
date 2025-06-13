@@ -189,11 +189,6 @@ export default function ChannelEdit({ channel, allowedPlatforms }: Props) {
                                                                 >
                                                                     {info.name}
                                                                 </Label>
-                                                                {!isAllowed && (
-                                                                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
-                                                                        Coming Soon
-                                                                    </span>
-                                                                )}
                                                             </div>
                                                             <p className={`text-sm ${!isAllowed ? 'text-gray-400' : 'text-muted-foreground'}`}>
                                                                 {info.description}

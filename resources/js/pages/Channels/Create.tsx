@@ -140,24 +140,23 @@ export default function ChannelCreate({ allowedPlatforms }: Props) {
                                     <div className="grid gap-4">
                                         {Object.entries(platformData).map(([platform, info]) => {
                                             const isAllowed = allowedPlatforms.includes(platform);
-                                            const isChecked = data.default_platforms.includes(platform);
                                             const Icon = info.icon;
 
                                             return (
-                                                <div 
-                                                    key={platform}
-                                                    className={`flex items-center space-x-3 p-4 border rounded-lg ${
-                                                        !isAllowed ? 'bg-gray-50 border-gray-200' : 'border-gray-300'
-                                                    }`}
-                                                >
+                                                <div key={platform} className="flex items-center space-x-3 p-4 border rounded-lg">
                                                     <Checkbox
                                                         id={platform}
-                                                        checked={isChecked}
+                                                        checked={data.default_platforms.includes(platform)}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                setData('default_platforms', [...data.default_platforms, platform]);
+                                                            } else {
+                                                                setData('default_platforms', data.default_platforms.filter(p => p !== platform));
+                                                            }
+                                                        }}
                                                         disabled={!isAllowed}
-                                                        onCheckedChange={(checked) => 
-                                                            handlePlatformChange(platform, checked as boolean)
-                                                        }
                                                     />
+
                                                     <div className="flex items-center space-x-3 flex-1">
                                                         <Icon className={`w-5 h-5 ${info.color}`} />
                                                         <div className="flex-1">
@@ -168,11 +167,6 @@ export default function ChannelCreate({ allowedPlatforms }: Props) {
                                                                 >
                                                                     {info.name}
                                                                 </Label>
-                                                                {!isAllowed && (
-                                                                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
-                                                                        Coming Soon
-                                                                    </span>
-                                                                )}
                                                             </div>
                                                             <p className={`text-sm ${!isAllowed ? 'text-gray-400' : 'text-muted-foreground'}`}>
                                                                 {info.description}

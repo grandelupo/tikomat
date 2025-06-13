@@ -26,16 +26,18 @@ class UserList extends Command
      */
     public function handle()
     {
-        $query = User::query();
+        $query = User::with(['subscriptions' => function($q) {
+            $q->where('stripe_status', 'active');
+        }]);
 
         // Filter by subscription status if requested
         if ($this->option('pro')) {
-            $query->whereNotNull('stripe_subscription_id')
-                  ->where('stripe_subscription_status', 'active');
+            $query->whereHas('subscriptions', function($q) {
+                $q->where('stripe_status', 'active');
+            });
         } elseif ($this->option('free')) {
-            $query->where(function($q) {
-                $q->whereNull('stripe_subscription_id')
-                  ->orWhere('stripe_subscription_status', '!=', 'active');
+            $query->whereDoesntHave('subscriptions', function($q) {
+                $q->where('stripe_status', 'active');
             });
         }
 
@@ -50,18 +52,26 @@ class UserList extends Command
         $rows = [];
 
         foreach ($users as $user) {
+            $activeSubscription = $user->subscriptions->where('stripe_status', 'active')->first();
+            
             $rows[] = [
                 $user->id,
                 $user->name,
                 $user->email,
-                $user->stripe_subscription_status === 'active' ? 'Pro' : 'Free',
-                $user->stripe_subscription_id ?? 'N/A',
+                $activeSubscription ? 'Pro' : 'Free',
+                $activeSubscription ? $activeSubscription->stripe_id : 'N/A',
                 $user->created_at->format('Y-m-d H:i:s'),
             ];
         }
 
         $this->table($headers, $rows);
         $this->info("\nTotal users: " . count($rows));
+        
+        $proCount = collect($rows)->where(3, 'Pro')->count();
+        $freeCount = collect($rows)->where(3, 'Free')->count();
+        
+        $this->info("Pro users: {$proCount}");
+        $this->info("Free users: {$freeCount}");
         
         return 0;
     }

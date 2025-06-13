@@ -36,20 +36,27 @@ class UserDowngradeFromPro extends Command
         }
 
         try {
-            // Remove subscription status
-            $user->forceFill([
-                'stripe_id' => null,
-                'stripe_subscription_id' => null,
-                'stripe_subscription_status' => null,
-                'trial_ends_at' => null,
-                'subscription_ends_at' => now(),
-            ])->save();
+            // Cancel all active subscriptions
+            $activeSubscriptions = $user->subscriptions()->where('stripe_status', 'active')->get();
+            
+            if ($activeSubscriptions->isEmpty()) {
+                $this->info("User {$email} doesn't have any active subscriptions.");
+                return 0;
+            }
+
+            foreach ($activeSubscriptions as $subscription) {
+                $subscription->update([
+                    'stripe_status' => 'canceled',
+                    'ends_at' => now(),
+                ]);
+            }
 
             $this->info("Successfully downgraded {$email} to free tier!");
+            $this->info("Canceled {$activeSubscriptions->count()} subscription(s).");
             return 0;
         } catch (\Exception $e) {
             $this->error("Failed to downgrade user: " . $e->getMessage());
             return 1;
         }
     }
-} 
+}

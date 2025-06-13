@@ -173,7 +173,6 @@ class DashboardController extends Controller
                     'label' => ucfirst($platform),
                     'allowed' => in_array($platform, $allowedPlatforms),
                     'connected' => in_array($platform, $connectedPlatforms),
-                    'coming_soon' => !in_array($platform, $allowedPlatforms),
                 ];
             });
 

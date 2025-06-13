@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Models\Subscription;
 use Illuminate\Console\Command;
 
 class UserUpgradeToPro extends Command
@@ -36,14 +37,31 @@ class UserUpgradeToPro extends Command
         }
 
         try {
-            // Update user's subscription status
-            $user->forceFill([
-                'stripe_id' => 'manual_upgrade_' . time(),
-                'stripe_subscription_id' => 'manual_sub_' . time(),
-                'stripe_subscription_status' => 'active',
-                'trial_ends_at' => null,
-                'subscription_ends_at' => null,
-            ])->save();
+            // Check if user already has an active subscription
+            $existingSubscription = $user->subscriptions()->where('stripe_status', 'active')->first();
+            
+            if ($existingSubscription) {
+                $this->info("User {$email} already has an active Pro subscription!");
+                return 0;
+            }
+
+            // Create or update subscription
+            $subscription = $user->subscriptions()->updateOrCreate(
+                ['name' => 'default'],
+                [
+                    'stripe_id' => 'manual_upgrade_' . time(),
+                    'stripe_status' => 'active',
+                    'stripe_price' => 'price_pro_monthly',
+                    'quantity' => 1,
+                    'trial_ends_at' => null,
+                    'ends_at' => null,
+                ]
+            );
+
+            // Update user's stripe_id if not set
+            if (!$user->stripe_id) {
+                $user->update(['stripe_id' => 'cus_manual_' . time()]);
+            }
 
             $this->info("Successfully upgraded {$email} to Pro status!");
             return 0;
