@@ -141,6 +141,8 @@ class VideoController extends Controller
                     'original_file_path' => $videoInfo['path'],
                     'duration' => $videoInfo['duration'],
                     'thumbnail_path' => $videoInfo['thumbnail_path'] ?? null,
+                    'video_width' => $videoInfo['width'] ?? null,
+                    'video_height' => $videoInfo['height'] ?? null,
                 ]);
 
                 Log::info('Video record created', [

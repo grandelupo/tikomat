@@ -22,6 +22,7 @@ import {
     Twitter
 } from 'lucide-react';
 import React from 'react';
+import VideoThumbnail from '@/components/VideoThumbnail';
 
 interface Channel {
     id: number;
@@ -41,6 +42,8 @@ interface Video {
     description: string;
     duration: number;
     thumbnail_path: string | null;
+    video_width: number | null;
+    video_height: number | null;
     created_at: string;
     channel: {
         id: number;
@@ -283,15 +286,13 @@ export default function Dashboard({
                                         <div className="space-y-3">
                                             {/* Thumbnail placeholder */}
                                             <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-                                                {video.thumbnail_path ? (
-                                                    <img 
-                                                        src={video.thumbnail_path} 
-                                                        alt={video.title || 'Video thumbnail'}
-                                                        className="w-full h-full object-cover rounded-lg"
-                                                    />
-                                                ) : (
-                                                    <VideoIcon className="w-8 h-8 text-gray-400" />
-                                                )}
+                                                <VideoThumbnail
+                                                    src={video.thumbnail_path}
+                                                    alt={video.title}
+                                                    width={video.video_width ?? undefined}
+                                                    height={video.video_height ?? undefined}
+                                                    className="h-32"
+                                                />
                                             </div>
 
                                             {/* Platform Status */}

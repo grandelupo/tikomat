@@ -1,10 +1,13 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { Youtube, Instagram, Video as VideoIcon, Clock, CheckCircle, XCircle, AlertCircle, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { Youtube, Instagram, Video as VideoIcon, Clock, CheckCircle, XCircle, AlertCircle, Edit, Trash2, ArrowLeft, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import VideoThumbnail from '@/components/VideoThumbnail';
 
 interface Video {
     id: number;
@@ -13,15 +16,18 @@ interface Video {
     duration: number;
     formatted_duration: string;
     created_at: string;
+    video_path: string;
     targets: VideoTarget[];
 }
 
 interface VideoTarget {
     id: number;
     platform: string;
-    status: 'pending' | 'processing' | 'success' | 'failed';
-    publish_at: string | null;
+    status: string;
     error_message: string | null;
+    publish_at: string | null;
+    platform_video_id?: string;
+    platform_url?: string;
 }
 
 interface VideoShowProps {
@@ -34,13 +40,6 @@ const platformIcons = {
     tiktok: VideoIcon,
 };
 
-const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    processing: 'bg-blue-100 text-blue-800',
-    success: 'bg-green-100 text-green-800',
-    failed: 'bg-red-100 text-red-800',
-};
-
 const statusIcons = {
     pending: Clock,
     processing: AlertCircle,
@@ -48,29 +47,56 @@ const statusIcons = {
     failed: XCircle,
 };
 
-export default function VideoShow({ video }: VideoShowProps) {
-    const breadcrumbs: BreadcrumbItem[] = [
-        {
-            title: 'Dashboard',
-            href: '/dashboard',
-        },
-        {
-            title: 'Videos',
-            href: '/videos',
-        },
-        {
-            title: video.title,
-            href: `/videos/${video.id}`,
-        },
-    ];
+const statusColors = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    processing: 'bg-blue-100 text-blue-800',
+    success: 'bg-green-100 text-green-800',
+    failed: 'bg-red-100 text-red-800',
+};
 
-    const handleRetryTarget = (targetId: number) => {
-        router.post(`/video-targets/${targetId}/retry`);
-    };
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Videos',
+        href: '/videos',
+    },
+    {
+        title: 'Video Details',
+        href: '#',
+    },
+];
+
+export default function VideoShow({ video }: VideoShowProps) {
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [deleteOption, setDeleteOption] = useState<'all' | 'tikomat' | 'archive'>('tikomat');
 
     const handleDeleteVideo = () => {
-        if (confirm('Are you sure you want to delete this video?')) {
-            router.delete(`/videos/${video.id}`);
+        setShowDeleteDialog(true);
+    };
+
+    const confirmDelete = () => {
+        router.delete(`/videos/${video.id}`, {
+            data: { delete_option: deleteOption },
+            onSuccess: () => {
+                router.visit('/videos');
+            },
+        });
+    };
+
+    const getPlatformUrl = (target: VideoTarget) => {
+        if (target.platform_url) {
+            return target.platform_url;
+        }
+
+        // Default platform URLs based on platform_video_id
+        switch (target.platform) {
+            case 'youtube':
+                return target.platform_video_id ? `https://youtube.com/watch?v=${target.platform_video_id}` : null;
+            case 'instagram':
+                return target.platform_video_id ? `https://instagram.com/p/${target.platform_video_id}` : null;
+            case 'tiktok':
+                return target.platform_video_id ? `https://tiktok.com/@username/video/${target.platform_video_id}` : null;
+            default:
+                return null;
         }
     };
 
@@ -113,6 +139,22 @@ export default function VideoShow({ video }: VideoShowProps) {
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">
+                    {/* Video Player */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Video Preview</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
+                                <video 
+                                    src={video.video_path}
+                                    controls
+                                    className="w-full h-full"
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     {/* Video Details */}
                     <Card>
                         <CardHeader>
@@ -139,7 +181,7 @@ export default function VideoShow({ video }: VideoShowProps) {
                     </Card>
 
                     {/* Publishing Status */}
-                    <Card>
+                    <Card className="md:col-span-2">
                         <CardHeader>
                             <CardTitle>Publishing Status</CardTitle>
                             <CardDescription>
@@ -151,6 +193,7 @@ export default function VideoShow({ video }: VideoShowProps) {
                                 {video.targets.map((target) => {
                                     const StatusIcon = statusIcons[target.status];
                                     const PlatformIcon = platformIcons[target.platform as keyof typeof platformIcons];
+                                    const platformUrl = getPlatformUrl(target);
                                     
                                     return (
                                         <div key={target.id} className="flex items-center justify-between p-3 border rounded-lg">
@@ -165,22 +208,20 @@ export default function VideoShow({ video }: VideoShowProps) {
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <Badge 
-                                                    variant="secondary"
-                                                    className={`${statusColors[target.status]} flex items-center gap-1`}
-                                                >
-                                                    <StatusIcon className="h-3 w-3" />
+                                            <div className="flex items-center gap-3">
+                                                <Badge className={statusColors[target.status as keyof typeof statusColors]}>
+                                                    <StatusIcon className="w-3 h-3 mr-1" />
                                                     {target.status}
                                                 </Badge>
-                                                {target.status === 'failed' && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleRetryTarget(target.id)}
+                                                {platformUrl && target.status === 'success' && (
+                                                    <a 
+                                                        href={platformUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-600 hover:text-blue-700"
                                                     >
-                                                        Retry
-                                                    </Button>
+                                                        <ExternalLink className="w-4 h-4" />
+                                                    </a>
                                                 )}
                                             </div>
                                         </div>
@@ -191,7 +232,7 @@ export default function VideoShow({ video }: VideoShowProps) {
                     </Card>
                 </div>
 
-                {/* Error Messages */}
+                {/* Error Details */}
                 {video.targets.some(target => target.status === 'failed' && target.error_message) && (
                     <Card>
                         <CardHeader>
@@ -217,6 +258,73 @@ export default function VideoShow({ video }: VideoShowProps) {
                         </CardContent>
                     </Card>
                 )}
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Delete Video</DialogTitle>
+                            <DialogDescription>
+                                Choose how you want to handle this video deletion:
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="radio"
+                                    id="delete-all"
+                                    name="delete-option"
+                                    value="all"
+                                    checked={deleteOption === 'all'}
+                                    onChange={(e) => setDeleteOption(e.target.value as 'all')}
+                                    className="h-4 w-4"
+                                />
+                                <label htmlFor="delete-all" className="text-sm font-medium">
+                                    Delete from all platforms and Tikomat
+                                </label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="radio"
+                                    id="delete-tikomat"
+                                    name="delete-option"
+                                    value="tikomat"
+                                    checked={deleteOption === 'tikomat'}
+                                    onChange={(e) => setDeleteOption(e.target.value as 'tikomat')}
+                                    className="h-4 w-4"
+                                />
+                                <label htmlFor="delete-tikomat" className="text-sm font-medium">
+                                    Remove only from Tikomat (keep on platforms)
+                                </label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="radio"
+                                    id="archive"
+                                    name="delete-option"
+                                    value="archive"
+                                    checked={deleteOption === 'archive'}
+                                    onChange={(e) => setDeleteOption(e.target.value as 'archive')}
+                                    className="h-4 w-4"
+                                />
+                                <label htmlFor="archive" className="text-sm font-medium">
+                                    Archive on all platforms (make private/unlisted)
+                                </label>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                                Cancel
+                            </Button>
+                            <Button 
+                                variant="destructive" 
+                                onClick={confirmDelete}
+                            >
+                                Delete
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

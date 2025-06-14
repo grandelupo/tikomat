@@ -16,6 +16,8 @@ class Video extends Model
         'original_file_path',
         'thumbnail_path',
         'duration',
+        'video_width',
+        'video_height',
     ];
 
     protected $appends = [
