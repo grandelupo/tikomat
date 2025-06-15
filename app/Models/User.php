@@ -26,6 +26,8 @@ class User extends Authenticatable
         'password',
         'has_subscription',
         'allowed_platforms',
+        'is_admin',
+        'completed_tutorials',
     ];
 
     /**
@@ -50,6 +52,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'has_subscription' => 'boolean',
             'allowed_platforms' => 'array',
+            'completed_tutorials' => 'array',
         ];
     }
 
@@ -77,7 +80,13 @@ class User extends Authenticatable
         return $this->hasMany(Channel::class);
     }
 
-
+    /**
+     * Get the user's chat messages.
+     */
+    public function chatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class);
+    }
 
     /**
      * Get the user's default channel.
@@ -166,7 +175,10 @@ class User extends Authenticatable
      */
     public function getCurrentPlan(): string
     {
-        // Simplified - all users are on free plan for now
+        if ($this->hasActiveSubscription()) {
+            return 'pro';
+        }
+        
         return 'free';
     }
 

@@ -87,6 +87,8 @@ class VideoController extends Controller
             'platforms.*' => 'in:youtube,instagram,tiktok,facebook,snapchat,pinterest,twitter',
             'publish_type' => 'required|in:now,scheduled',
             'publish_at' => 'required_if:publish_type,scheduled|nullable|date|after:now',
+            'cloud_providers' => 'nullable|array',
+            'cloud_providers.*' => 'in:google_drive,dropbox',
         ]);
 
         // Validate that user can access selected platforms
@@ -123,11 +125,20 @@ class VideoController extends Controller
             $this->videoService->validateVideo($request->file('video'));
             Log::info('Video validation passed');
 
-            $videoInfo = $this->videoService->processVideo($request->file('video'));
+            // Process video with cloud storage if providers are selected
+            $cloudProviders = $request->cloud_providers ?? [];
+            if (!empty($cloudProviders)) {
+                Log::info('Processing video with cloud storage', ['providers' => $cloudProviders]);
+                $videoInfo = $this->videoService->processVideoWithCloudStorage($request->file('video'), $cloudProviders);
+            } else {
+                $videoInfo = $this->videoService->processVideo($request->file('video'));
+            }
+            
             Log::info('Video processing completed', [
                 'duration' => $videoInfo['duration'],
                 'thumbnail_path' => $videoInfo['thumbnail_path'] ?? 'none',
                 'file_path' => $videoInfo['path'],
+                'cloud_storage' => isset($videoInfo['cloud_storage']) ? 'enabled' : 'disabled',
             ]);
 
             $video = null;
@@ -246,10 +257,57 @@ class VideoController extends Controller
             'description' => 'nullable|string|max:1000',
         ]);
 
+        // Check if title or description has changed
+        $titleChanged = $video->title !== $request->title;
+        $descriptionChanged = $video->description !== $request->description;
+        
         $video->update([
             'title' => $request->title,
             'description' => $request->description,
         ]);
+
+        // If title or description changed, automatically update published videos
+        if ($titleChanged || $descriptionChanged) {
+            Log::info('Video metadata changed, re-publishing to platforms', [
+                'video_id' => $video->id,
+                'title_changed' => $titleChanged,
+                'description_changed' => $descriptionChanged,
+            ]);
+
+            // Get all successful targets and mark them for re-publishing
+            $successfulTargets = $video->targets()->where('status', 'success')->get();
+            
+            foreach ($successfulTargets as $target) {
+                // Reset status to pending for re-publishing
+                $target->update([
+                    'status' => 'pending',
+                    'error_message' => null,
+                ]);
+
+                // Dispatch update job to platforms that support metadata updates
+                try {
+                    $this->uploadService->dispatchUpdateJob($target);
+                    Log::info('Dispatched metadata update job', [
+                        'target_id' => $target->id,
+                        'platform' => $target->platform,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to dispatch metadata update job', [
+                        'target_id' => $target->id,
+                        'platform' => $target->platform,
+                        'error' => $e->getMessage(),
+                    ]);
+                    
+                    $target->update([
+                        'status' => 'failed',
+                        'error_message' => 'Failed to update video metadata: ' . $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return redirect()->route('videos.show', $video)
+                ->with('success', 'Video updated successfully! Video metadata is being updated on all published platforms.');
+        }
 
         return redirect()->route('videos.show', $video)
             ->with('success', 'Video updated successfully!');

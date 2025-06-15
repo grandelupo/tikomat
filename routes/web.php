@@ -7,11 +7,20 @@ use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\ConnectionsController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\LegalController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\TutorialController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome');
+    return Inertia::render('Welcome', [
+        'auth' => [
+            'user' => Auth::user(),
+        ],
+    ]);
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -66,6 +75,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Development: Simulate subscription
         Route::post('simulate', [SubscriptionController::class, 'simulateSubscription'])->name('simulate');
     });
+
+    // Tutorial routes
+    Route::post('tutorials/complete', [TutorialController::class, 'complete'])->name('tutorials.complete');
+    Route::post('tutorials/reset', [TutorialController::class, 'reset'])->name('tutorials.reset');
+    Route::get('tutorials/config/{page}', [TutorialController::class, 'config'])->name('tutorials.config');
 });
 
 // Stripe webhooks (outside auth middleware)
@@ -83,6 +97,18 @@ Route::get('storage/videos/{filename}', function ($filename) {
         'Content-Type' => 'video/mp4'
     ]);
 })->name('video.public');
+
+// Chat routes
+Route::middleware('auth')->group(function () {
+    Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
+    Route::post('/chat', [ChatController::class, 'store'])->name('chat.store');
+});
+
+// Legal and contact routes
+Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
+Route::get('/contact', [ContactController::class, 'show'])->name('contact.show');
+Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

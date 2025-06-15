@@ -89,6 +89,8 @@ class DashboardController extends Controller
                             'status' => $target->status,
                             'error_message' => $target->error_message,
                             'publish_at' => $target->publish_at,
+                            'platform_video_id' => $target->platform_video_id,
+                            'platform_url' => $target->platform_url,
                         ];
                     }) : [],
                 ];
@@ -157,6 +159,8 @@ class DashboardController extends Controller
                             'status' => $target->status,
                             'error_message' => $target->error_message,
                             'publish_at' => $target->publish_at,
+                            'platform_video_id' => $target->platform_video_id,
+                            'platform_url' => $target->platform_url,
                         ];
                     }),
                 ];

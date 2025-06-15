@@ -3,7 +3,7 @@ export default function AppLogo() {
     
     return (
         <>
-            <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-md">
+            <div className="bg-white text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-md">
                 <img 
                     src={`${window.location.protocol}//${window.location.host}/logo.png`} 
                     alt={appName + " Logo"} 

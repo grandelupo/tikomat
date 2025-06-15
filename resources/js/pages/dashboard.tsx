@@ -54,6 +54,8 @@ interface Video {
         status: string;
         error_message: string | null;
         publish_at: string | null;
+        platform_video_id: string | null;
+        platform_url: string | null;
     }>;
 }
 

@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm, Link } from '@inertiajs/react';
-import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info, Facebook, Twitter, Camera, Palette } from 'lucide-react';
+import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info, Facebook, Twitter, Camera, Palette, Cloud } from 'lucide-react';
 
 interface Channel {
     id: number;
@@ -70,6 +70,7 @@ export default function CreateVideo({
         platforms: defaultPlatforms,
         publish_type: 'now',
         publish_at: '',
+        cloud_providers: [] as string[],
     });
 
     const handlePlatformChange = (platformId: string, checked: boolean) => {
@@ -464,6 +465,81 @@ export default function CreateVideo({
                                         )}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Cloud Storage Options */}
+                            <div className="space-y-4">
+                                <div>
+                                    <Label>Cloud Storage Backup (Optional)</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Automatically backup your video to cloud storage services
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-3">
+                                    <div className="flex items-center space-x-3 p-3 border rounded-lg">
+                                        <Checkbox
+                                            id="google_drive"
+                                            checked={data.cloud_providers?.includes('google_drive') || false}
+                                            onCheckedChange={(checked) => {
+                                                const currentProviders = data.cloud_providers || [];
+                                                if (checked) {
+                                                    setData('cloud_providers', [...currentProviders, 'google_drive']);
+                                                } else {
+                                                    setData('cloud_providers', currentProviders.filter(p => p !== 'google_drive'));
+                                                }
+                                            }}
+                                        />
+                                        <div className="flex items-center space-x-3 flex-1">
+                                            <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                                                <Cloud className="w-4 h-4 text-blue-600" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <Label htmlFor="google_drive" className="font-medium">
+                                                    Google Drive
+                                                </Label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Backup to your Google Drive account
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center space-x-3 p-3 border rounded-lg">
+                                        <Checkbox
+                                            id="dropbox"
+                                            checked={data.cloud_providers?.includes('dropbox') || false}
+                                            onCheckedChange={(checked) => {
+                                                const currentProviders = data.cloud_providers || [];
+                                                if (checked) {
+                                                    setData('cloud_providers', [...currentProviders, 'dropbox']);
+                                                } else {
+                                                    setData('cloud_providers', currentProviders.filter(p => p !== 'dropbox'));
+                                                }
+                                            }}
+                                        />
+                                        <div className="flex items-center space-x-3 flex-1">
+                                            <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
+                                                <Cloud className="w-4 h-4 text-white" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <Label htmlFor="dropbox" className="font-medium">
+                                                    Dropbox
+                                                </Label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Backup to your Dropbox account
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                                    <AlertDescription className="text-blue-800 dark:text-blue-200">
+                                        <strong>Note:</strong> Cloud storage backup requires API configuration. 
+                                        Videos will be stored locally and cloud backup will be simulated for now.
+                                    </AlertDescription>
+                                </Alert>
                             </div>
 
                             {/* Submit Button */}

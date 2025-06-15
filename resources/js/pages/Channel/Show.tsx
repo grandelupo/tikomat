@@ -19,7 +19,8 @@ import {
     Facebook,
     Twitter,
     Camera,
-    Palette
+    Palette,
+    Zap
 } from 'lucide-react';
 import React from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
@@ -54,6 +55,8 @@ interface Video {
         status: string;
         error_message: string | null;
         publish_at: string | null;
+        platform_video_id: string | null;
+        platform_url: string | null;
     }>;
 }
 
@@ -140,6 +143,10 @@ export default function ChannelShow({
         router.post(`/video-targets/${targetId}/retry`);
     };
 
+    const handleUpgradeClick = () => {
+        router.visit('/subscription/plans');
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${channel.name} - Channel`} />
@@ -177,16 +184,123 @@ export default function ChannelShow({
                     </div>
                 </div>
 
+                {/* Connect Accounts Section */}
+                <div>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-semibold">Connected Platforms</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Connect social media accounts to publish videos
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {availablePlatforms.map((platform) => {
+                            const isConnected = platform.connected;
+                            const isAllowed = platform.allowed;
+                            const PlatformIcon = platformIcons[platform.name as keyof typeof platformIcons];
+                            
+                            return (
+                                <Card key={platform.name} className={`transition-all ${isConnected ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-3">
+                                                <div className={`p-2 rounded-lg ${isConnected ? 'bg-green-100' : 'bg-gray-100'}`}>
+                                                    <PlatformIcon className={`w-5 h-5 ${isConnected ? 'text-green-600' : 'text-gray-600'}`} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium">{platform.label}</h4>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {isConnected ? 'Connected' : 'Not connected'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center space-x-2">
+                                                {isConnected ? (
+                                                    <>
+                                                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                                            <CheckCircle className="w-3 h-3 mr-1" />
+                                                            Connected
+                                                        </Badge>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleDisconnectPlatform(platform.name)}
+                                                            className="text-red-600 hover:text-red-700"
+                                                        >
+                                                            Disconnect
+                                                        </Button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {!isAllowed && (
+                                                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                                                                Pro Only
+                                                            </Badge>
+                                                        )}
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => isAllowed ? handleConnectPlatform(platform.name) : handleUpgradeClick()}
+                                                            disabled={!isAllowed}
+                                                            className={isAllowed ? '' : 'opacity-50'}
+                                                        >
+                                                            {isAllowed ? 'Connect' : 'Upgrade'}
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        {isConnected && (
+                                            <div className="mt-3 pt-3 border-t border-green-200">
+                                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                    <span>Account active</span>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => handleForceReconnectPlatform(platform.name)}
+                                                        className="text-xs h-auto p-1"
+                                                    >
+                                                        Reconnect
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </div>
+
+                    {availablePlatforms.filter(p => !p.allowed).length > 0 && (
+                        <Card className="mt-4 border-blue-200 bg-blue-50">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="p-2 bg-blue-100 rounded-lg">
+                                            <Crown className="w-5 h-5 text-blue-600" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-medium text-blue-900">Unlock More Platforms</h4>
+                                            <p className="text-sm text-blue-700">
+                                                Upgrade to Pro to access Instagram, TikTok, and more platforms
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button onClick={handleUpgradeClick} className="bg-blue-600 hover:bg-blue-700">
+                                        <Zap className="w-4 h-4 mr-2" />
+                                        Upgrade to Pro
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+
                 {/* Recent Videos */}
                 <div>
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-semibold">Recent Videos</h3>
-                        <Link href={`/channels/${channel.slug}/videos/create`}>
-                            <Button size="sm">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Upload Video
-                            </Button>
-                        </Link>
                     </div>
 
                     {videos.data.length > 0 ? (

@@ -111,4 +111,79 @@ class VideoUploadService
 
         $this->dispatchUploadJob($target);
     }
+
+    /**
+     * Dispatch appropriate update job for a video target.
+     */
+    public function dispatchUpdateJob(VideoTarget $target): void
+    {
+        try {
+            // For now, we'll re-upload the video with updated metadata
+            // In the future, we could create specific update jobs for platforms that support metadata-only updates
+            switch ($target->platform) {
+                case 'youtube':
+                    Log::info('Dispatching YouTube metadata update job for target: ' . $target->id);
+                    // YouTube supports metadata updates without re-uploading
+                    UploadVideoToYoutube::dispatch($target);
+                    break;
+
+                case 'instagram':
+                    Log::info('Instagram does not support metadata updates, skipping target: ' . $target->id);
+                    $target->update([
+                        'status' => 'success',
+                        'error_message' => 'Instagram does not support metadata updates for published videos',
+                    ]);
+                    break;
+
+                case 'tiktok':
+                    Log::info('TikTok does not support metadata updates, skipping target: ' . $target->id);
+                    $target->update([
+                        'status' => 'success', 
+                        'error_message' => 'TikTok does not support metadata updates for published videos',
+                    ]);
+                    break;
+
+                case 'facebook':
+                    Log::info('Dispatching Facebook metadata update job for target: ' . $target->id);
+                    // Facebook supports some metadata updates
+                    UploadVideoToFacebook::dispatch($target);
+                    break;
+
+                case 'twitter':
+                    Log::info('Twitter does not support metadata updates, skipping target: ' . $target->id);
+                    $target->update([
+                        'status' => 'success',
+                        'error_message' => 'Twitter does not support metadata updates for published videos',
+                    ]);
+                    break;
+
+                case 'snapchat':
+                case 'pinterest':
+                    Log::info('Platform does not support metadata updates, skipping target: ' . $target->id);
+                    $target->update([
+                        'status' => 'success',
+                        'error_message' => ucfirst($target->platform) . ' does not support metadata updates for published videos',
+                    ]);
+                    break;
+
+                default:
+                    Log::warning('Unknown platform for metadata update: ' . $target->id . ' - ' . $target->platform);
+                    $target->update([
+                        'status' => 'failed',
+                        'error_message' => 'Unknown platform: ' . $target->platform,
+                    ]);
+                    break;
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to dispatch metadata update job for target: ' . $target->id, [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $target->update([
+                'status' => 'failed',
+                'error_message' => 'Failed to dispatch metadata update job: ' . $e->getMessage(),
+            ]);
+        }
+    }
 } 

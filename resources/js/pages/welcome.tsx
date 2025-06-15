@@ -19,10 +19,21 @@ import {
     Facebook,
     Twitter,
     Camera,
-    Palette
+    Palette,
+    User
 } from 'lucide-react';
 
-export default function Welcome() {
+interface WelcomeProps {
+    auth?: {
+        user?: {
+            id: number;
+            name: string;
+            email: string;
+        };
+    };
+}
+
+export default function Welcome({ auth }: WelcomeProps) {
     const features = [
         {
             icon: Upload,
@@ -142,12 +153,26 @@ export default function Welcome() {
                         <a href="#testimonials" className="text-gray-600 hover:text-gray-900">Reviews</a>
                     </nav>
                     <div className="flex items-center space-x-4">
-                        <Link href="/login">
-                            <Button variant="outline">Sign In</Button>
-                        </Link>
-                        <Link href="/register">
-                            <Button>Get Started</Button>
-                        </Link>
+                        {auth?.user ? (
+                            <div className="flex items-center space-x-3">
+                                <div className="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-2">
+                                    <User className="w-4 h-4 text-gray-600" />
+                                    <span className="text-sm font-medium text-gray-700">{auth.user.name}</span>
+                                </div>
+                                <Link href="/dashboard">
+                                    <Button>Dashboard</Button>
+                                </Link>
+                            </div>
+                        ) : (
+                            <>
+                                <Link href="/login">
+                                    <Button variant="outline">Sign In</Button>
+                                </Link>
+                                <Link href="/register">
+                                    <Button>Get Started</Button>
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </div>
             </header>

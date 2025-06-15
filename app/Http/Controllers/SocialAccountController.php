@@ -394,6 +394,49 @@ class SocialAccountController extends Controller
             $driver = $this->mapPlatformToDriver($platform);
             \Log::info('Using driver: ' . $driver . ' for platform: ' . $platform);
             
+            // Log the OAuth request details
+            \Log::info('About to call OAuth provider', [
+                'platform' => $platform,
+                'driver' => $driver,
+                'has_code' => !empty($request->input('code')),
+                'code_length' => strlen($request->input('code', '')),
+                'has_error' => !empty($request->input('error')),
+                'error' => $request->input('error'),
+                'error_description' => $request->input('error_description'),
+                'config_client_id_set' => !empty(config("services.{$driver}.client_id")),
+                'config_client_secret_set' => !empty(config("services.{$driver}.client_secret")),
+                'config_redirect_set' => !empty(config("services.{$driver}.redirect")),
+            ]);
+            
+            // Check for OAuth error first
+            if ($request->input('error')) {
+                $errorDesc = $request->input('error_description', 'No description provided');
+                throw new \Exception('OAuth provider returned error: ' . $request->input('error') . ' - ' . $errorDesc);
+            }
+            
+            // Validate OAuth configuration before attempting user retrieval
+            $clientId = config("services.{$driver}.client_id");
+            $clientSecret = config("services.{$driver}.client_secret");
+            $redirectUrl = config("services.{$driver}.redirect");
+            
+            if (empty($clientId)) {
+                throw new \Exception("OAuth client ID is not configured for {$driver}. Please check SERVICES_{$driver}_CLIENT_ID in your .env file.");
+            }
+            
+            if (empty($clientSecret)) {
+                throw new \Exception("OAuth client secret is not configured for {$driver}. Please check SERVICES_{$driver}_CLIENT_SECRET in your .env file.");
+            }
+            
+            if (empty($redirectUrl)) {
+                throw new \Exception("OAuth redirect URL is not configured for {$driver}. Please check SERVICES_{$driver}_REDIRECT in your .env file.");
+            }
+            
+            \Log::info('OAuth configuration validated successfully', [
+                'platform' => $platform,
+                'driver' => $driver,
+                'redirect_url' => $redirectUrl,
+            ]);
+            
             $socialUser = Socialite::driver($driver)->stateless()->user();
             \Log::info('OAuth user retrieved successfully', [
                 'has_token' => !empty($socialUser->token),

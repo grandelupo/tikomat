@@ -13,6 +13,8 @@ class VideoTarget extends Model
         'publish_at',
         'status',
         'error_message',
+        'platform_video_id',
+        'platform_url',
     ];
 
     protected function casts(): array

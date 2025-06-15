@@ -122,13 +122,22 @@ class UploadVideoToYoutube implements ShouldQueue
                 'uploadType' => 'multipart'
             ]);
 
+            $videoId = $response->getId();
+            $videoUrl = "https://youtube.com/watch?v={$videoId}";
+
             Log::info('YouTube upload completed successfully', [
                 'video_target_id' => $this->videoTarget->id,
-                'youtube_video_id' => $response->getId()
+                'youtube_video_id' => $videoId,
+                'video_url' => $videoUrl
             ]);
 
-            // Mark as success
-            $this->videoTarget->markAsSuccess();
+            // Update video target with platform video ID and URL
+            $this->videoTarget->update([
+                'platform_video_id' => $videoId,
+                'platform_url' => $videoUrl,
+                'status' => 'success',
+                'error_message' => null
+            ]);
 
         } catch (\Exception $e) {
             Log::error('YouTube upload failed', [
