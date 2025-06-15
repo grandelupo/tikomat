@@ -83,4 +83,22 @@ return [
         'redirect' => rtrim(env('APP_URL'), '/') . '/auth/twitter/callback',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Cloud Storage Providers
+    |--------------------------------------------------------------------------
+    */
+
+    'google_drive' => [
+        'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/google-drive/callback',
+    ],
+
+    'dropbox' => [
+        'client_id' => env('DROPBOX_CLIENT_ID'),
+        'client_secret' => env('DROPBOX_CLIENT_SECRET'),
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/dropbox/callback',
+    ],
+
 ];

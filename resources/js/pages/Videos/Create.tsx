@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm, Link } from '@inertiajs/react';
 import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info, Facebook, Twitter, Camera, Palette, Cloud } from 'lucide-react';
+import CloudStorageImport from '@/components/CloudStorageImport';
 
 interface Channel {
     id: number;
@@ -46,7 +47,9 @@ export default function CreateVideo({
     const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(defaultPlatforms);
     const [publishType, setPublishType] = useState<'now' | 'scheduled'>('now');
     const [isDragOver, setIsDragOver] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
+    const [isCloudStorageOpen, setIsCloudStorageOpen] = useState(false);
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -203,6 +206,11 @@ export default function CreateVideo({
         return Object.keys(newErrors).length === 0;
     };
 
+    const handleCloudFileImported = (file: File, fileName: string) => {
+        setData('video', file);
+        setClientErrors(prev => ({ ...prev, video: '' }));
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Upload Video" />
@@ -294,6 +302,31 @@ export default function CreateVideo({
                                 {(errors.video || clientErrors.video) && (
                                     <p className="text-sm text-red-600 dark:text-red-400">{errors.video || clientErrors.video}</p>
                                 )}
+                                
+                                {/* Cloud Storage Import Option */}
+                                <div className="flex items-center justify-center">
+                                    <div className="flex items-center space-x-4">
+                                        <div className="h-px bg-gray-300 flex-1 dark:bg-gray-600"></div>
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">or</span>
+                                        <div className="h-px bg-gray-300 flex-1 dark:bg-gray-600"></div>
+                                    </div>
+                                </div>
+                                
+                                <div className="text-center">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setIsCloudStorageOpen(true)}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        <Cloud className="w-4 h-4 mr-2" />
+                                        Import from Cloud Storage
+                                    </Button>
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        Import videos from Google Drive or Dropbox
+                                    </p>
+                                </div>
+
                                 {progress && (
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-sm dark:text-gray-300">
@@ -563,6 +596,13 @@ export default function CreateVideo({
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Cloud Storage Import Dialog */}
+            <CloudStorageImport
+                isOpen={isCloudStorageOpen}
+                onClose={() => setIsCloudStorageOpen(false)}
+                onFileImported={handleCloudFileImported}
+            />
         </AppLayout>
     );
 } 

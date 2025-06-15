@@ -150,16 +150,12 @@ class SocialAccountController extends Controller
                     ])
                     ->redirect();
             } elseif ($platform === 'twitter') {
-                // Twitter requires tweet and media permissions
+                // Twitter API v2 with proper scopes using SocialiteProviders
                 return Socialite::driver($driver)
-                    ->scopes([
-                        'tweet.read',
-                        'tweet.write',
-                        'users.read'
-                    ])
+                    ->scopes(['tweet.read', 'tweet.write', 'users.read', 'offline.access'])
                     ->with([
                         'state' => $state,
-                        'prompt' => 'select_account consent'
+                        'force_login' => true, // Force Twitter login prompt
                     ])
                     ->redirect();
             }

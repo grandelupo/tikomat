@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
+use Laravel\Socialite\Facades\Socialite;
+use SocialiteProviders\Twitter\Provider;
 
 class AppServiceProvider extends ServiceProvider
 {

@@ -11,6 +11,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\TutorialController;
+use App\Http\Controllers\CloudStorageController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -80,6 +81,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('tutorials/complete', [TutorialController::class, 'complete'])->name('tutorials.complete');
     Route::post('tutorials/reset', [TutorialController::class, 'reset'])->name('tutorials.reset');
     Route::get('tutorials/config/{page}', [TutorialController::class, 'config'])->name('tutorials.config');
+    
+    // Cloud Storage routes
+    Route::prefix('cloud-storage')->name('cloud-storage.')->group(function () {
+        Route::get('{provider}/auth', [CloudStorageController::class, 'redirect'])->name('auth');
+        Route::get('{provider}/callback', [CloudStorageController::class, 'callback'])->name('callback');
+        Route::get('{provider}/files', [CloudStorageController::class, 'listFiles'])->name('files');
+        Route::post('{provider}/import', [CloudStorageController::class, 'importFile'])->name('import');
+        Route::delete('{provider}/disconnect', [CloudStorageController::class, 'disconnect'])->name('disconnect');
+        Route::get('connected', [CloudStorageController::class, 'getConnectedAccounts'])->name('connected');
+    });
 });
 
 // Stripe webhooks (outside auth middleware)
