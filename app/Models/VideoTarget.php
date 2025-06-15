@@ -15,12 +15,14 @@ class VideoTarget extends Model
         'error_message',
         'platform_video_id',
         'platform_url',
+        'advanced_options',
     ];
 
     protected function casts(): array
     {
         return [
             'publish_at' => 'datetime',
+            'advanced_options' => 'array',
         ];
     }
 

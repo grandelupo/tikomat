@@ -89,6 +89,7 @@ class VideoController extends Controller
             'publish_at' => 'required_if:publish_type,scheduled|nullable|date|after:now',
             'cloud_providers' => 'nullable|array',
             'cloud_providers.*' => 'in:google_drive,dropbox',
+            'advanced_options' => 'nullable|array',
         ]);
 
         // Validate that user can access selected platforms
@@ -164,11 +165,14 @@ class VideoController extends Controller
 
                 // Create video targets for each platform
                 foreach ($request->platforms as $platform) {
+                    $advancedOptions = $request->advanced_options[$platform] ?? null;
+                    
                     $target = VideoTarget::create([
                         'video_id' => $video->id,
                         'platform' => $platform,
                         'publish_at' => $request->publish_type === 'scheduled' ? $request->publish_at : null,
                         'status' => 'pending',
+                        'advanced_options' => $advancedOptions,
                     ]);
 
                     Log::info('Video target created', [
@@ -176,6 +180,7 @@ class VideoController extends Controller
                         'platform' => $platform,
                         'status' => $target->status,
                         'publish_at' => $target->publish_at,
+                        'advanced_options' => $advancedOptions ? 'present' : 'none',
                     ]);
                 }
             });

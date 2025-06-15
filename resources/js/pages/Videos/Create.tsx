@@ -12,6 +12,7 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, useForm, Link } from '@inertiajs/react';
 import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info, Facebook, Twitter, Camera, Palette, Cloud } from 'lucide-react';
 import CloudStorageImport from '@/components/CloudStorageImport';
+import AdvancedOptionsSection from '@/components/AdvancedOptions/AdvancedOptionsSection';
 
 interface Channel {
     id: number;
@@ -50,6 +51,7 @@ export default function CreateVideo({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
     const [isCloudStorageOpen, setIsCloudStorageOpen] = useState(false);
+    const [advancedOptions, setAdvancedOptions] = useState<Record<string, any>>({});
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -74,6 +76,7 @@ export default function CreateVideo({
         publish_type: 'now',
         publish_at: '',
         cloud_providers: [] as string[],
+        advanced_options: {} as Record<string, any>,
     });
 
     const handlePlatformChange = (platformId: string, checked: boolean) => {
@@ -209,6 +212,12 @@ export default function CreateVideo({
     const handleCloudFileImported = (file: File, fileName: string) => {
         setData('video', file);
         setClientErrors(prev => ({ ...prev, video: '' }));
+    };
+
+    const handleAdvancedOptionsChange = (platform: string, options: any) => {
+        const newAdvancedOptions = { ...advancedOptions, [platform]: options };
+        setAdvancedOptions(newAdvancedOptions);
+        setData('advanced_options', newAdvancedOptions);
     };
 
     return (
@@ -574,6 +583,13 @@ export default function CreateVideo({
                                     </AlertDescription>
                                 </Alert>
                             </div>
+
+                            {/* Advanced Options Section */}
+                            <AdvancedOptionsSection
+                                selectedPlatforms={selectedPlatforms}
+                                advancedOptions={advancedOptions}
+                                onAdvancedOptionsChange={handleAdvancedOptionsChange}
+                            />
 
                             {/* Submit Button */}
                             <div className="flex justify-end space-x-4">
