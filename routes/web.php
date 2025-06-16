@@ -12,6 +12,7 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\CloudStorageController;
+use App\Http\Controllers\WorkflowController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -41,9 +42,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Video routes (scoped to channels)
     Route::get('channels/{channel:slug}/videos/create', [VideoController::class, 'create'])->name('videos.create');
     Route::post('channels/{channel:slug}/videos', [VideoController::class, 'store'])->name('videos.store');
-    Route::resource('videos', VideoController::class)->except(['create', 'store']);
+    Route::get('videos', [VideoController::class, 'index'])->name('videos.index');
+    Route::resource('videos', VideoController::class)->except(['create', 'store', 'index']);
     Route::post('video-targets/{target}/retry', [VideoController::class, 'retryTarget'])
         ->name('video-targets.retry');
+    
+    // Workflow routes
+    Route::resource('workflow', WorkflowController::class);
     
     // Social Account Management (scoped to channels)
     Route::get('channels/{channel:slug}/auth/{platform}', [SocialAccountController::class, 'redirect'])

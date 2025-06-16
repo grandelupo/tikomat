@@ -33,13 +33,44 @@ class VideoController extends Controller
      */
     public function index(Request $request): Response
     {
-        $videos = Video::where('user_id', $request->user()->id)
-            ->with(['targets'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        $query = Video::where('user_id', $request->user()->id)
+            ->with(['targets', 'channel']);
+
+        // Apply filters
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('title', 'like', '%' . $request->search . '%')
+                  ->orWhere('description', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        if ($request->filled('channel')) {
+            $query->whereHas('channel', function ($q) use ($request) {
+                $q->where('slug', $request->channel);
+            });
+        }
+
+        if ($request->filled('platform')) {
+            $query->whereHas('targets', function ($q) use ($request) {
+                $q->where('platform', $request->platform);
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->whereHas('targets', function ($q) use ($request) {
+                $q->where('status', $request->status);
+            });
+        }
+
+        $videos = $query->orderBy('created_at', 'desc')->paginate(15);
+
+        // Get user's channels for filter dropdown
+        $channels = $request->user()->channels()->select('id', 'name', 'slug')->get();
 
         return Inertia::render('Videos/Index', [
             'videos' => $videos,
+            'channels' => $channels,
+            'filters' => $request->only(['search', 'channel', 'platform', 'status']),
         ]);
     }
 

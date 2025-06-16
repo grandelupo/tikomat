@@ -22,6 +22,7 @@ class Video extends Model
 
     protected $appends = [
         'formatted_duration',
+        'video_path',
     ];
 
     /**
@@ -64,6 +65,24 @@ class Video extends Model
         $minutes = floor($this->duration / 60);
         $seconds = $this->duration % 60;
         return sprintf('%d:%02d', $minutes, $seconds);
+    }
+
+    /**
+     * Get the video path URL for frontend.
+     */
+    public function getVideoPathAttribute(): string
+    {
+        if ($this->original_file_path) {
+            // If the path is already a full URL, return it as is
+            if (str_starts_with($this->original_file_path, 'http')) {
+                return $this->original_file_path;
+            }
+            
+            // Otherwise, create a URL from the storage path
+            return asset('storage/' . $this->original_file_path);
+        }
+        
+        return '';
     }
 
     /**
