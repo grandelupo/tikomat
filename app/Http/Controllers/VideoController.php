@@ -44,19 +44,19 @@ class VideoController extends Controller
             });
         }
 
-        if ($request->filled('channel')) {
+        if ($request->filled('channel') && $request->channel !== 'all') {
             $query->whereHas('channel', function ($q) use ($request) {
                 $q->where('slug', $request->channel);
             });
         }
 
-        if ($request->filled('platform')) {
+        if ($request->filled('platform') && $request->platform !== 'all') {
             $query->whereHas('targets', function ($q) use ($request) {
                 $q->where('platform', $request->platform);
             });
         }
 
-        if ($request->filled('status')) {
+        if ($request->filled('status') && $request->status !== 'all') {
             $query->whereHas('targets', function ($q) use ($request) {
                 $q->where('status', $request->status);
             });

@@ -102,9 +102,9 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
     const handleFilterChange = () => {
         const params = new URLSearchParams();
         if (searchTerm) params.set('search', searchTerm);
-        if (selectedChannel) params.set('channel', selectedChannel);
-        if (selectedPlatform) params.set('platform', selectedPlatform);
-        if (selectedStatus) params.set('status', selectedStatus);
+        if (selectedChannel && selectedChannel !== 'all') params.set('channel', selectedChannel);
+        if (selectedPlatform && selectedPlatform !== 'all') params.set('platform', selectedPlatform);
+        if (selectedStatus && selectedStatus !== 'all') params.set('status', selectedStatus);
         
         router.get('/videos', Object.fromEntries(params), { preserveState: true });
     };
@@ -179,12 +179,12 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                             
                             <div>
                                 <label className="text-sm font-medium mb-2 block">Channel</label>
-                                <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                                <Select value={selectedChannel || 'all'} onValueChange={(value) => setSelectedChannel(value === 'all' ? '' : value)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="All channels" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All channels</SelectItem>
+                                        <SelectItem value="all">All channels</SelectItem>
                                         {channels.map((channel) => (
                                             <SelectItem key={channel.id} value={channel.slug}>
                                                 {channel.name}
@@ -196,12 +196,12 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
 
                             <div>
                                 <label className="text-sm font-medium mb-2 block">Platform</label>
-                                <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+                                <Select value={selectedPlatform || 'all'} onValueChange={(value) => setSelectedPlatform(value === 'all' ? '' : value)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="All platforms" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All platforms</SelectItem>
+                                        <SelectItem value="all">All platforms</SelectItem>
                                         <SelectItem value="youtube">YouTube</SelectItem>
                                         <SelectItem value="instagram">Instagram</SelectItem>
                                         <SelectItem value="tiktok">TikTok</SelectItem>
@@ -215,12 +215,12 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
 
                             <div>
                                 <label className="text-sm font-medium mb-2 block">Status</label>
-                                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                                <Select value={selectedStatus || 'all'} onValueChange={(value) => setSelectedStatus(value === 'all' ? '' : value)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="All statuses" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">All statuses</SelectItem>
+                                        <SelectItem value="all">All statuses</SelectItem>
                                         <SelectItem value="pending">Pending</SelectItem>
                                         <SelectItem value="processing">Processing</SelectItem>
                                         <SelectItem value="success">Success</SelectItem>
