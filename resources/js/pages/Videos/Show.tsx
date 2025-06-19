@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { Youtube, Instagram, Video as VideoIcon, Clock, CheckCircle, XCircle, AlertCircle, Edit, Trash2, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Youtube, Instagram, Video as VideoIcon, Clock, CheckCircle, XCircle, AlertCircle, Edit, Trash2, ArrowLeft, ExternalLink, X } from 'lucide-react';
 import { useState } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
 
@@ -80,6 +80,21 @@ export default function VideoShow({ video }: VideoShowProps) {
                 router.visit('/videos');
             },
         });
+    };
+
+    const handleRemoveFromPlatform = (targetId: number, platform: string) => {
+        if (confirm(`Are you sure you want to remove this video from ${platform}?`)) {
+            router.delete(`/video-targets/${targetId}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    // Video page will be refreshed automatically
+                },
+                onError: (errors) => {
+                    console.error('Failed to remove video from platform:', errors);
+                    alert('Failed to remove video from platform. Please try again.');
+                }
+            });
+        }
     };
 
     const getPlatformUrl = (target: VideoTarget) => {
@@ -191,7 +206,7 @@ export default function VideoShow({ video }: VideoShowProps) {
                         <CardContent>
                             <div className="space-y-4">
                                 {video.targets.map((target) => {
-                                    const StatusIcon = statusIcons[target.status];
+                                    const StatusIcon = statusIcons[target.status as keyof typeof statusIcons];
                                     const PlatformIcon = platformIcons[target.platform as keyof typeof platformIcons];
                                     const platformUrl = getPlatformUrl(target);
                                     
@@ -208,7 +223,7 @@ export default function VideoShow({ video }: VideoShowProps) {
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2">
                                                 <Badge className={statusColors[target.status as keyof typeof statusColors]}>
                                                     <StatusIcon className="w-3 h-3 mr-1" />
                                                     {target.status}
@@ -222,6 +237,17 @@ export default function VideoShow({ video }: VideoShowProps) {
                                                     >
                                                         <ExternalLink className="w-4 h-4" />
                                                     </a>
+                                                )}
+                                                {target.status === 'success' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleRemoveFromPlatform(target.id, target.platform)}
+                                                        className="text-red-600 hover:text-red-700"
+                                                    >
+                                                        <X className="w-3 h-3 mr-1" />
+                                                        Remove
+                                                    </Button>
                                                 )}
                                             </div>
                                         </div>
@@ -261,55 +287,54 @@ export default function VideoShow({ video }: VideoShowProps) {
 
                 {/* Delete Confirmation Dialog */}
                 <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle>Delete Video</DialogTitle>
                             <DialogDescription>
-                                Choose how you want to handle this video deletion:
+                                Choose how you want to handle this video deletion. This action cannot be undone.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
-                            <div className="flex items-center space-x-2">
-                                <input
-                                    type="radio"
-                                    id="delete-all"
-                                    name="delete-option"
-                                    value="all"
-                                    checked={deleteOption === 'all'}
-                                    onChange={(e) => setDeleteOption(e.target.value as 'all')}
-                                    className="h-4 w-4"
-                                />
-                                <label htmlFor="delete-all" className="text-sm font-medium">
-                                    Delete from all platforms and Tikomat
-                                </label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <input
-                                    type="radio"
-                                    id="delete-tikomat"
-                                    name="delete-option"
-                                    value="tikomat"
-                                    checked={deleteOption === 'tikomat'}
-                                    onChange={(e) => setDeleteOption(e.target.value as 'tikomat')}
-                                    className="h-4 w-4"
-                                />
-                                <label htmlFor="delete-tikomat" className="text-sm font-medium">
-                                    Remove only from Tikomat (keep on platforms)
-                                </label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <input
-                                    type="radio"
-                                    id="archive"
-                                    name="delete-option"
-                                    value="archive"
-                                    checked={deleteOption === 'archive'}
-                                    onChange={(e) => setDeleteOption(e.target.value as 'archive')}
-                                    className="h-4 w-4"
-                                />
-                                <label htmlFor="archive" className="text-sm font-medium">
-                                    Archive on all platforms (make private/unlisted)
-                                </label>
+                            <div className="space-y-3">
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
+                                    <input
+                                        type="radio"
+                                        id="delete-tikomat"
+                                        name="delete-option"
+                                        value="tikomat"
+                                        checked={deleteOption === 'tikomat'}
+                                        onChange={(e) => setDeleteOption(e.target.value as 'tikomat')}
+                                        className="h-4 w-4 mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                        <label htmlFor="delete-tikomat" className="text-sm font-medium cursor-pointer">
+                                            Remove only from Tikomat
+                                        </label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Video will remain published on all platforms but removed from Tikomat's tracking
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('all')}>
+                                    <input
+                                        type="radio"
+                                        id="delete-all"
+                                        name="delete-option"
+                                        value="all"
+                                        checked={deleteOption === 'all'}
+                                        onChange={(e) => setDeleteOption(e.target.value as 'all')}
+                                        className="h-4 w-4 mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                        <label htmlFor="delete-all" className="text-sm font-medium cursor-pointer">
+                                            Take down from all platforms
+                                        </label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Video will be completely removed from all platforms and Tikomat
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <DialogFooter>
@@ -320,7 +345,7 @@ export default function VideoShow({ video }: VideoShowProps) {
                                 variant="destructive" 
                                 onClick={confirmDelete}
                             >
-                                Delete
+                                {deleteOption === 'all' ? 'Take Down Video' : 'Remove from Tikomat'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

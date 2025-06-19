@@ -62,7 +62,7 @@ interface WorkflowIndexProps {
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Dashboard',
+        title: 'My channels',
         href: '/dashboard',
     },
     {

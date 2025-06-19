@@ -24,7 +24,7 @@ interface VideoEditProps {
 export default function VideoEdit({ video }: VideoEditProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         {
-            title: 'Dashboard',
+            title: 'My channels',
             href: '/dashboard',
         },
         {

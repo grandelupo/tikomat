@@ -379,4 +379,92 @@ class VideoController extends Controller
                 ->with('error', $e->getMessage());
         }
     }
+
+    /**
+     * Remove video from a specific platform.
+     */
+    public function deleteTarget(VideoTarget $target): RedirectResponse
+    {
+        $this->authorize('update', $target->video);
+
+        $platform = ucfirst($target->platform);
+        
+        try {
+            Log::info('Removing video from platform', [
+                'target_id' => $target->id,
+                'video_id' => $target->video_id,
+                'platform' => $target->platform,
+                'status' => $target->status,
+                'has_platform_video_id' => !empty($target->platform_video_id),
+                'user_id' => auth()->id(),
+            ]);
+
+            $jobDispatched = false;
+            $jobDispatchError = null;
+
+            // If the video was successfully published, try to remove it from the platform
+            if ($target->status === 'success' && $target->platform_video_id) {
+                try {
+                    // Dispatch a job to remove the video from the platform
+                    $this->uploadService->dispatchRemovalJob($target);
+                    $jobDispatched = true;
+                    
+                    Log::info('Dispatched video removal job', [
+                        'target_id' => $target->id,
+                        'platform' => $target->platform,
+                        'platform_video_id' => $target->platform_video_id,
+                    ]);
+                } catch (\Exception $e) {
+                    $jobDispatchError = $e->getMessage();
+                    Log::warning('Failed to dispatch removal job, proceeding with local deletion', [
+                        'target_id' => $target->id,
+                        'platform' => $target->platform,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Store platform info before deletion
+            $platformInfo = [
+                'platform' => $target->platform,
+                'platform_video_id' => $target->platform_video_id,
+                'status' => $target->status,
+            ];
+
+            // Remove the target record from our database
+            $target->delete();
+
+            Log::info('Video target deleted successfully', [
+                'target_id' => $target->id,
+                'platform' => $platformInfo['platform'],
+                'job_dispatched' => $jobDispatched,
+            ]);
+
+            // Provide appropriate user feedback based on what happened
+            if ($platformInfo['status'] !== 'success') {
+                return redirect()->back()
+                    ->with('success', "Video target removed from {$platform}. (Video was not successfully published, so no platform removal was needed.)");
+            } elseif (!$platformInfo['platform_video_id']) {
+                return redirect()->back()
+                    ->with('success', "Video target removed from {$platform}. (No platform video ID found, so no platform removal was needed.)");
+            } elseif ($jobDispatched) {
+                return redirect()->back()
+                    ->with('success', "Video removal from {$platform} has been queued. The video will be removed from the platform shortly.");
+            } else {
+                return redirect()->back()
+                    ->with('warning', "Video removed from Tikomat, but could not queue removal from {$platform}: {$jobDispatchError}");
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Failed to remove video from platform', [
+                'target_id' => $target->id,
+                'platform' => $target->platform,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->back()
+                ->with('error', "Failed to remove video from {$platform}: " . $e->getMessage());
+        }
+    }
 }

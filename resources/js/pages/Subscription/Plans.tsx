@@ -32,7 +32,7 @@ interface Props {
 export default function SubscriptionPlans({ user, plans }: Props) {
     const breadcrumbs = [
         {
-            title: 'Dashboard',
+            title: 'My channels',
             href: '/dashboard',
         },
         {

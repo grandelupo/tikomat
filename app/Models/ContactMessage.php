@@ -8,34 +8,37 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ContactMessage extends Model
 {
     protected $fillable = [
-        'user_id',
-        'name',
+        'first_name',
+        'last_name',
         'email',
         'subject',
         'message',
-        'reply',
+        'status',
+        'admin_notes',
+        'read_at',
         'replied_at',
-        'replied_by',
     ];
 
     protected $casts = [
+        'admin_notes' => 'array',
+        'read_at' => 'datetime',
         'replied_at' => 'datetime',
     ];
 
     /**
-     * Get the user that sent the message (if logged in).
+     * Get the full name of the contact.
      */
-    public function user(): BelongsTo
+    public function getFullNameAttribute(): string
     {
-        return $this->belongsTo(User::class);
+        return $this->first_name . ' ' . $this->last_name;
     }
 
     /**
-     * Get the admin user who replied to the message.
+     * Check if the message has been read.
      */
-    public function repliedBy(): BelongsTo
+    public function isRead(): bool
     {
-        return $this->belongsTo(User::class, 'replied_by');
+        return $this->status !== 'unread';
     }
 
     /**
@@ -44,5 +47,51 @@ class ContactMessage extends Model
     public function isReplied(): bool
     {
         return !is_null($this->replied_at);
+    }
+
+    /**
+     * Mark the message as read.
+     */
+    public function markAsRead(): void
+    {
+        $this->update([
+            'status' => 'read',
+            'read_at' => now(),
+        ]);
+    }
+
+    /**
+     * Mark the message as replied.
+     */
+    public function markAsReplied(): void
+    {
+        $this->update([
+            'status' => 'replied',
+            'replied_at' => now(),
+        ]);
+    }
+
+    /**
+     * Scope for unread messages.
+     */
+    public function scopeUnread($query)
+    {
+        return $query->where('status', 'unread');
+    }
+
+    /**
+     * Scope for read messages.
+     */
+    public function scopeRead($query)
+    {
+        return $query->where('status', 'read');
+    }
+
+    /**
+     * Scope for replied messages.
+     */
+    public function scopeReplied($query)
+    {
+        return $query->where('status', 'replied');
     }
 } 

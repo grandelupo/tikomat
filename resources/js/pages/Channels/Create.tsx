@@ -37,7 +37,7 @@ const platformData = {
 export default function ChannelCreate({ allowedPlatforms }: Props) {
     const breadcrumbs = [
         {
-            title: 'Dashboard',
+            title: 'My channels',
             href: '/dashboard',
         },
         {

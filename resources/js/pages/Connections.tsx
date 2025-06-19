@@ -70,7 +70,7 @@ const platformColors = {
 
 const breadcrumbs = [
     {
-        title: 'Dashboard',
+        title: 'My channels',
         href: '/dashboard',
     },
     {

@@ -8,6 +8,7 @@ use App\Http\Controllers\ConnectionsController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\AdminChatController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\TutorialController;
@@ -46,6 +47,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('videos', VideoController::class)->except(['create', 'store', 'index']);
     Route::post('video-targets/{target}/retry', [VideoController::class, 'retryTarget'])
         ->name('video-targets.retry');
+    Route::delete('video-targets/{target}', [VideoController::class, 'deleteTarget'])
+        ->name('video-targets.delete');
     
     // Workflow routes
     Route::resource('workflow', WorkflowController::class);
@@ -118,13 +121,39 @@ Route::get('storage/videos/{filename}', function ($filename) {
 Route::middleware('auth')->group(function () {
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('/chat', [ChatController::class, 'store'])->name('chat.store');
+    Route::post('/chat/new', [ChatController::class, 'createConversation'])->name('chat.create');
+    Route::get('/chat/messages', [ChatController::class, 'getMessages'])->name('chat.messages');
+    Route::get('/chat/poll', [ChatController::class, 'pollMessages'])->name('chat.poll');
+    Route::post('/chat/mark-read', [ChatController::class, 'markAsRead'])->name('chat.mark-read');
 });
 
 // Legal and contact routes
 Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
-Route::get('/contact', [ContactController::class, 'show'])->name('contact.show');
+Route::get('/contact', [ContactController::class, 'index'])->name('contact.index');
 Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+
+// Admin contact routes (protected)
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Redirect /admin to /admin/contact-messages
+    Route::get('/', function () {
+        return redirect()->route('admin.contact-messages.index');
+    })->name('admin.dashboard');
+
+    Route::get('contact-messages', [ContactController::class, 'adminIndex'])->name('contact-messages.index');
+    Route::get('contact-messages/{contactMessage}', [ContactController::class, 'adminShow'])->name('contact-messages.show');
+    Route::patch('contact-messages/{contactMessage}', [ContactController::class, 'adminUpdate'])->name('contact-messages.update');
+    
+    // Chat routes
+    Route::get('chat', [AdminChatController::class, 'index'])->name('chat.index');
+    Route::get('chat/{conversation}', [AdminChatController::class, 'show'])->name('chat.show');
+    Route::post('chat/{conversation}/message', [AdminChatController::class, 'sendMessage'])->name('chat.send');
+    Route::get('chat/{conversation}/messages', [AdminChatController::class, 'getMessages'])->name('chat.messages');
+    Route::get('chat/{conversation}/poll', [AdminChatController::class, 'pollMessages'])->name('chat.poll');
+    Route::post('chat/{conversation}/close', [AdminChatController::class, 'close'])->name('chat.close');
+    Route::post('chat/{conversation}/reopen', [AdminChatController::class, 'reopen'])->name('chat.reopen');
+    Route::get('chat-stats', [AdminChatController::class, 'getStats'])->name('chat.stats');
+});
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

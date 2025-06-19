@@ -1,8 +1,22 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { 
     Plus, 
     Youtube, 
@@ -21,7 +35,7 @@ import {
     Palette,
     Twitter
 } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
 
 interface Channel {
@@ -105,10 +119,55 @@ const statusIcons = {
 
 const breadcrumbs = [
     {
-        title: 'Dashboard',
+        title: 'My channels',
         href: '/dashboard',
     },
 ];
+
+const platformData = {
+    youtube: {
+        name: 'YouTube',
+        icon: Youtube,
+        description: 'Upload videos to your YouTube channel',
+        color: 'text-red-600'
+    },
+    instagram: {
+        name: 'Instagram',
+        icon: Instagram,
+        description: 'Share Reels and video content',
+        color: 'text-pink-600'
+    },
+    tiktok: {
+        name: 'TikTok',
+        icon: VideoIcon,
+        description: 'Publish videos for maximum reach',
+        color: 'text-black'
+    },
+    facebook: {
+        name: 'Facebook',
+        icon: Facebook,
+        description: 'Share videos on Facebook',
+        color: 'text-blue-600'
+    },
+    snapchat: {
+        name: 'Snapchat',
+        icon: Camera,
+        description: 'Share content on Snapchat',
+        color: 'text-yellow-500'
+    },
+    pinterest: {
+        name: 'Pinterest',
+        icon: Palette,
+        description: 'Share videos on Pinterest',
+        color: 'text-red-500'
+    },
+    twitter: {
+        name: 'Twitter',
+        icon: Twitter,
+        description: 'Share videos on Twitter',
+        color: 'text-blue-400'
+    }
+};
 
 export default function Dashboard({ 
     channels, 
@@ -118,12 +177,26 @@ export default function Dashboard({
     allowedPlatforms, 
     canCreateChannel
 }: Props) {
+    const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
+    
+    const { data, setData, post, processing, errors, reset } = useForm({
+        name: '',
+        description: '',
+        default_platforms: ['youtube'] // Default to YouTube
+    });
+
     const handleChannelClick = (slug: string) => {
         router.visit(`/channels/${slug}`);
     };
 
-    const handleCreateChannel = () => {
-        router.visit('/channels/create');
+    const handleCreateChannel = (e: React.FormEvent) => {
+        e.preventDefault();
+        post('/channels', {
+            onSuccess: () => {
+                setIsCreateChannelOpen(false);
+                reset();
+            }
+        });
     };
 
     const handleUpgradeClick = () => {
@@ -132,9 +205,7 @@ export default function Dashboard({
 
     // Defensive checks for null/undefined data
     const safeChannels = channels || [];
-    const safeRecentVideos = recentVideos || [];
     const safeAllowedPlatforms = allowedPlatforms || [];
-    const safeDefaultChannel = defaultChannel || { slug: '#', name: 'Default Channel', id: 0 };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -144,7 +215,7 @@ export default function Dashboard({
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+                        <h1 className="text-3xl font-bold tracking-tight">My channels</h1>
                         <p className="text-muted-foreground">
                             Manage your channels and videos across all platforms
                         </p>
@@ -157,10 +228,130 @@ export default function Dashboard({
                             </Button>
                         )}
                         {canCreateChannel && (
-                            <Button onClick={handleCreateChannel} variant="outline">
-                                <Plus className="w-4 h-4 mr-2" />
-                                New Channel
-                            </Button>
+                            <Dialog open={isCreateChannelOpen} onOpenChange={setIsCreateChannelOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline">
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        New Channel
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[600px]">
+                                    <DialogHeader>
+                                        <DialogTitle>Create New Channel</DialogTitle>
+                                        <DialogDescription>
+                                            Set up a new channel to organize your content and social media connections.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <form onSubmit={handleCreateChannel} className="space-y-6">
+                                        {/* Channel Name */}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="name">Channel Name *</Label>
+                                            <Input
+                                                id="name"
+                                                type="text"
+                                                value={data.name}
+                                                onChange={(e) => setData('name', e.target.value)}
+                                                placeholder="e.g., My Gaming Channel"
+                                                className={errors.name ? 'border-red-500' : ''}
+                                            />
+                                            {errors.name && (
+                                                <p className="text-sm text-red-600">{errors.name}</p>
+                                            )}
+                                        </div>
+
+                                        {/* Channel Description */}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="description">Description</Label>
+                                            <Textarea
+                                                id="description"
+                                                value={data.description}
+                                                onChange={(e) => setData('description', e.target.value)}
+                                                placeholder="Describe what this channel is about..."
+                                                rows={3}
+                                                className={errors.description ? 'border-red-500' : ''}
+                                            />
+                                            {errors.description && (
+                                                <p className="text-sm text-red-600">{errors.description}</p>
+                                            )}
+                                        </div>
+
+                                        {/* Default Platforms */}
+                                        <div className="space-y-4">
+                                            <div>
+                                                <Label>Default Platforms</Label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Select the platforms you typically want to publish to from this channel
+                                                </p>
+                                            </div>
+
+                                            <div className="grid gap-3 max-h-48 overflow-y-auto">
+                                                {Object.entries(platformData).map(([platform, info]) => {
+                                                    const isAllowed = safeAllowedPlatforms.includes(platform);
+                                                    const Icon = info.icon;
+
+                                                    return (
+                                                        <div key={platform} className="flex items-center space-x-3 p-3 border rounded-lg">
+                                                            <Checkbox
+                                                                id={platform}
+                                                                checked={data.default_platforms.includes(platform)}
+                                                                onCheckedChange={(checked) => {
+                                                                    if (checked) {
+                                                                        setData('default_platforms', [...data.default_platforms, platform]);
+                                                                    } else {
+                                                                        setData('default_platforms', data.default_platforms.filter(p => p !== platform));
+                                                                    }
+                                                                }}
+                                                                disabled={!isAllowed}
+                                                            />
+
+                                                            <div className="flex items-center space-x-3 flex-1">
+                                                                <Icon className={`w-4 h-4 ${info.color}`} />
+                                                                <div className="flex-1">
+                                                                    <Label 
+                                                                        htmlFor={platform}
+                                                                        className={`font-medium text-sm ${!isAllowed ? 'text-gray-400' : ''}`}
+                                                                    >
+                                                                        {info.name}
+                                                                    </Label>
+                                                                    <p className={`text-xs ${!isAllowed ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                                                                        {info.description}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {safeAllowedPlatforms.length === 1 && (
+                                                <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                                                    <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm">
+                                                        <strong>Free Plan:</strong> You currently have access to YouTube only. 
+                                                        Upgrade to Pro to unlock Instagram and TikTok publishing for just $0.60/day.
+                                                    </AlertDescription>
+                                                </Alert>
+                                            )}
+
+                                            {errors.default_platforms && (
+                                                <p className="text-sm text-red-600">{errors.default_platforms}</p>
+                                            )}
+                                        </div>
+
+                                        <DialogFooter>
+                                            <Button 
+                                                type="button" 
+                                                variant="outline" 
+                                                onClick={() => setIsCreateChannelOpen(false)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button type="submit" disabled={processing}>
+                                                {processing ? 'Creating...' : 'Create Channel'}
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
                         )}
                     </div>
                 </div>
@@ -197,15 +388,6 @@ export default function Dashboard({
 
                 {/* Channels Grid */}
                 <div>
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-semibold">Your Channels</h3>
-                        {canCreateChannel && (
-                            <Button onClick={handleCreateChannel} size="sm" variant="outline">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add Channel
-                            </Button>
-                        )}
-                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {safeChannels.map((channel) => (
@@ -260,83 +442,6 @@ export default function Dashboard({
                             </Card>
                         ))}
                     </div>
-                </div>
-
-                {/* Recent Videos */}
-                <div>
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-semibold">Recent Videos</h3>
-                        <Link href={`/channels/${safeDefaultChannel.slug}/videos/create`}>
-                            <Button size="sm">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Upload Video
-                            </Button>
-                        </Link>
-                    </div>
-
-                    {safeRecentVideos.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {safeRecentVideos.map((video) => (
-                                <Card key={video.id}>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">{video.title || 'Untitled Video'}</CardTitle>
-                                        <CardDescription>
-                                            {video.channel?.name || 'Unknown Channel'} • {Math.floor((video.duration || 0) / 60)}:{((video.duration || 0) % 60).toString().padStart(2, '0')}
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-3">
-                                            {/* Thumbnail placeholder */}
-                                            <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-                                                <VideoThumbnail
-                                                    src={video.thumbnail_path}
-                                                    alt={video.title}
-                                                    width={video.video_width ?? undefined}
-                                                    height={video.video_height ?? undefined}
-                                                    className="h-32"
-                                                />
-                                            </div>
-
-                                            {/* Platform Status */}
-                                            <div className="space-y-2">
-                                                {(video.targets || []).map((target, index) => {
-                                                    const StatusIcon = statusIcons[target.status as keyof typeof statusIcons];
-                                                    return (
-                                                        <div key={index} className="flex items-center justify-between">
-                                                            <div className="flex items-center space-x-2">
-                                                                {React.createElement(platformIcons[target.platform as keyof typeof platformIcons], { className: "w-4 h-4" })}
-                                                                <span className="text-sm capitalize">{target.platform}</span>
-                                                            </div>
-                                                            <Badge className={statusColors[target.status as keyof typeof statusColors]}>
-                                                                <StatusIcon className="w-3 h-3 mr-1" />
-                                                                {target.status}
-                                                            </Badge>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    ) : (
-                        <Card>
-                            <CardContent className="text-center py-12">
-                                <VideoIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium text-gray-900 mb-2">No videos yet</h3>
-                                <p className="text-gray-600 mb-4">
-                                    Upload your first video to get started with cross-platform publishing.
-                                </p>
-                                <Link href={`/channels/${safeDefaultChannel.slug}/videos/create`}>
-                                    <Button>
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Upload Your First Video
-                                    </Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
-                    )}
                 </div>
             </div>
         </AppLayout>

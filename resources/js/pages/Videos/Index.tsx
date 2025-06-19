@@ -2,6 +2,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
@@ -60,11 +68,11 @@ interface VideosIndexProps {
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Dashboard',
+        title: 'My channels',
         href: '/dashboard',
     },
     {
-        title: 'Recently Uploaded',
+        title: 'All videos',
         href: '/videos',
     },
 ];
@@ -98,6 +106,9 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
     const [selectedChannel, setSelectedChannel] = useState(filters.channel || '');
     const [selectedPlatform, setSelectedPlatform] = useState(filters.platform || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [deleteVideoId, setDeleteVideoId] = useState<number | null>(null);
+    const [deleteOption, setDeleteOption] = useState<'all' | 'tikomat'>('tikomat');
 
     const handleFilterChange = () => {
         const params = new URLSearchParams();
@@ -122,8 +133,19 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
     };
 
     const handleDeleteVideo = (videoId: number) => {
-        if (confirm('Are you sure you want to delete this video?')) {
-            router.delete(`/videos/${videoId}`);
+        setDeleteVideoId(videoId);
+        setShowDeleteDialog(true);
+    };
+
+    const confirmDelete = () => {
+        if (deleteVideoId) {
+            router.delete(`/videos/${deleteVideoId}`, {
+                data: { delete_option: deleteOption },
+                onSuccess: () => {
+                    setShowDeleteDialog(false);
+                    setDeleteVideoId(null);
+                },
+            });
         }
     };
 
@@ -378,6 +400,72 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                         )}
                     </CardContent>
                 </Card>
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Delete Video</DialogTitle>
+                            <DialogDescription>
+                                Choose how you want to handle this video deletion. This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-3">
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
+                                    <input
+                                        type="radio"
+                                        id="delete-tikomat-videos"
+                                        name="delete-option"
+                                        value="tikomat"
+                                        checked={deleteOption === 'tikomat'}
+                                        onChange={(e) => setDeleteOption(e.target.value as 'tikomat')}
+                                        className="h-4 w-4 mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                        <label htmlFor="delete-tikomat-videos" className="text-sm font-medium cursor-pointer">
+                                            Remove only from Tikomat
+                                        </label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Video will remain published on all platforms but removed from Tikomat's tracking
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('all')}>
+                                    <input
+                                        type="radio"
+                                        id="delete-all-videos"
+                                        name="delete-option"
+                                        value="all"
+                                        checked={deleteOption === 'all'}
+                                        onChange={(e) => setDeleteOption(e.target.value as 'all')}
+                                        className="h-4 w-4 mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                        <label htmlFor="delete-all-videos" className="text-sm font-medium cursor-pointer">
+                                            Take down from all platforms
+                                        </label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Video will be completely removed from all platforms and Tikomat
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                                Cancel
+                            </Button>
+                            <Button 
+                                variant="destructive" 
+                                onClick={confirmDelete}
+                            >
+                                {deleteOption === 'all' ? 'Take Down Video' : 'Remove from Tikomat'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

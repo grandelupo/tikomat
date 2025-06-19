@@ -4,6 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { 
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { 
     Plus, 
     Youtube, 
@@ -20,9 +30,13 @@ import {
     Twitter,
     Camera,
     Palette,
-    Zap
+    Zap,
+    Eye,
+    Edit,
+    Trash2,
+    Users
 } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
 
 interface Channel {
@@ -110,9 +124,14 @@ export default function ChannelShow({
     availablePlatforms, 
     allowedPlatforms 
 }: Props) {
+    const [isConnectPlatformsOpen, setIsConnectPlatformsOpen] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [deleteVideoId, setDeleteVideoId] = useState<number | null>(null);
+    const [deleteOption, setDeleteOption] = useState<'all' | 'tikomat'>('tikomat');
+    
     const breadcrumbs = [
         {
-            title: 'Dashboard',
+            title: 'My channels',
             href: '/dashboard',
         },
         {
@@ -145,6 +164,23 @@ export default function ChannelShow({
 
     const handleUpgradeClick = () => {
         router.visit('/subscription/plans');
+    };
+
+    const handleDeleteVideo = (videoId: number) => {
+        setDeleteVideoId(videoId);
+        setShowDeleteDialog(true);
+    };
+
+    const confirmDelete = () => {
+        if (deleteVideoId) {
+            router.delete(`/videos/${deleteVideoId}`, {
+                data: { delete_option: deleteOption },
+                onSuccess: () => {
+                    setShowDeleteDialog(false);
+                    setDeleteVideoId(null);
+                },
+            });
+        }
     };
 
     return (
@@ -186,217 +222,406 @@ export default function ChannelShow({
 
                 {/* Connect Accounts Section */}
                 <div>
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold">Connected Platforms</h3>
-                        <p className="text-sm text-muted-foreground">
-                            Connect social media accounts to publish videos
-                        </p>
-                    </div>
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 className="text-lg font-semibold">Connected Platforms</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Connect social media accounts to publish videos
+                            </p>
+                        </div>
+                        <Dialog open={isConnectPlatformsOpen} onOpenChange={setIsConnectPlatformsOpen}>
+                            <DialogTrigger asChild>
+                                <Button 
+                                    variant="outline"
+                                    className="flex items-center space-x-2"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    <span>Connect More Platforms</span>
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[700px] max-h-[600px]">
+                                <DialogHeader>
+                                    <DialogTitle>Connect Platforms to {channel.name}</DialogTitle>
+                                    <DialogDescription>
+                                        Connect your social media accounts to start publishing videos across multiple platforms.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
+                                    {availablePlatforms.map((platform) => {
+                                        const isConnected = platform.connected;
+                                        const isAllowed = platform.allowed;
+                                        const PlatformIcon = platformIcons[platform.name as keyof typeof platformIcons];
+                                        
+                                        return (
+                                            <Card key={platform.name} className={`transition-all ${isConnected ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
+                                                <CardContent className="p-4">
+                                                    {/* Platform Icon and Name */}
+                                                    <div className="flex items-center space-x-3 mb-4">
+                                                        <div className={`p-2 rounded-lg ${isConnected ? 'bg-green-100' : 'bg-gray-100'}`}>
+                                                            <PlatformIcon className={`w-5 h-5 ${isConnected ? 'text-green-600' : 'text-gray-600'}`} />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h4 className="font-medium text-sm">{platform.label}</h4>
+                                                            {isConnected && (
+                                                                <p className="text-xs text-green-600">Connected</p>
+                                                            )}
+                                                            {!isAllowed && (
+                                                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs mt-1">
+                                                                    Pro Only
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                        {availablePlatforms.map((platform) => {
-                            const isConnected = platform.connected;
-                            const isAllowed = platform.allowed;
-                            const PlatformIcon = platformIcons[platform.name as keyof typeof platformIcons];
-                            
-                            return (
-                                <Card key={platform.name} className={`transition-all h-full ${isConnected ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
-                                    <CardContent className="p-4 h-full flex flex-col">
-                                        {/* Platform Icon and Name */}
-                                        <div className="flex flex-col items-center text-center space-y-3 flex-1">
-                                            <div className={`p-3 rounded-lg ${isConnected ? 'bg-green-100' : 'bg-gray-100'}`}>
-                                                <PlatformIcon className={`w-6 h-6 ${isConnected ? 'text-green-600' : 'text-gray-600'}`} />
+                                                    {/* Action Buttons */}
+                                                    <div className="flex flex-col space-y-2">
+                                                        {isConnected ? (
+                                                            <>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => {
+                                                                        handleDisconnectPlatform(platform.name);
+                                                                        setIsConnectPlatformsOpen(false);
+                                                                    }}
+                                                                    className="text-red-600 hover:text-red-700 w-full"
+                                                                >
+                                                                    Disconnect
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => {
+                                                                        handleForceReconnectPlatform(platform.name);
+                                                                        setIsConnectPlatformsOpen(false);
+                                                                    }}
+                                                                    className="text-xs h-auto p-1 w-full"
+                                                                >
+                                                                    Reconnect
+                                                                </Button>
+                                                            </>
+                                                        ) : (
+                                                            <Button
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    if (isAllowed) {
+                                                                        handleConnectPlatform(platform.name);
+                                                                        setIsConnectPlatformsOpen(false);
+                                                                    } else {
+                                                                        handleUpgradeClick();
+                                                                        setIsConnectPlatformsOpen(false);
+                                                                    }
+                                                                }}
+                                                                disabled={!isAllowed}
+                                                                className={`w-full ${isAllowed ? 'bg-blue-600 hover:bg-blue-700' : 'opacity-50'}`}
+                                                            >
+                                                                {isAllowed ? 'Connect' : 'Upgrade to Connect'}
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                                
+                                {/* Upgrade banner if there are restricted platforms */}
+                                {availablePlatforms.filter(p => !p.allowed).length > 0 && (
+                                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="p-2 bg-blue-100 rounded-lg">
+                                                    <Crown className="w-4 h-4 text-blue-600" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium text-blue-900 text-sm">Unlock More Platforms</h4>
+                                                    <p className="text-xs text-blue-700">
+                                                        Upgrade to Pro to access Instagram, TikTok, and more platforms for just $0.60/day
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-medium text-sm">{platform.label}</h4>
-                                                {isConnected && (
-                                                    <p className="text-xs text-green-600 mt-1">Connected</p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Action Buttons */}
-                                        <div className="flex flex-col space-y-2 mt-4">
-                                            {isConnected ? (
-                                                <>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleDisconnectPlatform(platform.name)}
-                                                        className="text-red-600 hover:text-red-700 w-full"
-                                                    >
-                                                        Disconnect
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => handleForceReconnectPlatform(platform.name)}
-                                                        className="text-xs h-auto p-1 w-full"
-                                                    >
-                                                        Reconnect
-                                                    </Button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {!isAllowed && (
-                                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 justify-center">
-                                                            Pro Only
-                                                        </Badge>
-                                                    )}
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => isAllowed ? handleConnectPlatform(platform.name) : handleUpgradeClick()}
-                                                        disabled={!isAllowed}
-                                                        className={`w-full ${isAllowed ? '' : 'opacity-50'}`}
-                                                    >
-                                                        {isAllowed ? 'Connect' : 'Upgrade'}
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
-                    </div>
-
-                    {availablePlatforms.filter(p => !p.allowed).length > 0 && (
-                        <Card className="mt-4 border-blue-200 bg-blue-50">
-                            <CardContent className="p-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3">
-                                        <div className="p-2 bg-blue-100 rounded-lg">
-                                            <Crown className="w-5 h-5 text-blue-600" />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-medium text-blue-900">Unlock More Platforms</h4>
-                                            <p className="text-sm text-blue-700">
-                                                Upgrade to Pro to access Instagram, TikTok, and more platforms
-                                            </p>
+                                            <Button 
+                                                onClick={() => {
+                                                    handleUpgradeClick();
+                                                    setIsConnectPlatformsOpen(false);
+                                                }}
+                                                size="sm"
+                                                className="bg-blue-600 hover:bg-blue-700"
+                                            >
+                                                <Zap className="w-3 h-3 mr-1" />
+                                                Upgrade
+                                            </Button>
                                         </div>
                                     </div>
-                                    <Button onClick={handleUpgradeClick} className="bg-blue-600 hover:bg-blue-700">
-                                        <Zap className="w-4 h-4 mr-2" />
-                                        Upgrade to Pro
-                                    </Button>
+                                )}
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+
+                    {/* Show only connected platforms */}
+                    {availablePlatforms.filter(p => p.connected).length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                            {availablePlatforms.filter(p => p.connected).map((platform) => {
+                                const PlatformIcon = platformIcons[platform.name as keyof typeof platformIcons];
+                                
+                                return (
+                                    <Card key={platform.name} className="border-green-200 bg-green-50">
+                                        <CardContent className="p-4 h-full flex flex-col">
+                                            {/* Platform Icon and Name */}
+                                            <div className="flex flex-col items-center text-center space-y-3 flex-1">
+                                                <div className="p-3 rounded-lg bg-green-100">
+                                                    <PlatformIcon className="w-6 h-6 text-green-600" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium text-sm">{platform.label}</h4>
+                                                    <p className="text-xs text-green-600 mt-1">Connected</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="flex flex-col space-y-2 mt-4">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleDisconnectPlatform(platform.name)}
+                                                    className="text-red-600 hover:text-red-700 w-full"
+                                                >
+                                                    Disconnect
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => handleForceReconnectPlatform(platform.name)}
+                                                    className="text-xs h-auto p-1 w-full"
+                                                >
+                                                    Reconnect
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <Card className="border-gray-200 bg-gray-50">
+                            <CardContent className="text-center py-8">
+                                <div className="flex flex-col items-center space-y-4">
+                                    <div className="p-4 bg-gray-100 rounded-full">
+                                        <Users className="w-8 h-8 text-gray-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Platforms Connected</h3>
+                                        <p className="text-sm text-gray-600 mb-4">
+                                            Connect your social media accounts to start publishing videos across platforms.
+                                        </p>
+                                        <Button 
+                                            onClick={() => setIsConnectPlatformsOpen(true)}
+                                            className="bg-blue-600 hover:bg-blue-700"
+                                        >
+                                            <Plus className="w-4 h-4 mr-2" />
+                                            Connect Your First Platform
+                                        </Button>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
                     )}
                 </div>
 
-                {/* Recent Videos */}
-                <div>
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold">Recent Videos</h3>
-                        <Link href="/videos" className="text-sm text-blue-600 hover:text-blue-700">
-                            View all videos →
-                        </Link>
-                    </div>
-
-                    {videos.data.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                            {videos.data.map((video) => (
-                                <Card key={video.id} className="overflow-hidden">
-                                    <CardContent className="p-0">
-                                        {/* Thumbnail */}
-                                        <div className="relative">
-                                            <VideoThumbnail
-                                                src={video.thumbnail_path}
-                                                alt={video.title}
-                                                width={video.video_width ?? undefined}
-                                                height={video.video_height ?? undefined}
-                                                className="w-full h-24"
-                                            />
-                                            <div className="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1 rounded">
-                                                {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
-                                            </div>
-                                        </div>
-
-                                        {/* Content */}
-                                        <div className="p-3 space-y-2">
-                                            <h4 className="font-medium text-sm line-clamp-2 leading-tight">
-                                                {video.title}
-                                            </h4>
-                                            
-                                            <p className="text-xs text-muted-foreground">
-                                                {new Date(video.created_at).toLocaleDateString()}
-                                            </p>
-
-                                            {/* Platform Status - Compact */}
-                                            <div className="flex flex-wrap gap-1">
-                                                {video.targets.map((target, index) => {
-                                                    const StatusIcon = statusIcons[target.status as keyof typeof statusIcons];
-                                                    const platformAbbr = {
-                                                        youtube: 'YT',
-                                                        instagram: 'IG',
-                                                        tiktok: 'TT',
-                                                        facebook: 'FB',
-                                                        twitter: 'X',
-                                                        snapchat: 'SC',
-                                                        pinterest: 'PT'
-                                                    };
-                                                    
-                                                    return (
-                                                        <div key={index} className="flex items-center">
-                                                            <Badge 
-                                                                variant="secondary" 
-                                                                className={`text-xs px-1.5 py-0.5 ${statusColors[target.status as keyof typeof statusColors]}`}
-                                                            >
-                                                                <StatusIcon className="w-2.5 h-2.5 mr-0.5" />
-                                                                {platformAbbr[target.platform as keyof typeof platformAbbr] || target.platform.toUpperCase()}
-                                                            </Badge>
-                                                            {target.status === 'failed' && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    onClick={() => handleRetryTarget(target.id)}
-                                                                    className="text-xs px-1 py-0 h-auto ml-1 text-red-600"
-                                                                >
-                                                                    ↻
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-
-                                            {/* Actions - Compact */}
-                                            <div className="flex gap-1 pt-1">
-                                                <Link href={`/videos/${video.id}`} className="flex-1">
-                                                    <Button size="sm" variant="outline" className="text-xs w-full h-6">
-                                                        View
-                                                    </Button>
-                                                </Link>
-                                                <Link href={`/videos/${video.id}/edit`} className="flex-1">
-                                                    <Button size="sm" variant="outline" className="text-xs w-full h-6">
-                                                        Edit
-                                                    </Button>
-                                                </Link>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    ) : (
-                        <Card>
-                            <CardContent className="text-center py-8">
-                                <VideoIcon className="w-8 h-8 text-gray-400 mx-auto mb-3" />
-                                <h3 className="text-base font-medium text-gray-900 mb-2">No videos yet</h3>
-                                <p className="text-sm text-gray-600 mb-3">
+                {/* Videos Table */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Videos ({videos.meta?.total || videos.data.length})</CardTitle>
+                        <CardDescription>
+                            Videos from this channel and their publishing status across platforms
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {videos.data.length === 0 ? (
+                            <div className="text-center py-8">
+                                <VideoIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+                                <h3 className="mt-2 text-sm font-semibold text-gray-900">No videos yet</h3>
+                                <p className="mt-1 text-sm text-gray-500">
                                     Upload your first video to this channel to get started.
                                 </p>
-                                <Link href={`/channels/${channel.slug}/videos/create`}>
-                                    <Button size="sm">
-                                        <Plus className="w-3 h-3 mr-1" />
-                                        Upload Video
-                                    </Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
+                                <div className="mt-6">
+                                    <Link href={`/channels/${channel.slug}/videos/create`}>
+                                        <Button>
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Upload Video
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-20">Thumbnail</TableHead>
+                                        <TableHead>Title</TableHead>
+                                        <TableHead>Duration</TableHead>
+                                        <TableHead>Platforms</TableHead>
+                                        <TableHead>Upload Date</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {videos.data.map((video) => (
+                                        <TableRow key={video.id}>
+                                            <TableCell>
+                                                <VideoThumbnail
+                                                    src={video.thumbnail_path}
+                                                    alt={video.title}
+                                                    width={video.video_width ?? undefined}
+                                                    height={video.video_height ?? undefined}
+                                                    className="w-16 h-12"
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <div>
+                                                    <p className="font-medium">{video.title}</p>
+                                                    {video.description && (
+                                                        <p className="text-sm text-muted-foreground line-clamp-1">
+                                                            {video.description}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {video.targets.map((target) => {
+                                                        const StatusIcon = statusIcons[target.status as keyof typeof statusIcons];
+                                                        const PlatformIcon = platformIcons[target.platform as keyof typeof platformIcons];
+                                                        
+                                                        return (
+                                                            <div key={target.id} className="flex items-center">
+                                                                <Badge 
+                                                                    variant="secondary"
+                                                                    className={`${statusColors[target.status as keyof typeof statusColors]} flex items-center gap-1 text-xs`}
+                                                                >
+                                                                    <PlatformIcon className="h-3 w-3" />
+                                                                    <StatusIcon className="h-3 w-3" />
+                                                                    {target.platform.charAt(0).toUpperCase() + target.platform.slice(1)}
+                                                                </Badge>
+                                                                {target.status === 'failed' && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => handleRetryTarget(target.id)}
+                                                                        className="text-xs px-1 py-0 h-auto ml-1 text-red-600"
+                                                                    >
+                                                                        Retry
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {new Date(video.created_at).toLocaleDateString()}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Link href={`/videos/${video.id}`}>
+                                                        <Button variant="outline" size="sm">
+                                                            <Eye className="mr-1 h-3 w-3" />
+                                                            View
+                                                        </Button>
+                                                    </Link>
+                                                    <Link href={`/videos/${video.id}/edit`}>
+                                                        <Button variant="outline" size="sm">
+                                                            <Edit className="mr-1 h-3 w-3" />
+                                                            Edit
+                                                        </Button>
+                                                    </Link>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm"
+                                                        onClick={() => handleDeleteVideo(video.id)}
+                                                        className="text-red-600 hover:text-red-700"
+                                                    >
+                                                        <Trash2 className="mr-1 h-3 w-3" />
+                                                        Delete
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Delete Video</DialogTitle>
+                            <DialogDescription>
+                                Choose how you want to handle this video deletion. This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-3">
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
+                                    <input
+                                        type="radio"
+                                        id="delete-tikomat-channel"
+                                        name="delete-option"
+                                        value="tikomat"
+                                        checked={deleteOption === 'tikomat'}
+                                        onChange={(e) => setDeleteOption(e.target.value as 'tikomat')}
+                                        className="h-4 w-4 mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                        <label htmlFor="delete-tikomat-channel" className="text-sm font-medium cursor-pointer">
+                                            Remove only from Tikomat
+                                        </label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Video will remain published on all platforms but removed from Tikomat's tracking
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('all')}>
+                                    <input
+                                        type="radio"
+                                        id="delete-all-channel"
+                                        name="delete-option"
+                                        value="all"
+                                        checked={deleteOption === 'all'}
+                                        onChange={(e) => setDeleteOption(e.target.value as 'all')}
+                                        className="h-4 w-4 mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                        <label htmlFor="delete-all-channel" className="text-sm font-medium cursor-pointer">
+                                            Take down from all platforms
+                                        </label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Video will be completely removed from all platforms and Tikomat
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                                Cancel
+                            </Button>
+                            <Button 
+                                variant="destructive" 
+                                onClick={confirmDelete}
+                            >
+                                {deleteOption === 'all' ? 'Take Down Video' : 'Remove from Tikomat'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

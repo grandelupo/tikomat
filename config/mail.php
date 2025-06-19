@@ -113,4 +113,21 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Email Addresses
+    |--------------------------------------------------------------------------
+    |
+    | This is a list of email addresses that will receive notifications
+    | when contact forms are submitted or other admin notifications need
+    | to be sent.
+    |
+    */
+
+    'admin_emails' => [
+        env('ADMIN_EMAIL', 'admin@tikomat.com'),
+        // Add more admin emails here
+        // 'admin2@tikomat.com',
+    ],
+
 ];

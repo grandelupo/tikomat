@@ -9,6 +9,13 @@ use App\Jobs\UploadVideoToFacebook;
 use App\Jobs\UploadVideoToSnapchat;
 use App\Jobs\UploadVideoToPinterest;
 use App\Jobs\UploadVideoToTwitter;
+use App\Jobs\RemoveVideoFromYoutube;
+use App\Jobs\RemoveVideoFromTiktok;
+use App\Jobs\RemoveVideoFromInstagram;
+use App\Jobs\RemoveVideoFromFacebook;
+use App\Jobs\RemoveVideoFromSnapchat;
+use App\Jobs\RemoveVideoFromPinterest;
+use App\Jobs\RemoveVideoFromTwitter;
 use App\Models\VideoTarget;
 use Illuminate\Support\Facades\Log;
 
@@ -184,6 +191,74 @@ class VideoUploadService
                 'status' => 'failed',
                 'error_message' => 'Failed to dispatch metadata update job: ' . $e->getMessage(),
             ]);
+        }
+    }
+
+    /**
+     * Dispatch appropriate removal job for a video target.
+     */
+    public function dispatchRemovalJob(VideoTarget $target): void
+    {
+        Log::info('Dispatching video removal job', [
+            'target_id' => $target->id,
+            'platform' => $target->platform,
+            'platform_video_id' => $target->platform_video_id,
+        ]);
+
+        try {
+            switch ($target->platform) {
+                case 'youtube':
+                    Log::info('Dispatching YouTube video removal job for target: ' . $target->id);
+                    RemoveVideoFromYoutube::dispatch($target);
+                    break;
+
+                case 'instagram':
+                    Log::info('Dispatching Instagram video removal job for target: ' . $target->id);
+                    RemoveVideoFromInstagram::dispatch($target);
+                    break;
+
+                case 'tiktok':
+                    Log::info('Dispatching TikTok video removal job for target: ' . $target->id);
+                    RemoveVideoFromTiktok::dispatch($target);
+                    break;
+
+                case 'facebook':
+                    Log::info('Dispatching Facebook video removal job for target: ' . $target->id);
+                    RemoveVideoFromFacebook::dispatch($target);
+                    break;
+
+                case 'twitter':
+                    Log::info('Dispatching Twitter video removal job for target: ' . $target->id);
+                    RemoveVideoFromTwitter::dispatch($target);
+                    break;
+
+                case 'snapchat':
+                    Log::info('Dispatching Snapchat video removal job for target: ' . $target->id);
+                    RemoveVideoFromSnapchat::dispatch($target);
+                    break;
+
+                case 'pinterest':
+                    Log::info('Dispatching Pinterest video removal job for target: ' . $target->id);
+                    RemoveVideoFromPinterest::dispatch($target);
+                    break;
+
+                default:
+                    Log::warning('Unknown platform for video removal: ' . $target->id . ' - ' . $target->platform);
+                    throw new \Exception('Unsupported platform for video removal: ' . $target->platform);
+            }
+
+            Log::info('Video removal job dispatched successfully', [
+                'target_id' => $target->id,
+                'platform' => $target->platform,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to dispatch video removal job for target: ' . $target->id, [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            throw $e;
         }
     }
 } 

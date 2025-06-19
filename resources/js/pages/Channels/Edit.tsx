@@ -47,7 +47,7 @@ const platformData = {
 export default function ChannelEdit({ channel, allowedPlatforms }: Props) {
     const breadcrumbs = [
         {
-            title: 'Dashboard',
+            title: 'My channels',
             href: '/dashboard',
         },
         {

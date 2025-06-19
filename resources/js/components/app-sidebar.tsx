@@ -9,12 +9,12 @@ import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
+        title: 'My channels',
         href: '/dashboard',
         icon: LayoutGrid,
     },
     {
-        title: 'Recently Uploaded',
+        title: 'All videos',
         href: '/videos',
         icon: Video,
     },
