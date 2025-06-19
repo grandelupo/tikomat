@@ -14,6 +14,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\CloudStorageController;
 use App\Http\Controllers\WorkflowController;
+use App\Http\Controllers\AIController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -49,6 +50,98 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('video-targets.retry');
     Route::delete('video-targets/{target}', [VideoController::class, 'deleteTarget'])
         ->name('video-targets.delete');
+    
+    // AI Content Optimization routes
+    Route::prefix('ai')->name('ai.')->group(function () {
+        // Content Optimization
+        Route::post('optimize-content', [AIController::class, 'optimizeContent'])->name('optimize-content');
+        Route::post('generate-hashtags', [AIController::class, 'generateHashtags'])->name('generate-hashtags');
+        Route::post('suggest-posting-times', [AIController::class, 'suggestPostingTimes'])->name('suggest-posting-times');
+        Route::post('generate-seo-description', [AIController::class, 'generateSEODescription'])->name('generate-seo-description');
+        Route::post('generate-ab-variations', [AIController::class, 'generateABVariations'])->name('generate-ab-variations');
+        Route::post('optimization-suggestions', [AIController::class, 'getOptimizationSuggestions'])->name('optimization-suggestions');
+        Route::post('batch-optimize', [AIController::class, 'batchOptimizeContent'])->name('batch-optimize');
+        
+        // Video Analysis
+        Route::post('analyze-video', [AIController::class, 'analyzeVideo'])->name('analyze-video');
+        Route::post('assess-video-quality', [AIController::class, 'assessVideoQuality'])->name('assess-video-quality');
+        Route::post('generate-thumbnail-suggestions', [AIController::class, 'generateThumbnailSuggestions'])->name('generate-thumbnail-suggestions');
+        Route::post('extract-video-tags', [AIController::class, 'extractVideoTags'])->name('extract-video-tags');
+        
+        // Performance Optimization
+        Route::post('analyze-video-performance', [AIController::class, 'analyzeVideoPerformance'])->name('analyze-video-performance');
+        Route::post('create-ab-test', [AIController::class, 'createABTest'])->name('create-ab-test');
+        Route::get('user-performance-insights', [AIController::class, 'getUserPerformanceInsights'])->name('user-performance-insights');
+        Route::post('get-optimization-opportunities', [AIController::class, 'getOptimizationOpportunities'])->name('get-optimization-opportunities');
+        Route::post('platform-performance-comparison', [AIController::class, 'getPlatformPerformanceComparison'])->name('platform-performance-comparison');
+        Route::post('trending-performance-insights', [AIController::class, 'getTrendingPerformanceInsights'])->name('trending-performance-insights');
+        
+        // Thumbnail Optimization
+        Route::post('optimize-thumbnails', [AIController::class, 'optimizeThumbnails'])->name('optimize-thumbnails');
+        Route::post('generate-optimized-thumbnail', [AIController::class, 'generateOptimizedThumbnail'])->name('generate-optimized-thumbnail');
+        Route::post('thumbnail-design-analysis', [AIController::class, 'getThumbnailDesignAnalysis'])->name('thumbnail-design-analysis');
+        Route::post('thumbnail-ctr-predictions', [AIController::class, 'getThumbnailCTRPredictions'])->name('thumbnail-ctr-predictions');
+        Route::post('thumbnail-text-suggestions', [AIController::class, 'getThumbnailTextSuggestions'])->name('thumbnail-text-suggestions');
+        Route::post('create-thumbnail-ab-test', [AIController::class, 'createThumbnailABTest'])->name('create-thumbnail-ab-test');
+        
+        // Content Calendar
+        Route::post('generate-content-calendar', [AIController::class, 'generateContentCalendar'])->name('generate-content-calendar');
+        Route::post('optimal-posting-schedule', [AIController::class, 'getOptimalPostingSchedule'])->name('optimal-posting-schedule');
+        Route::post('trending-opportunities', [AIController::class, 'getTrendingOpportunities'])->name('trending-opportunities');
+        Route::post('analyze-content-gaps', [AIController::class, 'analyzeContentGaps'])->name('analyze-content-gaps');
+        Route::post('seasonal-insights', [AIController::class, 'getSeasonalInsights'])->name('seasonal-insights');
+        Route::post('performance-forecasts', [AIController::class, 'getPerformanceForecasts'])->name('performance-forecasts');
+        
+        // Trend Analyzer
+        Route::post('analyze-trends', [AIController::class, 'analyzeTrends'])->name('analyze-trends');
+        Route::post('trending-topics', [AIController::class, 'getTrendingTopics'])->name('trending-topics');
+        Route::post('detect-viral-content', [AIController::class, 'detectViralContent'])->name('detect-viral-content');
+        Route::post('hashtag-trends', [AIController::class, 'analyzeHashtagTrends'])->name('hashtag-trends');
+        Route::post('content-opportunities', [AIController::class, 'identifyContentOpportunities'])->name('content-opportunities');
+        Route::post('competitive-analysis', [AIController::class, 'getCompetitiveAnalysis'])->name('competitive-analysis');
+        
+        // Audience Insights
+        Route::post('audience-insights', [AIController::class, 'analyzeAudienceInsights'])->name('audience-insights');
+        Route::post('demographic-breakdown', [AIController::class, 'getDemographicBreakdown'])->name('demographic-breakdown');
+        Route::post('audience-segments', [AIController::class, 'getAudienceSegments'])->name('audience-segments');
+        Route::post('behavior-patterns', [AIController::class, 'getBehaviorPatterns'])->name('behavior-patterns');
+        Route::post('audience-growth-opportunities', [AIController::class, 'getAudienceGrowthOpportunities'])->name('audience-growth-opportunities');
+        Route::post('personalization-recommendations', [AIController::class, 'getPersonalizationRecommendations'])->name('personalization-recommendations');
+        
+        // Content Strategy Planner
+        Route::post('strategy-generate', [AIController::class, 'generateContentStrategy'])->name('strategy-generate');
+        Route::post('strategy-overview', [AIController::class, 'getStrategicOverview'])->name('strategy-overview');
+        Route::post('strategy-pillars', [AIController::class, 'getContentPillars'])->name('strategy-pillars');
+        Route::post('strategy-competitive', [AIController::class, 'getStrategyCompetitiveAnalysis'])->name('strategy-competitive');
+        Route::post('strategy-roadmap', [AIController::class, 'getGrowthRoadmap'])->name('strategy-roadmap');
+        Route::post('strategy-kpis', [AIController::class, 'getKPIFramework'])->name('strategy-kpis');
+        
+        // SEO Optimizer
+        Route::post('seo-analyze', [AIController::class, 'analyzeSEOPerformance'])->name('seo-analyze');
+        Route::post('seo-keywords', [AIController::class, 'researchKeywords'])->name('seo-keywords');
+        Route::post('seo-optimize', [AIController::class, 'optimizeContentSEO'])->name('seo-optimize');
+        Route::post('seo-performance', [AIController::class, 'trackSearchPerformance'])->name('seo-performance');
+        Route::post('seo-recommendations', [AIController::class, 'generateSEORecommendations'])->name('seo-recommendations');
+        Route::post('seo-competitor', [AIController::class, 'analyzeCompetitorSEO'])->name('seo-competitor');
+
+        // AI Watermark Remover
+        Route::post('watermark-detect', [AIController::class, 'detectWatermarks'])->name('watermark-detect');
+        Route::post('watermark-remove', [AIController::class, 'removeWatermarks'])->name('watermark-remove');
+        Route::post('watermark-progress', [AIController::class, 'getRemovalProgress'])->name('watermark-progress');
+        Route::post('watermark-optimize', [AIController::class, 'optimizeRemovalSettings'])->name('watermark-optimize');
+        Route::post('watermark-quality', [AIController::class, 'analyzeRemovalQuality'])->name('watermark-quality');
+        Route::post('watermark-report', [AIController::class, 'generateRemovalReport'])->name('watermark-report');
+        
+        // AI Subtitle Generator
+        Route::post('subtitle-generate', [AIController::class, 'generateSubtitles'])->name('subtitle-generate');
+        Route::post('subtitle-progress', [AIController::class, 'getSubtitleProgress'])->name('subtitle-progress');
+        Route::post('subtitle-style', [AIController::class, 'updateSubtitleStyle'])->name('subtitle-style');
+        Route::post('subtitle-position', [AIController::class, 'updateSubtitlePosition'])->name('subtitle-position');
+        Route::post('subtitle-export', [AIController::class, 'exportSubtitles'])->name('subtitle-export');
+        Route::post('subtitle-quality', [AIController::class, 'analyzeSubtitleQuality'])->name('subtitle-quality');
+        Route::get('subtitle-languages', [AIController::class, 'getSubtitleLanguages'])->name('subtitle-languages');
+        Route::get('subtitle-styles', [AIController::class, 'getSubtitleStyles'])->name('subtitle-styles');
+    });
     
     // Workflow routes
     Route::resource('workflow', WorkflowController::class);

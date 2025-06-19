@@ -1,0 +1,3366 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\AIContentOptimizationService;
+use App\Services\AIVideoAnalyzerService;
+use App\Services\AIPerformanceOptimizationService;
+use App\Services\AIThumbnailOptimizerService;
+use App\Services\AIContentCalendarService;
+use App\Services\AITrendAnalyzerService;
+use App\Services\AIAudienceInsightsService;
+use App\Services\AIContentStrategyPlannerService;
+use App\Services\AISEOOptimizerService;
+use App\Services\AIWatermarkRemoverService;
+use App\Services\AISubtitleGeneratorService;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
+
+class AIController extends Controller
+{
+    protected AIContentOptimizationService $aiService;
+    protected AIVideoAnalyzerService $videoAnalyzerService;
+    protected AIPerformanceOptimizationService $performanceOptimizationService;
+    protected AIThumbnailOptimizerService $thumbnailOptimizerService;
+    protected AIContentCalendarService $contentCalendarService;
+    protected AITrendAnalyzerService $trendAnalyzerService;
+    protected AIAudienceInsightsService $audienceInsightsService;
+    protected AIContentStrategyPlannerService $contentStrategyPlannerService;
+    protected AISEOOptimizerService $seoOptimizerService;
+    protected AIWatermarkRemoverService $watermarkRemoverService;
+    protected AISubtitleGeneratorService $subtitleGeneratorService;
+
+    public function __construct(AIContentOptimizationService $aiService, AIVideoAnalyzerService $videoAnalyzerService, AIPerformanceOptimizationService $performanceOptimizationService, AIThumbnailOptimizerService $thumbnailOptimizerService, AIContentCalendarService $contentCalendarService, AITrendAnalyzerService $trendAnalyzerService, AIAudienceInsightsService $audienceInsightsService, AIContentStrategyPlannerService $contentStrategyPlannerService, AISEOOptimizerService $seoOptimizerService, AIWatermarkRemoverService $watermarkRemoverService, AISubtitleGeneratorService $subtitleGeneratorService)
+    {
+        $this->aiService = $aiService;
+        $this->videoAnalyzerService = $videoAnalyzerService;
+        $this->performanceOptimizationService = $performanceOptimizationService;
+        $this->thumbnailOptimizerService = $thumbnailOptimizerService;
+        $this->contentCalendarService = $contentCalendarService;
+        $this->trendAnalyzerService = $trendAnalyzerService;
+        $this->audienceInsightsService = $audienceInsightsService;
+        $this->contentStrategyPlannerService = $contentStrategyPlannerService;
+        $this->seoOptimizerService = $seoOptimizerService;
+        $this->watermarkRemoverService = $watermarkRemoverService;
+        $this->subtitleGeneratorService = $subtitleGeneratorService;
+    }
+
+    /**
+     * Analyze video content comprehensively
+     */
+    public function analyzeVideo(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+            'options' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            $analysis = $this->videoAnalyzerService->analyzeVideo($videoPath, $request->options ?? []);
+
+            Log::info('Video analysis completed', [
+                'user_id' => $request->user()->id,
+                'video_path' => $request->video_path,
+                'analysis_quality' => $analysis['quality_score']['overall_score'] ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $analysis,
+                'message' => 'Video analysis completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Video analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+                'video_path' => $request->video_path ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze video. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get video quality assessment
+     */
+    public function assessVideoQuality(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            // Use reflection to call protected method for quality assessment only
+            $reflection = new \ReflectionClass($this->videoAnalyzerService);
+            $method = $reflection->getMethod('assessVideoQuality');
+            $method->setAccessible(true);
+            $qualityAssessment = $method->invokeArgs($this->videoAnalyzerService, [$videoPath]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $qualityAssessment,
+                'message' => 'Video quality assessed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Video quality assessment failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to assess video quality. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate thumbnail suggestions
+     */
+    public function generateThumbnailSuggestions(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            // Use reflection to call protected method
+            $reflection = new \ReflectionClass($this->videoAnalyzerService);
+            $method = $reflection->getMethod('generateThumbnailSuggestions');
+            $method->setAccessible(true);
+            $thumbnailSuggestions = $method->invokeArgs($this->videoAnalyzerService, [$videoPath]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $thumbnailSuggestions,
+                'message' => 'Thumbnail suggestions generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Thumbnail suggestion generation failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate thumbnail suggestions. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Extract content tags from video
+     */
+    public function extractVideoTags(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            // Get basic analysis with transcript
+            $analysis = $this->videoAnalyzerService->analyzeVideo($videoPath, ['transcript_only' => true]);
+            
+            $tags = [];
+            if ($analysis['transcript']['success'] && !empty($analysis['transcript']['text'])) {
+                // Use reflection to call protected method
+                $reflection = new \ReflectionClass($this->videoAnalyzerService);
+                $method = $reflection->getMethod('extractContentTags');
+                $method->setAccessible(true);
+                $tags = $method->invokeArgs($this->videoAnalyzerService, [$analysis['transcript']['text']]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'tags' => $tags,
+                    'transcript_available' => $analysis['transcript']['success'],
+                    'content_category' => $analysis['content_category'] ?? null,
+                ],
+                'message' => 'Video tags extracted successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Video tag extraction failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to extract video tags. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Optimize content for multiple platforms
+     */
+    public function optimizeContent(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:5000',
+            'platforms' => 'required|array|min:1',
+            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $optimizations = $this->aiService->optimizeForPlatforms($request->all());
+
+            Log::info('AI content optimization completed', [
+                'user_id' => $request->user()->id,
+                'platforms' => $request->platforms,
+                'title_length' => strlen($request->title),
+                'optimization_count' => count($optimizations),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $optimizations,
+                'message' => 'Content optimized successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('AI content optimization failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+                'title' => $request->title,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to optimize content. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate trending hashtags for a platform
+     */
+    public function generateHashtags(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'content' => 'required|string|max:1000',
+            'count' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $hashtags = $this->aiService->generateTrendingHashtags(
+                $request->platform,
+                $request->content,
+                $request->count ?? 10
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $hashtags,
+                'message' => 'Hashtags generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Hashtag generation failed', [
+                'user_id' => $request->user()->id,
+                'platform' => $request->platform,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate hashtags. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Suggest optimal posting times
+     */
+    public function suggestPostingTimes(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'content' => 'required|string|max:1000',
+            'timezone' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $userTimeZone = $request->timezone ? ['timezone' => $request->timezone] : null;
+            
+            $postingTimes = $this->aiService->suggestOptimalPostingTimes(
+                $request->platform,
+                $request->content,
+                $userTimeZone
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $postingTimes,
+                'message' => 'Posting times suggested successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Posting time suggestion failed', [
+                'user_id' => $request->user()->id,
+                'platform' => $request->platform,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to suggest posting times. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate SEO-optimized description
+     */
+    public function generateSEODescription(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'description' => 'required|string|max:1000',
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $seoDescription = $this->aiService->generateSEODescription(
+                $request->title,
+                $request->description,
+                $request->platform
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $seoDescription,
+                'message' => 'SEO description generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('SEO description generation failed', [
+                'user_id' => $request->user()->id,
+                'platform' => $request->platform,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate SEO description. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate A/B testing variations
+     */
+    public function generateABVariations(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'description' => 'required|string|max:1000',
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'variations' => 'nullable|integer|min:2|max:5',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $variations = $this->aiService->generateABTestVariations(
+                $request->platform,
+                $request->title,
+                $request->description,
+                $request->variations ?? 3
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $variations,
+                'message' => 'A/B test variations generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('A/B variation generation failed', [
+                'user_id' => $request->user()->id,
+                'platform' => $request->platform,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate A/B variations. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get AI optimization suggestions for content
+     */
+    public function getOptimizationSuggestions(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $optimization = $this->aiService->optimizeForPlatform(
+                $request->platform,
+                $request->title,
+                $request->description ?? ''
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'optimization_score' => $optimization['optimization_score'],
+                    'suggestions' => $optimization['suggestions'],
+                    'platform_tips' => $optimization['platform_specific_tips'],
+                ],
+                'message' => 'Optimization suggestions generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Optimization suggestions failed', [
+                'user_id' => $request->user()->id,
+                'platform' => $request->platform,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate optimization suggestions. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Batch optimize content for multiple videos
+     */
+    public function batchOptimizeContent(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'videos' => 'required|array|min:1|max:10',
+            'videos.*.title' => 'required|string|max:255',
+            'videos.*.description' => 'nullable|string|max:1000',
+            'platforms' => 'required|array|min:1',
+            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $batchResults = [];
+            
+            foreach ($request->videos as $index => $video) {
+                $videoData = [
+                    'title' => $video['title'],
+                    'description' => $video['description'] ?? '',
+                    'platforms' => $request->platforms,
+                ];
+                
+                $optimizations = $this->aiService->optimizeForPlatforms($videoData);
+                $batchResults[] = [
+                    'index' => $index,
+                    'original_title' => $video['title'],
+                    'optimizations' => $optimizations,
+                ];
+            }
+
+            Log::info('Batch AI optimization completed', [
+                'user_id' => $request->user()->id,
+                'video_count' => count($request->videos),
+                'platforms' => $request->platforms,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $batchResults,
+                'message' => 'Batch optimization completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Batch optimization failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to optimize content in batch. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Analyze video performance across platforms
+     */
+    public function analyzeVideoPerformance(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $analysis = $this->performanceOptimizationService->analyzeVideoPerformance($request->video_id);
+
+            Log::info('Video performance analysis completed', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'performance_score' => $analysis['performance_score'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $analysis,
+                'message' => 'Performance analysis completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Video performance analysis failed', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze video performance. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Create A/B test for video optimization
+     */
+    public function createABTest(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+            'test_type' => 'required|string|in:title,thumbnail,posting_time,description',
+            'test_variations' => 'required|array|min:2|max:5',
+            'test_duration_days' => 'nullable|integer|min:3|max:30',
+            'success_metrics' => 'required|array|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $testConfig = [
+                'type' => $request->test_type,
+                'variations' => $request->test_variations,
+                'duration_days' => $request->test_duration_days ?? 14,
+                'success_metrics' => $request->success_metrics,
+                'created_by' => $request->user()->id,
+            ];
+
+            $result = $this->performanceOptimizationService->createABTest($request->video_id, $testConfig);
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $result,
+                    'message' => 'A/B test created successfully',
+                ]);
+            } else {
+                throw new \Exception($result['error']);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('A/B test creation failed', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create A/B test. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user performance insights dashboard
+     */
+    public function getUserPerformanceInsights(Request $request): JsonResponse
+    {
+        try {
+            $insights = $this->performanceOptimizationService->getUserPerformanceInsights($request->user()->id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $insights,
+                'message' => 'Performance insights retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get user performance insights', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load performance insights. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get optimization opportunities for a video
+     */
+    public function getOptimizationOpportunities(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $analysis = $this->performanceOptimizationService->analyzeVideoPerformance($request->video_id);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'optimization_opportunities' => $analysis['optimization_opportunities'],
+                    'ab_test_suggestions' => $analysis['ab_test_suggestions'],
+                    'posting_time_optimization' => $analysis['posting_time_optimization'],
+                    'content_recommendations' => $analysis['content_recommendations'],
+                    'improvement_potential' => $analysis['improvement_potential'],
+                ],
+                'message' => 'Optimization opportunities identified successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get optimization opportunities', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to identify optimization opportunities. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get platform performance comparison
+     */
+    public function getPlatformPerformanceComparison(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $analysis = $this->performanceOptimizationService->analyzeVideoPerformance($request->video_id);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'platform_breakdown' => $analysis['platform_breakdown'],
+                    'comparative_analysis' => $analysis['comparative_analysis'],
+                    'overall_performance' => $analysis['overall_performance'],
+                ],
+                'message' => 'Platform performance comparison retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get platform performance comparison', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to compare platform performance. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get trending performance insights
+     */
+    public function getTrendingPerformanceInsights(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $analysis = $this->performanceOptimizationService->analyzeVideoPerformance($request->video_id);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'trend_analysis' => $analysis['trend_analysis'],
+                    'performance_score' => $analysis['performance_score'],
+                    'lifecycle_stage' => $analysis['trend_analysis']['lifecycle_stage'] ?? 'unknown',
+                    'momentum_score' => $analysis['trend_analysis']['momentum_score'] ?? 0,
+                ],
+                'message' => 'Trending performance insights retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get trending performance insights', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get trending insights. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Optimize thumbnails for a video
+     */
+    public function optimizeThumbnails(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+            'title' => 'nullable|string|max:255',
+            'platforms' => 'nullable|array',
+            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'title' => $request->title ?? 'Amazing Video',
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $analysis = $this->thumbnailOptimizerService->optimizeThumbnails($request->video_path, $options);
+
+            Log::info('Thumbnail optimization completed', [
+                'user_id' => $request->user()->id,
+                'video_path' => $request->video_path,
+                'overall_score' => $analysis['overall_score'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $analysis,
+                'message' => 'Thumbnail optimization completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Thumbnail optimization failed', [
+                'user_id' => $request->user()->id,
+                'video_path' => $request->video_path,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to optimize thumbnails. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate optimized thumbnail with applied effects
+     */
+    public function generateOptimizedThumbnail(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'frame_id' => 'required|string',
+            'optimizations' => 'required|array',
+            'platform' => 'nullable|string|in:youtube,instagram,tiktok,facebook,twitter',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $result = $this->thumbnailOptimizerService->generateOptimizedThumbnail(
+                $request->frame_id,
+                $request->optimizations
+            );
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $result,
+                    'message' => 'Optimized thumbnail generated successfully',
+                ]);
+            } else {
+                throw new \Exception($result['error']);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Thumbnail generation failed', [
+                'user_id' => $request->user()->id,
+                'frame_id' => $request->frame_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate optimized thumbnail. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get thumbnail design analysis
+     */
+    public function getThumbnailDesignAnalysis(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $analysis = $this->thumbnailOptimizerService->optimizeThumbnails($request->video_path);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'design_analysis' => $analysis['design_analysis'],
+                    'color_analysis' => $analysis['color_analysis'],
+                    'face_detection' => $analysis['face_detection'],
+                    'improvement_recommendations' => $analysis['improvement_recommendations'],
+                ],
+                'message' => 'Thumbnail design analysis completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Thumbnail design analysis failed', [
+                'user_id' => $request->user()->id,
+                'video_path' => $request->video_path,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze thumbnail design. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get CTR predictions for thumbnail frames
+     */
+    public function getThumbnailCTRPredictions(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $analysis = $this->thumbnailOptimizerService->optimizeThumbnails($request->video_path);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'ctr_predictions' => $analysis['ctr_predictions'],
+                    'thumbnail_suggestions' => $analysis['thumbnail_suggestions'],
+                    'platform_optimizations' => $analysis['platform_optimizations'],
+                ],
+                'message' => 'CTR predictions generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('CTR prediction failed', [
+                'user_id' => $request->user()->id,
+                'video_path' => $request->video_path,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to predict CTR. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get thumbnail text overlay suggestions
+     */
+    public function getThumbnailTextSuggestions(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'platform' => 'nullable|string|in:youtube,instagram,tiktok,facebook,twitter',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = ['title' => $request->title];
+            $analysis = $this->thumbnailOptimizerService->optimizeThumbnails('dummy_path', $options);
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'text_overlay_suggestions' => $analysis['text_overlay_suggestions'],
+                ],
+                'message' => 'Text overlay suggestions generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Text suggestion generation failed', [
+                'user_id' => $request->user()->id,
+                'title' => $request->title,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate text suggestions. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Create thumbnail A/B test
+     */
+    public function createThumbnailABTest(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+            'frame_variants' => 'required|array|min:2|max:5',
+            'test_duration_days' => 'nullable|integer|min:3|max:30',
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $testConfig = [
+                'type' => 'thumbnail',
+                'variations' => $request->frame_variants,
+                'duration_days' => $request->test_duration_days ?? 14,
+                'success_metrics' => ['click_through_rate', 'impressions', 'views'],
+                'platforms' => $request->platforms ?? ['youtube', 'instagram'],
+                'created_by' => $request->user()->id,
+            ];
+
+            $result = $this->performanceOptimizationService->createABTest($request->video_id, $testConfig);
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $result,
+                    'message' => 'Thumbnail A/B test created successfully',
+                ]);
+            } else {
+                throw new \Exception($result['error']);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Thumbnail A/B test creation failed', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create thumbnail A/B test. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate AI-powered content calendar
+     */
+    public function generateContentCalendar(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after:start_date',
+            'days' => 'nullable|integer|min:7|max:90',
+            'platforms' => 'nullable|array',
+            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter',
+            'audience_size' => 'nullable|string|in:small,medium,large',
+            'content_quality' => 'nullable|string|in:low,medium,high',
+            'resources' => 'nullable|string|in:low,medium,high',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'start_date' => $request->start_date ?? now()->toDateString(),
+                'end_date' => $request->end_date,
+                'days' => $request->days ?? 30,
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'audience_size' => $request->audience_size ?? 'medium',
+                'content_quality' => $request->content_quality ?? 'medium',
+                'resources' => $request->resources ?? 'medium',
+            ];
+
+            $calendar = $this->contentCalendarService->generateContentCalendar($request->user()->id, $options);
+
+            Log::info('Content calendar generated', [
+                'user_id' => $request->user()->id,
+                'period_days' => $calendar['period']['total_days'],
+                'calendar_score' => $calendar['calendar_score'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $calendar,
+                'message' => 'Content calendar generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Content calendar generation failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate content calendar. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get optimal posting schedule
+     */
+    public function getOptimalPostingSchedule(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'start_date' => 'nullable|date',
+            'days' => 'nullable|integer|min:7|max:30',
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'start_date' => $request->start_date ?? now()->toDateString(),
+                'days' => $request->days ?? 14,
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $calendar = $this->contentCalendarService->generateContentCalendar($request->user()->id, $options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'optimal_schedule' => $calendar['optimal_schedule'],
+                    'posting_frequency' => $calendar['posting_frequency'],
+                    'engagement_predictions' => $calendar['engagement_predictions'],
+                ],
+                'message' => 'Optimal posting schedule generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Posting schedule generation failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate posting schedule. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get trending content opportunities
+     */
+    public function getTrendingOpportunities(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+            'timeframe' => 'nullable|string|in:7days,14days,30days',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'timeframe' => $request->timeframe ?? '14days',
+            ];
+
+            $calendar = $this->contentCalendarService->generateContentCalendar($request->user()->id, $options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'trending_opportunities' => $calendar['trending_opportunities'],
+                    'content_themes' => $calendar['content_themes'],
+                    'seasonal_insights' => $calendar['seasonal_insights'],
+                ],
+                'message' => 'Trending opportunities retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Trending opportunities retrieval failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get trending opportunities. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Analyze content gaps
+     */
+    public function analyzeContentGaps(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'timeframe' => 'nullable|string|in:7days,30days,90days',
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'timeframe' => $request->timeframe ?? '30days',
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $calendar = $this->contentCalendarService->generateContentCalendar($request->user()->id, $options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'content_gaps' => $calendar['content_gaps'],
+                    'content_recommendations' => $calendar['content_recommendations'],
+                    'competitive_analysis' => $calendar['competitive_analysis'],
+                ],
+                'message' => 'Content gap analysis completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Content gap analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze content gaps. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get seasonal content insights
+     */
+    public function getSeasonalInsights(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'season' => 'nullable|string|in:spring,summer,fall,winter',
+            'include_holidays' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'season' => $request->season,
+                'include_holidays' => $request->include_holidays ?? true,
+            ];
+
+            $calendar = $this->contentCalendarService->generateContentCalendar($request->user()->id, $options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'seasonal_insights' => $calendar['seasonal_insights'],
+                    'trending_opportunities' => array_filter($calendar['trending_opportunities'], function($opp) {
+                        return $opp['engagement_potential'] === 'very_high';
+                    }),
+                ],
+                'message' => 'Seasonal insights retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Seasonal insights retrieval failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get seasonal insights. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get performance forecasts
+     */
+    public function getPerformanceForecasts(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+            'timeframe' => 'nullable|string|in:7days,14days,30days,90days',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'timeframe' => $request->timeframe ?? '30days',
+            ];
+
+            $calendar = $this->contentCalendarService->generateContentCalendar($request->user()->id, $options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'performance_forecasts' => $calendar['performance_forecasts'],
+                    'engagement_predictions' => $calendar['engagement_predictions'],
+                    'calendar_score' => $calendar['calendar_score'],
+                ],
+                'message' => 'Performance forecasts generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Performance forecast generation failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate performance forecasts. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    // =================
+    // AI TREND ANALYZER
+    // =================
+
+    /**
+     * Analyze current trends across platforms
+     */
+    public function analyzeTrends(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+            'categories' => 'nullable|array',
+            'timeframe' => 'nullable|string|in:1h,6h,24h,7d,30d',
+            'include_competitors' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'categories' => $request->categories ?? [],
+                'timeframe' => $request->timeframe ?? '24h',
+                'include_competitors' => $request->include_competitors ?? false,
+            ];
+
+            $analysis = $this->trendAnalyzerService->analyzeTrends($options);
+
+            return response()->json([
+                'success' => true,
+                'data' => $analysis,
+                'message' => 'Trend analysis completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Trend analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+                'options' => $request->all(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze trends. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get trending topics
+     */
+    public function getTrendingTopics(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+            'timeframe' => 'nullable|string|in:1h,6h,24h,7d,30d',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'timeframe' => $request->timeframe ?? '24h',
+            ];
+
+            $analysis = $this->trendAnalyzerService->analyzeTrends($options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'trending_topics' => $analysis['trending_topics'],
+                    'trend_score' => $analysis['trend_score'],
+                    'timestamp' => $analysis['timestamp'],
+                ],
+                'message' => 'Trending topics retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Trending topics failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get trending topics. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Detect viral content patterns
+     */
+    public function detectViralContent(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+            'timeframe' => 'nullable|string|in:1h,6h,24h,7d,30d',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'timeframe' => $request->timeframe ?? '24h',
+            ];
+
+            $analysis = $this->trendAnalyzerService->analyzeTrends($options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'viral_content' => $analysis['viral_content'],
+                    'emerging_trends' => $analysis['emerging_trends'],
+                    'timestamp' => $analysis['timestamp'],
+                ],
+                'message' => 'Viral content patterns detected successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Viral content detection failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to detect viral content. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Analyze hashtag trends
+     */
+    public function analyzeHashtagTrends(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $analysis = $this->trendAnalyzerService->analyzeTrends($options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'hashtag_trends' => $analysis['hashtag_trends'],
+                    'timestamp' => $analysis['timestamp'],
+                ],
+                'message' => 'Hashtag trends analyzed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Hashtag trends analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze hashtag trends. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Identify content opportunities
+     */
+    public function identifyContentOpportunities(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $analysis = $this->trendAnalyzerService->analyzeTrends($options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'content_opportunities' => $analysis['content_opportunities'],
+                    'market_insights' => $analysis['market_insights'],
+                    'timestamp' => $analysis['timestamp'],
+                ],
+                'message' => 'Content opportunities identified successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Content opportunities identification failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to identify content opportunities. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get competitive analysis
+     */
+    public function getCompetitiveAnalysis(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'include_competitors' => true,
+            ];
+
+            $analysis = $this->trendAnalyzerService->analyzeTrends($options);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'competitive_landscape' => $analysis['competitive_landscape'],
+                    'market_insights' => $analysis['market_insights'],
+                    'content_opportunities' => $analysis['content_opportunities'],
+                    'timestamp' => $analysis['timestamp'],
+                ],
+                'message' => 'Competitive analysis completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Competitive analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get competitive analysis. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    // AI Audience Insights Endpoints
+
+    /**
+     * Analyze audience insights comprehensively
+     */
+    public function analyzeAudienceInsights(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+            'timeframe' => 'nullable|string|in:7d,30d,90d,180d,365d',
+            'include_segmentation' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'timeframe' => $request->timeframe ?? '30d',
+                'include_segmentation' => $request->boolean('include_segmentation', true),
+            ];
+
+            $insights = $this->audienceInsightsService->analyzeAudienceInsights(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $insights,
+                'message' => 'Audience insights analyzed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Audience insights analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze audience insights. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get demographic breakdown
+     */
+    public function getDemographicBreakdown(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'include_segmentation' => false,
+            ];
+
+            $insights = $this->audienceInsightsService->analyzeAudienceInsights(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $insights['demographic_breakdown'] ?? [],
+                'message' => 'Demographic breakdown retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Demographic breakdown failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get demographic breakdown. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get audience segments
+     */
+    public function getAudienceSegments(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'include_segmentation' => true,
+            ];
+
+            $insights = $this->audienceInsightsService->analyzeAudienceInsights(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $insights['audience_segments'] ?? [],
+                'message' => 'Audience segments analyzed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Audience segmentation failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze audience segments. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get behavior patterns
+     */
+    public function getBehaviorPatterns(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $insights = $this->audienceInsightsService->analyzeAudienceInsights(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $insights['behavior_patterns'] ?? [],
+                'message' => 'Behavior patterns analyzed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Behavior patterns analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze behavior patterns. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get audience growth opportunities
+     */
+    public function getAudienceGrowthOpportunities(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $insights = $this->audienceInsightsService->analyzeAudienceInsights(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $insights['growth_opportunities'] ?? [],
+                'message' => 'Growth opportunities identified successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Growth opportunities analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to identify growth opportunities. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get personalization recommendations
+     */
+    public function getPersonalizationRecommendations(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $insights = $this->audienceInsightsService->analyzeAudienceInsights(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $insights['personalization_recommendations'] ?? [],
+                'message' => 'Personalization recommendations generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Personalization recommendations failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate personalization recommendations. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    // AI Content Strategy Planner Endpoints
+
+    /**
+     * Generate comprehensive content strategy
+     */
+    public function generateContentStrategy(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'timeframe' => 'nullable|string|in:30d,90d,180d,365d',
+            'industry' => 'nullable|string|in:technology,education,entertainment,business',
+            'platforms' => 'nullable|array',
+            'goals' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'timeframe' => $request->timeframe ?? '90d',
+                'industry' => $request->industry ?? 'technology',
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'goals' => $request->goals ?? ['growth', 'engagement'],
+            ];
+
+            $strategy = $this->contentStrategyPlannerService->generateContentStrategy(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $strategy,
+                'message' => 'Content strategy generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Content strategy generation failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate content strategy. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get strategic overview
+     */
+    public function getStrategicOverview(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'industry' => 'nullable|string',
+            'platforms' => 'nullable|array',
+            'goals' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'industry' => $request->industry ?? 'technology',
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'goals' => $request->goals ?? ['growth', 'engagement'],
+            ];
+
+            $strategy = $this->contentStrategyPlannerService->generateContentStrategy(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $strategy['strategic_overview'] ?? [],
+                'message' => 'Strategic overview retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Strategic overview failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get strategic overview. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get content pillars analysis
+     */
+    public function getContentPillars(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'industry' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'industry' => $request->industry ?? 'technology',
+            ];
+
+            $strategy = $this->contentStrategyPlannerService->generateContentStrategy(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $strategy['content_pillars'] ?? [],
+                'message' => 'Content pillars analyzed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Content pillars analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze content pillars. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get competitive analysis
+     */
+    public function getStrategyCompetitiveAnalysis(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'industry' => 'nullable|string',
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'industry' => $request->industry ?? 'technology',
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $strategy = $this->contentStrategyPlannerService->generateContentStrategy(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $strategy['competitive_analysis'] ?? [],
+                'message' => 'Competitive analysis completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Strategy competitive analysis failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to complete competitive analysis. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get growth roadmap
+     */
+    public function getGrowthRoadmap(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'industry' => 'nullable|string',
+            'goals' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'industry' => $request->industry ?? 'technology',
+                'goals' => $request->goals ?? ['growth', 'engagement'],
+            ];
+
+            $strategy = $this->contentStrategyPlannerService->generateContentStrategy(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $strategy['growth_roadmap'] ?? [],
+                'message' => 'Growth roadmap generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Growth roadmap generation failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate growth roadmap. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get KPI framework
+     */
+    public function getKPIFramework(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'goals' => 'nullable|array',
+            'platforms' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'goals' => $request->goals ?? ['growth', 'engagement'],
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+            ];
+
+            $strategy = $this->contentStrategyPlannerService->generateContentStrategy(
+                $request->user()->id,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $strategy['kpi_framework'] ?? [],
+                'message' => 'KPI framework generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('KPI framework generation failed', [
+                'user_id' => $request->user()->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate KPI framework. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    // AI SEO Optimizer Endpoints
+
+    /**
+     * Analyze SEO performance for content
+     */
+    public function analyzeSEOPerformance(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'content_id' => 'required|integer',
+            'content_type' => 'required|string|in:video,blog,social',
+            'industry' => 'nullable|string',
+            'target_keywords' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'industry' => $request->industry ?? 'technology',
+                'target_keywords' => $request->target_keywords ?? [],
+            ];
+
+            $analysis = $this->seoOptimizerService->analyzeSEOPerformance(
+                $request->content_id,
+                $request->content_type,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $analysis,
+                'message' => 'SEO performance analyzed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('SEO performance analysis failed', [
+                'content_id' => $request->content_id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze SEO performance. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Research keywords for content
+     */
+    public function researchKeywords(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'topic' => 'required|string|max:255',
+            'industry' => 'nullable|string',
+            'difficulty' => 'nullable|string|in:low,medium,high',
+            'volume' => 'nullable|string|in:low,medium,high',
+            'intent' => 'nullable|string|in:informational,commercial,navigational,transactional',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'difficulty' => $request->difficulty ?? 'medium',
+                'volume' => $request->volume ?? 'medium',
+                'intent' => $request->intent ?? 'informational',
+            ];
+
+            $research = $this->seoOptimizerService->researchKeywords(
+                $request->topic,
+                $request->industry ?? 'technology',
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $research,
+                'message' => 'Keywords researched successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Keyword research failed', [
+                'topic' => $request->topic,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to research keywords. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Optimize content for SEO
+     */
+    public function optimizeContentSEO(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'content' => 'required|array',
+            'content_type' => 'required|string|in:video,blog,social',
+            'target_keywords' => 'required|array',
+            'industry' => 'nullable|string',
+            'platform' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'industry' => $request->industry ?? 'technology',
+                'platform' => $request->platform ?? 'general',
+            ];
+
+            $optimization = $this->seoOptimizerService->optimizeContent(
+                $request->content,
+                $request->content_type,
+                $request->target_keywords,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $optimization,
+                'message' => 'Content optimized for SEO successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('SEO content optimization failed', [
+                'content_type' => $request->content_type,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to optimize content for SEO. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Track search performance
+     */
+    public function trackSearchPerformance(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'content_id' => 'required|integer',
+            'content_type' => 'required|string|in:video,blog,social',
+            'timeframe' => 'nullable|string|in:7d,30d,90d,180d',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'timeframe' => $request->timeframe ?? '30d',
+            ];
+
+            $performance = $this->seoOptimizerService->trackSearchPerformance(
+                $request->content_id,
+                $request->content_type,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $performance,
+                'message' => 'Search performance tracked successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Search performance tracking failed', [
+                'content_id' => $request->content_id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to track search performance. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate SEO recommendations
+     */
+    public function generateSEORecommendations(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'content_id' => 'required|integer',
+            'content_type' => 'required|string|in:video,blog,social',
+            'industry' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'industry' => $request->industry ?? 'technology',
+            ];
+
+            $recommendations = $this->seoOptimizerService->generateSEORecommendations(
+                $request->content_id,
+                $request->content_type,
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $recommendations,
+                'message' => 'SEO recommendations generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('SEO recommendations generation failed', [
+                'content_id' => $request->content_id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate SEO recommendations. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Analyze competitor SEO strategies
+     */
+    public function analyzeCompetitorSEO(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'industry' => 'required|string',
+            'competitors' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $options = [
+                'timeframe' => $request->timeframe ?? '90d',
+            ];
+
+            $analysis = $this->seoOptimizerService->analyzeCompetitorSEO(
+                $request->industry,
+                $request->competitors ?? [],
+                $options
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $analysis,
+                'message' => 'Competitor SEO analysis completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Competitor SEO analysis failed', [
+                'industry' => $request->industry,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze competitor SEO. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Detect watermarks in video
+     */
+    public function detectWatermarks(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+            'sensitivity' => 'nullable|string|in:low,medium,high',
+            'detection_mode' => 'nullable|string|in:fast,balanced,thorough',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            $options = [
+                'sensitivity' => $request->sensitivity ?? 'medium',
+                'detection_mode' => $request->detection_mode ?? 'balanced',
+            ];
+
+            $detection = $this->watermarkRemoverService->detectWatermarks($videoPath, $options);
+
+            Log::info('Watermark detection completed', [
+                'user_id' => $request->user()->id ?? null,
+                'video_path' => $request->video_path,
+                'watermarks_found' => count($detection['detected_watermarks'] ?? []),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $detection,
+                'message' => 'Watermark detection completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Watermark detection failed', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+                'video_path' => $request->video_path ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to detect watermarks. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove watermarks from video
+     */
+    public function removeWatermarks(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+            'watermarks' => 'required|array',
+            'watermarks.*' => 'required|array',
+            'method' => 'nullable|string|in:inpainting,content_aware,temporal_coherence,frequency_domain',
+            'quality_preset' => 'nullable|string|in:fast,balanced,high,ultra',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            $options = [
+                'method' => $request->method ?? 'inpainting',
+                'quality_preset' => $request->quality_preset ?? 'balanced',
+            ];
+
+            $removal = $this->watermarkRemoverService->removeWatermarks(
+                $videoPath, 
+                $request->watermarks, 
+                $options
+            );
+
+            Log::info('Watermark removal started', [
+                'user_id' => $request->user()->id ?? null,
+                'video_path' => $request->video_path,
+                'removal_id' => $removal['removal_id'] ?? 'unknown',
+                'watermarks_count' => count($request->watermarks),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $removal,
+                'message' => 'Watermark removal started successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Watermark removal failed', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+                'video_path' => $request->video_path ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to start watermark removal. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get watermark removal progress
+     */
+    public function getRemovalProgress(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'removal_id' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $progress = $this->watermarkRemoverService->getRemovalProgress($request->removal_id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $progress,
+                'message' => 'Removal progress retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get removal progress', [
+                'removal_id' => $request->removal_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get removal progress. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Optimize watermark removal settings
+     */
+    public function optimizeRemovalSettings(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'watermarks' => 'required|array',
+            'video_metadata' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $optimization = $this->watermarkRemoverService->optimizeRemovalSettings(
+                $request->watermarks,
+                $request->video_metadata ?? []
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $optimization,
+                'message' => 'Removal settings optimized successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Removal settings optimization failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to optimize removal settings. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Analyze watermark removal quality
+     */
+    public function analyzeRemovalQuality(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'original_path' => 'required|string',
+            'processed_path' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $originalPath = Storage::path($request->original_path);
+            $processedPath = Storage::path($request->processed_path);
+            
+            if (!file_exists($originalPath) || !file_exists($processedPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video files not found',
+                ], 404);
+            }
+
+            $analysis = $this->watermarkRemoverService->analyzeRemovalQuality($originalPath, $processedPath);
+
+            return response()->json([
+                'success' => true,
+                'data' => $analysis,
+                'message' => 'Quality analysis completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Quality analysis failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze removal quality. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate watermark removal report
+     */
+    public function generateRemovalReport(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'removal_id' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $report = $this->watermarkRemoverService->generateRemovalReport($request->removal_id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $report,
+                'message' => 'Removal report generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Report generation failed', [
+                'removal_id' => $request->removal_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate removal report. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate subtitles for video
+     */
+    public function generateSubtitles(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+            'language' => 'nullable|string',
+            'style' => 'nullable|string|in:simple,modern,neon,typewriter,bounce,confetti,glass',
+            'position' => 'nullable|string|in:bottom_center,bottom_left,bottom_right,top_center,top_left,top_right,center,center_left,center_right',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            $options = [
+                'language' => $request->language ?? 'en',
+                'style' => $request->style ?? 'simple',
+                'position' => $request->position ?? 'bottom_center',
+            ];
+
+            $generation = $this->subtitleGeneratorService->generateSubtitles($videoPath, $options);
+
+            Log::info('Subtitle generation started', [
+                'user_id' => $request->user()->id ?? null,
+                'video_path' => $request->video_path,
+                'generation_id' => $generation['generation_id'] ?? 'unknown',
+                'language' => $options['language'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $generation,
+                'message' => 'Subtitle generation started successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Subtitle generation failed', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+                'video_path' => $request->video_path ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to start subtitle generation. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get subtitle generation progress
+     */
+    public function getSubtitleProgress(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $progress = $this->subtitleGeneratorService->getGenerationProgress($request->generation_id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $progress,
+                'message' => 'Generation progress retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get subtitle progress', [
+                'generation_id' => $request->generation_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get generation progress. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Update subtitle style
+     */
+    public function updateSubtitleStyle(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+            'style' => 'required|string|in:simple,modern,neon,typewriter,bounce,confetti,glass',
+            'custom_properties' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $result = $this->subtitleGeneratorService->updateSubtitleStyle(
+                $request->generation_id,
+                $request->style,
+                $request->custom_properties ?? []
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Subtitle style updated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Subtitle style update failed', [
+                'generation_id' => $request->generation_id,
+                'style' => $request->style,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update subtitle style. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Update subtitle position
+     */
+    public function updateSubtitlePosition(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+            'position' => 'required|array',
+            'position.x' => 'required|numeric|min:0|max:100',
+            'position.y' => 'required|numeric|min:0|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $result = $this->subtitleGeneratorService->updateSubtitlePosition(
+                $request->generation_id,
+                $request->position
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Subtitle position updated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Subtitle position update failed', [
+                'generation_id' => $request->generation_id,
+                'position' => $request->position,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update subtitle position. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Export subtitles
+     */
+    public function exportSubtitles(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+            'format' => 'nullable|string|in:srt,vtt,ass,sub',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $export = $this->subtitleGeneratorService->exportSubtitles(
+                $request->generation_id,
+                $request->format ?? 'srt'
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $export,
+                'message' => 'Subtitles exported successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Subtitle export failed', [
+                'generation_id' => $request->generation_id,
+                'format' => $request->format ?? 'srt',
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export subtitles. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Analyze subtitle quality
+     */
+    public function analyzeSubtitleQuality(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $analysis = $this->subtitleGeneratorService->analyzeSubtitleQuality($request->generation_id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $analysis,
+                'message' => 'Subtitle quality analyzed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Subtitle quality analysis failed', [
+                'generation_id' => $request->generation_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze subtitle quality. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available subtitle languages
+     */
+    public function getSubtitleLanguages(Request $request): JsonResponse
+    {
+        try {
+            $languages = $this->subtitleGeneratorService->getAvailableLanguages();
+
+            return response()->json([
+                'success' => true,
+                'data' => $languages,
+                'message' => 'Available languages retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get subtitle languages', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get available languages. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available subtitle styles
+     */
+    public function getSubtitleStyles(Request $request): JsonResponse
+    {
+        try {
+            $styles = $this->subtitleGeneratorService->getSubtitleStyles();
+
+            return response()->json([
+                'success' => true,
+                'data' => $styles,
+                'message' => 'Available styles retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get subtitle styles', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get available styles. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+}

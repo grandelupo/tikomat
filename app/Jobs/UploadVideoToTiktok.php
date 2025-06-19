@@ -110,19 +110,33 @@ class UploadVideoToTiktok implements ShouldQueue
      */
     protected function initializeVideoUpload(SocialAccount $socialAccount): array
     {
+        // Get advanced options for this platform
+        $options = $this->videoTarget->advanced_options ?? [];
+        
+        // Prepare post info with advanced options
+        $postInfo = [
+            'title' => $this->videoTarget->video->title,
+            'description' => $this->videoTarget->video->description,
+            'privacy_level' => $options['privacy'] ?? 'SELF_ONLY', // Private by default for safety
+            'disable_duet' => !($options['allowDuet'] ?? true),
+            'disable_comment' => !($options['allowComments'] ?? true),
+            'disable_stitch' => !($options['allowStitch'] ?? true),
+            'video_cover_timestamp_ms' => ($options['coverTimestamp'] ?? 1) * 1000
+        ];
+
+        // Add hashtags if provided
+        if (!empty($options['hashtags'])) {
+            $hashtags = is_array($options['hashtags']) 
+                ? implode(' ', $options['hashtags']) 
+                : $options['hashtags'];
+            $postInfo['description'] .= "\n\n" . $hashtags;
+        }
+
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $socialAccount->access_token,
             'Content-Type' => 'application/json'
         ])->post('https://open.tiktokapis.com/v2/post/publish/inbox/video/init/', [
-            'post_info' => [
-                'title' => $this->videoTarget->video->title,
-                'description' => $this->videoTarget->video->description,
-                'privacy_level' => 'SELF_ONLY', // Private by default for safety
-                'disable_duet' => false,
-                'disable_comment' => false,
-                'disable_stitch' => false,
-                'video_cover_timestamp_ms' => 1000
-            ],
+            'post_info' => $postInfo,
             'source_info' => [
                 'source' => 'FILE_UPLOAD',
                 'video_size' => filesize(Storage::path($this->videoTarget->video->original_file_path)),

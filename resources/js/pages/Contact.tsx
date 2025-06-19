@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { User } from 'lucide-react';
 import { 
     Mail, 
     Phone, 
@@ -68,9 +69,15 @@ export default function Contact({ auth }: ContactProps) {
                     </nav>
                     <div className="flex items-center space-x-4">
                         {auth?.user ? (
-                            <Link href="/dashboard">
-                                <Button>Dashboard</Button>
-                            </Link>
+                            <div className="flex items-center space-x-3">
+                                <div className="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-2">
+                                    <User className="w-4 h-4 text-gray-600" />
+                                    <span className="text-sm font-medium text-gray-700">{auth.user.name}</span>
+                                </div>
+                                <Link href="/dashboard">
+                                    <Button>Dashboard</Button>
+                                </Link>
+                            </div>
                         ) : (
                             <>
                                 <Link href="/login">

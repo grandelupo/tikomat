@@ -8,6 +8,8 @@ import TikTokOptions from './TikTokOptions';
 import InstagramOptions from './InstagramOptions';
 import FacebookOptions from './FacebookOptions';
 import TwitterOptions from './TwitterOptions';
+import SnapchatOptions from './SnapchatOptions';
+import PinterestOptions from './PinterestOptions';
 
 interface AdvancedOptionsSectionProps {
     selectedPlatforms: string[];
@@ -21,6 +23,8 @@ const platformComponents = {
     instagram: InstagramOptions,
     facebook: FacebookOptions,
     twitter: TwitterOptions,
+    snapchat: SnapchatOptions,
+    pinterest: PinterestOptions,
 };
 
 const platformNames = {
@@ -29,6 +33,8 @@ const platformNames = {
     instagram: 'Instagram',
     facebook: 'Facebook',
     twitter: 'Twitter',
+    snapchat: 'Snapchat',
+    pinterest: 'Pinterest',
 };
 
 export default function AdvancedOptionsSection({
@@ -96,6 +102,8 @@ export default function AdvancedOptionsSection({
                                     <li>• Instagram: Use location tags and alt text for better accessibility</li>
                                     <li>• Facebook: Target specific audiences and add call-to-actions</li>
                                     <li>• Twitter: Keep tweet text concise and add polls for engagement</li>
+                                    <li>• Snapchat: Use Spotlight for discovery and enable monetization</li>
+                                    <li>• Pinterest: Add detailed descriptions and keywords for better search visibility</li>
                                 </ul>
                             </div>
                         </div>

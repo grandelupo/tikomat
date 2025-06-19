@@ -133,12 +133,38 @@ class UploadVideoToFacebook implements ShouldQueue
      */
     protected function uploadVideoToFacebook(SocialAccount $socialAccount, string $pageId, string $videoUrl): void
     {
-        $response = Http::post("https://graph.facebook.com/v18.0/{$pageId}/videos", [
+        // Get advanced options for this platform
+        $options = $this->videoTarget->advanced_options ?? [];
+
+        // Prepare video data with advanced options
+        $videoData = [
             'file_url' => $videoUrl,
             'title' => $this->videoTarget->video->title,
-            'description' => $this->videoTarget->video->description,
+            'description' => $options['message'] ?? $this->videoTarget->video->description,
             'access_token' => $socialAccount->access_token
-        ]);
+        ];
+
+        // Add privacy settings if provided
+        if (!empty($options['privacy'])) {
+            $videoData['privacy'] = ['value' => $options['privacy']];
+        }
+
+        // Add location if provided
+        if (!empty($options['place'])) {
+            $videoData['place'] = $options['place'];
+        }
+
+        // Add tags if provided
+        if (!empty($options['tags'])) {
+            $videoData['tags'] = $options['tags'];
+        }
+
+        // Add branded content settings
+        if ($options['brandedContent'] ?? false) {
+            $videoData['is_branded_content'] = true;
+        }
+
+        $response = Http::post("https://graph.facebook.com/v18.0/{$pageId}/videos", $videoData);
 
         if (!$response->successful()) {
             throw new \Exception('Failed to upload video to Facebook: ' . $response->body());

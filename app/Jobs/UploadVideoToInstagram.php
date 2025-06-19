@@ -131,13 +131,40 @@ class UploadVideoToInstagram implements ShouldQueue
 
         $userId = $userResponse->json()['id'];
 
-        // Create media container
-        $response = Http::post("https://graph.facebook.com/v18.0/{$userId}/media", [
-            'media_type' => 'REELS',
+        // Get advanced options for this platform
+        $options = $this->videoTarget->advanced_options ?? [];
+
+        // Prepare caption with advanced options
+        $caption = $options['caption'] ?? ($this->videoTarget->video->title . "\n\n" . $this->videoTarget->video->description);
+        
+        // Add hashtags if provided
+        if (!empty($options['hashtags'])) {
+            $hashtags = is_array($options['hashtags']) 
+                ? implode(' ', $options['hashtags']) 
+                : $options['hashtags'];
+            $caption .= "\n\n" . $hashtags;
+        }
+
+        // Prepare media data
+        $mediaData = [
+            'media_type' => $options['videoType'] ?? 'REELS',
             'video_url' => $videoUrl,
-            'caption' => $this->videoTarget->video->title . "\n\n" . $this->videoTarget->video->description,
+            'caption' => $caption,
             'access_token' => $socialAccount->access_token
-        ]);
+        ];
+
+        // Add location if provided
+        if (!empty($options['location'])) {
+            $mediaData['location_id'] = $options['location'];
+        }
+
+        // Add alt text if provided
+        if (!empty($options['altText'])) {
+            $mediaData['custom_accessibility_caption'] = $options['altText'];
+        }
+
+        // Create media container
+        $response = Http::post("https://graph.facebook.com/v18.0/{$userId}/media", $mediaData);
 
         if (!$response->successful()) {
             throw new \Exception('Failed to create Instagram media container: ' . $response->body());

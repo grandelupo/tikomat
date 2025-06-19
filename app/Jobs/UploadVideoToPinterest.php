@@ -149,18 +149,42 @@ class UploadVideoToPinterest implements ShouldQueue
      */
     protected function createVideoPin(SocialAccount $socialAccount, string $boardId, string $videoUrl): void
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $socialAccount->access_token,
-            'Content-Type' => 'application/json'
-        ])->post('https://api.pinterest.com/v5/pins', [
+        // Get advanced options for this platform
+        $options = $this->videoTarget->advanced_options ?? [];
+
+        // Prepare pin data with advanced options
+        $pinData = [
             'board_id' => $boardId,
-            'title' => $this->videoTarget->video->title,
-            'description' => $this->videoTarget->video->description,
+            'title' => $options['title'] ?? $this->videoTarget->video->title,
+            'description' => $options['description'] ?? $this->videoTarget->video->description,
             'media_source' => [
                 'source_type' => 'video_url',
                 'url' => $videoUrl
             ]
-        ]);
+        ];
+
+        // Add keywords if provided
+        if (!empty($options['keywords'])) {
+            $keywords = is_array($options['keywords']) 
+                ? implode(', ', $options['keywords']) 
+                : $options['keywords'];
+            $pinData['description'] .= "\n\nKeywords: " . $keywords;
+        }
+
+        // Add website link if provided
+        if (!empty($options['link'])) {
+            $pinData['link'] = $options['link'];
+        }
+
+        // Add alt text if provided
+        if (!empty($options['altText'])) {
+            $pinData['alt_text'] = $options['altText'];
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $socialAccount->access_token,
+            'Content-Type' => 'application/json'
+        ])->post('https://api.pinterest.com/v5/pins', $pinData);
 
         if (!$response->successful()) {
             throw new \Exception('Failed to create Pinterest video pin: ' . $response->body());

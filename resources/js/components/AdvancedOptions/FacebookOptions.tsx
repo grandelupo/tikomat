@@ -16,7 +16,12 @@ interface FacebookOptionsProps {
 
 export default function FacebookOptions({ options, onChange }: FacebookOptionsProps) {
     const updateOption = (key: string, value: any) => {
-        onChange({ ...options, [key]: value });
+        try {
+            const newOptions = { ...options, [key]: value };
+            onChange(newOptions);
+        } catch (error) {
+            console.error('Error updating Facebook option:', error);
+        }
     };
 
     const privacySettings = [
@@ -24,14 +29,14 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
         { id: 'ALL_FRIENDS', name: 'Friends', description: 'Your friends on Facebook' },
         { id: 'FRIENDS_OF_FRIENDS', name: 'Friends of friends', description: 'Your friends and their friends' },
         { id: 'SELF', name: 'Only me', description: 'Only you can see this' },
-        { id: 'CUSTOM', name: 'Custom', description: 'Specific friends or lists' },
     ];
 
     const videoTypes = [
         { id: 'REGULAR', name: 'Regular Video', description: 'Standard video post' },
         { id: 'REEL', name: 'Facebook Reel', description: 'Short-form vertical video' },
-        { id: 'STORY', name: 'Facebook Story', description: '24-hour temporary content' },
     ];
+
+    const safeOptions = options || {};
 
     return (
         <Card>
@@ -48,14 +53,14 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
                 <div className="space-y-3">
                     <Label className="text-base font-medium">Privacy Settings</Label>
                     <RadioGroup
-                        value={options.privacy || 'EVERYONE'}
+                        value={safeOptions.privacy || 'EVERYONE'}
                         onValueChange={(value) => updateOption('privacy', value)}
                     >
                         {privacySettings.map((setting) => (
                             <div key={setting.id} className="flex items-center space-x-2">
-                                <RadioGroupItem value={setting.id} id={setting.id} />
+                                <RadioGroupItem value={setting.id} id={`privacy-${setting.id}`} />
                                 <div>
-                                    <Label htmlFor={setting.id} className="font-medium">{setting.name}</Label>
+                                    <Label htmlFor={`privacy-${setting.id}`} className="font-medium">{setting.name}</Label>
                                     <p className="text-xs text-muted-foreground">{setting.description}</p>
                                 </div>
                             </div>
@@ -67,14 +72,14 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
                 <div className="space-y-3">
                     <Label className="text-base font-medium">Video Type</Label>
                     <RadioGroup
-                        value={options.videoType || 'REGULAR'}
+                        value={safeOptions.videoType || 'REGULAR'}
                         onValueChange={(value) => updateOption('videoType', value)}
                     >
                         {videoTypes.map((type) => (
                             <div key={type.id} className="flex items-center space-x-2">
-                                <RadioGroupItem value={type.id} id={type.id} />
+                                <RadioGroupItem value={type.id} id={`videoType-${type.id}`} />
                                 <div>
-                                    <Label htmlFor={type.id} className="font-medium">{type.name}</Label>
+                                    <Label htmlFor={`videoType-${type.id}`} className="font-medium">{type.name}</Label>
                                     <p className="text-xs text-muted-foreground">{type.description}</p>
                                 </div>
                             </div>
@@ -84,29 +89,29 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
 
                 {/* Caption */}
                 <div className="space-y-2">
-                    <Label htmlFor="message">Post Caption</Label>
+                    <Label htmlFor="fb-message">Post Caption</Label>
                     <Textarea
-                        id="message"
-                        value={options.message || ''}
+                        id="fb-message"
+                        value={safeOptions.message || ''}
                         onChange={(e) => updateOption('message', e.target.value)}
                         placeholder="What's on your mind?"
                         rows={4}
                         maxLength={63206}
                     />
                     <p className="text-xs text-muted-foreground">
-                        {(options.message || '').length}/63206 characters
+                        {(safeOptions.message || '').length}/63206 characters
                     </p>
                 </div>
 
                 {/* Location */}
                 <div className="space-y-2">
-                    <Label htmlFor="place" className="flex items-center">
+                    <Label htmlFor="fb-place" className="flex items-center">
                         <MapPin className="w-4 h-4 mr-1" />
                         Location
                     </Label>
                     <Input
-                        id="place"
-                        value={options.place || ''}
+                        id="fb-place"
+                        value={safeOptions.place || ''}
                         onChange={(e) => updateOption('place', e.target.value)}
                         placeholder="Where are you?"
                     />
@@ -114,72 +119,40 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
 
                 {/* Tags/Mentions */}
                 <div className="space-y-2">
-                    <Label htmlFor="tags" className="flex items-center">
+                    <Label htmlFor="fb-tags" className="flex items-center">
                         <Tag className="w-4 h-4 mr-1" />
                         Tag People
                     </Label>
                     <Input
-                        id="tags"
-                        value={options.tags || ''}
+                        id="fb-tags"
+                        value={safeOptions.tags || ''}
                         onChange={(e) => updateOption('tags', e.target.value)}
                         placeholder="Tag friends (comma-separated usernames)"
                     />
                 </div>
 
-                {/* Feeling/Activity */}
-                <div className="space-y-2">
-                    <Label htmlFor="feeling">Feeling/Activity</Label>
-                    <Select
-                        value={options.feeling || ''}
-                        onValueChange={(value) => updateOption('feeling', value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="How are you feeling?" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="">None</SelectItem>
-                            <SelectItem value="happy">😊 Happy</SelectItem>
-                            <SelectItem value="excited">🤩 Excited</SelectItem>
-                            <SelectItem value="grateful">🙏 Grateful</SelectItem>
-                            <SelectItem value="proud">😎 Proud</SelectItem>
-                            <SelectItem value="blessed">✨ Blessed</SelectItem>
-                            <SelectItem value="motivated">💪 Motivated</SelectItem>
-                            <SelectItem value="relaxed">😌 Relaxed</SelectItem>
-                            <SelectItem value="creative">🎨 Creative</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {/* Audience Restrictions */}
+                {/* Audience Settings */}
                 <div className="space-y-3">
                     <Label className="text-base font-medium">Audience Settings</Label>
                     <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                             <Checkbox
-                                id="allowComments"
-                                checked={options.allowComments !== false}
+                                id="fb-allowComments"
+                                checked={safeOptions.allowComments !== false}
                                 onCheckedChange={(checked) => updateOption('allowComments', checked)}
                             />
-                            <Label htmlFor="allowComments" className="flex items-center">
+                            <Label htmlFor="fb-allowComments" className="flex items-center">
                                 <MessageCircle className="w-4 h-4 mr-1" />
                                 Allow comments
                             </Label>
                         </div>
                         <div className="flex items-center space-x-2">
                             <Checkbox
-                                id="allowSharing"
-                                checked={options.allowSharing !== false}
+                                id="fb-allowSharing"
+                                checked={safeOptions.allowSharing !== false}
                                 onCheckedChange={(checked) => updateOption('allowSharing', checked)}
                             />
-                            <Label htmlFor="allowSharing">Allow sharing</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="allowEmbedding"
-                                checked={options.allowEmbedding !== false}
-                                onCheckedChange={(checked) => updateOption('allowEmbedding', checked)}
-                            />
-                            <Label htmlFor="allowEmbedding">Allow embedding</Label>
+                            <Label htmlFor="fb-allowSharing">Allow sharing</Label>
                         </div>
                     </div>
                 </div>
@@ -190,74 +163,16 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
                     <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                             <Checkbox
-                                id="brandedContent"
-                                checked={options.brandedContent || false}
+                                id="fb-brandedContent"
+                                checked={safeOptions.brandedContent || false}
                                 onCheckedChange={(checked) => updateOption('brandedContent', checked)}
                             />
-                            <Label htmlFor="brandedContent">
+                            <Label htmlFor="fb-brandedContent">
                                 Branded content
                                 <Badge variant="outline" className="ml-2">Paid partnership</Badge>
                             </Label>
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id="newsworthy"
-                                checked={options.newsworthy || false}
-                                onCheckedChange={(checked) => updateOption('newsworthy', checked)}
-                            />
-                            <Label htmlFor="newsworthy">This content is newsworthy</Label>
-                        </div>
                     </div>
-                </div>
-
-                {/* Target Audience */}
-                <div className="space-y-2">
-                    <Label htmlFor="targetAudience">Target Audience (Optional)</Label>
-                    <Select
-                        value={options.targetAudience || ''}
-                        onValueChange={(value) => updateOption('targetAudience', value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select target audience" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="">No targeting</SelectItem>
-                            <SelectItem value="18-24">18-24 years old</SelectItem>
-                            <SelectItem value="25-34">25-34 years old</SelectItem>
-                            <SelectItem value="35-44">35-44 years old</SelectItem>
-                            <SelectItem value="45-54">45-54 years old</SelectItem>
-                            <SelectItem value="55+">55+ years old</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {/* Call to Action */}
-                <div className="space-y-2">
-                    <Label htmlFor="callToAction">Call to Action</Label>
-                    <Select
-                        value={options.callToAction || ''}
-                        onValueChange={(value) => updateOption('callToAction', value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Add call to action" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="">No call to action</SelectItem>
-                            <SelectItem value="LEARN_MORE">Learn More</SelectItem>
-                            <SelectItem value="SHOP_NOW">Shop Now</SelectItem>
-                            <SelectItem value="SIGN_UP">Sign Up</SelectItem>
-                            <SelectItem value="DOWNLOAD">Download</SelectItem>
-                            <SelectItem value="WATCH_MORE">Watch More</SelectItem>
-                            <SelectItem value="CONTACT_US">Contact Us</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    {options.callToAction && (
-                        <Input
-                            placeholder="Call to action URL"
-                            value={options.callToActionUrl || ''}
-                            onChange={(e) => updateOption('callToActionUrl', e.target.value)}
-                        />
-                    )}
                 </div>
             </CardContent>
         </Card>

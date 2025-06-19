@@ -90,11 +90,14 @@ class VideoController extends Controller
         
         // Filter connected platforms by what user is allowed to access
         $availablePlatforms = array_intersect($connectedPlatforms, $allowedPlatforms);
+        
+        // Filter default platforms to only include connected ones
+        $defaultPlatforms = array_intersect($channel->default_platforms_list, $connectedPlatforms);
 
         return Inertia::render('Videos/Create', [
             'channel' => $channel,
             'availablePlatforms' => $availablePlatforms,
-            'defaultPlatforms' => $channel->default_platforms_list,
+            'defaultPlatforms' => $defaultPlatforms,
             'connectedPlatforms' => $connectedPlatforms,
             'allowedPlatforms' => $allowedPlatforms,
         ]);

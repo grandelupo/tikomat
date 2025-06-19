@@ -45,6 +45,7 @@ export default function CreateVideo({
     connectedPlatforms, 
     allowedPlatforms 
 }: CreateVideoProps) {
+    // defaultPlatforms now only contains connected platforms (filtered in backend)
     const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(defaultPlatforms);
     const [publishType, setPublishType] = useState<'now' | 'scheduled'>('now');
     const [isDragOver, setIsDragOver] = useState(false);

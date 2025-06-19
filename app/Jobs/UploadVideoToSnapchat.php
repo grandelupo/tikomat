@@ -110,11 +110,11 @@ class UploadVideoToSnapchat implements ShouldQueue
      */
     protected function uploadMediaToSnapchat(SocialAccount $socialAccount, string $videoUrl): string
     {
-        // Step 1: Create media upload session
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $socialAccount->access_token,
-            'Content-Type' => 'application/json'
-        ])->post('https://adsapi.snapchat.com/v1/media', [
+        // Get advanced options for this platform
+        $options = $this->videoTarget->advanced_options ?? [];
+
+        // Prepare media data with advanced options
+        $mediaData = [
             'media' => [
                 [
                     'name' => $this->videoTarget->video->title,
@@ -122,7 +122,26 @@ class UploadVideoToSnapchat implements ShouldQueue
                     'file_url' => $videoUrl
                 ]
             ]
-        ]);
+        ];
+
+        // Add caption if provided
+        if (!empty($options['caption'])) {
+            $mediaData['media'][0]['caption'] = $options['caption'];
+        }
+
+        // Add hashtags if provided
+        if (!empty($options['hashtags'])) {
+            $hashtags = is_array($options['hashtags']) 
+                ? implode(' ', $options['hashtags']) 
+                : $options['hashtags'];
+            $mediaData['media'][0]['caption'] = ($mediaData['media'][0]['caption'] ?? '') . "\n\n" . $hashtags;
+        }
+
+        // Step 1: Create media upload session
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $socialAccount->access_token,
+            'Content-Type' => 'application/json'
+        ])->post('https://adsapi.snapchat.com/v1/media', $mediaData);
 
         if (!$response->successful()) {
             throw new \Exception('Failed to create Snapchat media upload session: ' . $response->body());
