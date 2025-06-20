@@ -78,8 +78,11 @@ class Video extends Model
                 return $this->original_file_path;
             }
             
-            // Otherwise, create a URL from the storage path
-            return asset('storage/' . $this->original_file_path);
+            // Extract filename from the storage path (e.g., "videos/filename.mp4" -> "filename.mp4")
+            $filename = basename($this->original_file_path);
+            
+            // Use the video serving route that handles private storage
+            return url('storage/videos/' . $filename);
         }
         
         return '';

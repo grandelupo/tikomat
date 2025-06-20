@@ -370,7 +370,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <Link href={`/videos/${video.id}`}>
+                                                    <Link href={`/videos/${video.id}/edit`}>
                                                         <Button variant="outline" size="sm">
                                                             <Eye className="mr-1 h-3 w-3" />
                                                             View

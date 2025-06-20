@@ -992,4 +992,3 @@ class AITrendAnalyzerService
         ];
     }
 }
-</rewritten_file>

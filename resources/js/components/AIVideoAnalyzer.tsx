@@ -149,7 +149,20 @@ export default function AIVideoAnalyzer({
                     description: "AI has analyzed your video and extracted valuable insights.",
                 });
             } else {
-                throw new Error(data.message || 'Failed to analyze video');
+                // Check if it's a 404 error (video file not found)
+                if (response.status === 404) {
+                    toast({
+                        title: "Video File Not Found",
+                        description: "The video file associated with this record could not be found. Please re-upload the video.",
+                        variant: "destructive",
+                    });
+                } else {
+                    toast({
+                        title: "Analysis Failed",
+                        description: data.message || "Failed to analyze video. Please try again.",
+                        variant: "destructive",
+                    });
+                }
             }
         } catch (error) {
             console.error('Video analysis error:', error);
@@ -299,6 +312,25 @@ export default function AIVideoAnalyzer({
         );
     }
 
+    // Add safety check for analysis object
+    if (!analysis || !analysis.basic_info) {
+        return (
+            <Card className={cn("border-2 border-red-200 bg-red-50", className)}>
+                <CardContent className="p-8 text-center">
+                    <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-red-800 mb-2">Analysis Error</h3>
+                    <p className="text-red-600 mb-4">
+                        The video analysis data is incomplete or corrupted.
+                    </p>
+                    <Button onClick={analyzeVideo} variant="outline">
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Try Again
+                    </Button>
+                </CardContent>
+            </Card>
+        );
+    }
+
     return (
         <Card className={cn("border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50", className)}>
             <CardHeader className="pb-4">
@@ -352,20 +384,20 @@ export default function AIVideoAnalyzer({
                                 <CardContent className="space-y-3">
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Duration:</span>
-                                        <span className="font-medium">{formatDuration(analysis.basic_info.duration)}</span>
+                                        <span className="font-medium">{formatDuration(analysis.basic_info?.duration || 0)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Resolution:</span>
-                                        <span className="font-medium">{analysis.basic_info.width}×{analysis.basic_info.height}</span>
+                                        <span className="font-medium">{analysis.basic_info?.width || 0}×{analysis.basic_info?.height || 0}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">File Size:</span>
-                                        <span className="font-medium">{formatFileSize(analysis.basic_info.file_size)}</span>
+                                        <span className="font-medium">{formatFileSize(analysis.basic_info?.file_size || 0)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Audio:</span>
-                                        <Badge variant={analysis.basic_info.has_audio ? "default" : "destructive"}>
-                                            {analysis.basic_info.has_audio ? "Present" : "Missing"}
+                                        <Badge variant={analysis.basic_info?.has_audio ? "default" : "destructive"}>
+                                            {analysis.basic_info?.has_audio ? "Present" : "Missing"}
                                         </Badge>
                                     </div>
                                 </CardContent>
@@ -397,8 +429,8 @@ export default function AIVideoAnalyzer({
                                     )}
                                     <div className="flex justify-between items-center">
                                         <span className="text-gray-600">Transcript:</span>
-                                        <Badge variant={analysis.transcript.success ? "default" : "destructive"}>
-                                            {analysis.transcript.success ? (
+                                        <Badge variant={analysis.transcript?.success ? "default" : "destructive"}>
+                                            {analysis.transcript?.success ? (
                                                 <>
                                                     <CheckCircle className="w-3 h-3 mr-1" />
                                                     Available
@@ -413,7 +445,7 @@ export default function AIVideoAnalyzer({
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Content Tags:</span>
-                                        <span className="font-medium">{analysis.content_tags.length} tags</span>
+                                        <span className="font-medium">{analysis.content_tags?.length || 0} tags</span>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -430,20 +462,20 @@ export default function AIVideoAnalyzer({
                             <CardContent>
                                 <div className="grid md:grid-cols-3 gap-6">
                                     <div className="text-center">
-                                        <div className={cn("text-3xl font-bold p-4 rounded-lg mb-2", getScoreColor(analysis.quality_score.overall_score))}>
-                                            {analysis.quality_score.overall_score}/100
+                                        <div className={cn("text-3xl font-bold p-4 rounded-lg mb-2", getScoreColor(analysis.quality_score?.overall_score || 0))}>
+                                            {analysis.quality_score?.overall_score || 0}/100
                                         </div>
                                         <p className="text-sm text-gray-600">Video Quality</p>
                                     </div>
                                     <div className="text-center">
-                                        <div className={cn("text-3xl font-bold p-4 rounded-lg mb-2", getScoreColor(analysis.engagement_predictions.engagement_score))}>
-                                            {analysis.engagement_predictions.engagement_score}/100
+                                        <div className={cn("text-3xl font-bold p-4 rounded-lg mb-2", getScoreColor(analysis.engagement_predictions?.engagement_score || 0))}>
+                                            {analysis.engagement_predictions?.engagement_score || 0}/100
                                         </div>
                                         <p className="text-sm text-gray-600">Engagement Score</p>
                                     </div>
                                     <div className="text-center">
                                         <div className="text-lg font-bold p-4 bg-purple-100 text-purple-800 rounded-lg mb-2">
-                                            {analysis.engagement_predictions.virality_potential}
+                                            {analysis.engagement_predictions?.virality_potential || 'Unknown'}
                                         </div>
                                         <p className="text-sm text-gray-600">Virality Potential</p>
                                     </div>
@@ -465,23 +497,23 @@ export default function AIVideoAnalyzer({
                                     <div>
                                         <div className="flex justify-between mb-2">
                                             <span>Resolution Quality</span>
-                                            <span className="font-medium">{analysis.quality_score.resolution_score}/100</span>
+                                            <span className="font-medium">{analysis.quality_score?.resolution_score || 0}/100</span>
                                         </div>
-                                        <Progress value={analysis.quality_score.resolution_score} className="mb-2" />
+                                        <Progress value={analysis.quality_score?.resolution_score || 0} className="mb-2" />
                                     </div>
                                     <div>
                                         <div className="flex justify-between mb-2">
                                             <span>Audio Quality</span>
-                                            <span className="font-medium">{analysis.quality_score.audio_score}/100</span>
+                                            <span className="font-medium">{analysis.quality_score?.audio_score || 0}/100</span>
                                         </div>
-                                        <Progress value={analysis.quality_score.audio_score} className="mb-2" />
+                                        <Progress value={analysis.quality_score?.audio_score || 0} className="mb-2" />
                                     </div>
                                     <div>
                                         <div className="flex justify-between mb-2">
                                             <span>Bitrate Quality</span>
-                                            <span className="font-medium">{analysis.quality_score.bitrate_score}/100</span>
+                                            <span className="font-medium">{analysis.quality_score?.bitrate_score || 0}/100</span>
                                         </div>
-                                        <Progress value={analysis.quality_score.bitrate_score} className="mb-2" />
+                                        <Progress value={analysis.quality_score?.bitrate_score || 0} className="mb-2" />
                                     </div>
                                 </div>
                                 
@@ -491,7 +523,7 @@ export default function AIVideoAnalyzer({
                                         Improvement Suggestions
                                     </h4>
                                     <div className="space-y-2">
-                                        {analysis.quality_score.suggestions.map((suggestion, index) => (
+                                        {(analysis.quality_score?.suggestions || []).map((suggestion, index) => (
                                             <div key={index} className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg">
                                                 <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 flex-shrink-0"></span>
                                                 <span className="text-sm text-blue-800">{suggestion}</span>
@@ -505,7 +537,7 @@ export default function AIVideoAnalyzer({
 
                     <TabsContent value="content" className="space-y-4">
                         <div className="grid gap-6">
-                            {analysis.transcript.success && (
+                            {analysis.transcript?.success && (
                                 <Card>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
@@ -515,7 +547,7 @@ export default function AIVideoAnalyzer({
                                     </CardHeader>
                                     <CardContent>
                                         <div className="bg-gray-50 p-4 rounded-lg max-h-40 overflow-y-auto">
-                                            <p className="text-sm text-gray-700">{analysis.transcript.text}</p>
+                                            <p className="text-sm text-gray-700">{analysis.transcript?.text || 'No transcript available'}</p>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -530,7 +562,7 @@ export default function AIVideoAnalyzer({
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex flex-wrap gap-2">
-                                        {analysis.content_tags.map((tag, index) => (
+                                        {(analysis.content_tags || []).map((tag, index) => (
                                             <Badge key={index} variant="outline">
                                                 {tag}
                                             </Badge>
@@ -554,21 +586,21 @@ export default function AIVideoAnalyzer({
                                     <div className="text-center p-4 bg-blue-50 rounded-lg">
                                         <Eye className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                                         <div className="text-2xl font-bold text-blue-800">
-                                            {analysis.engagement_predictions.predicted_views.expected.toLocaleString()}
+                                            {(analysis.engagement_predictions?.predicted_views?.expected || 0).toLocaleString()}
                                         </div>
                                         <p className="text-sm text-blue-600">Expected Views</p>
                                     </div>
                                     <div className="text-center p-4 bg-pink-50 rounded-lg">
                                         <Heart className="w-8 h-8 text-pink-600 mx-auto mb-2" />
                                         <div className="text-2xl font-bold text-pink-800">
-                                            {analysis.engagement_predictions.predicted_likes.expected.toLocaleString()}
+                                            {(analysis.engagement_predictions?.predicted_likes?.expected || 0).toLocaleString()}
                                         </div>
                                         <p className="text-sm text-pink-600">Expected Likes</p>
                                     </div>
                                     <div className="text-center p-4 bg-green-50 rounded-lg">
                                         <Share2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
                                         <div className="text-2xl font-bold text-green-800">
-                                            {analysis.engagement_predictions.predicted_shares.expected.toLocaleString()}
+                                            {(analysis.engagement_predictions?.predicted_shares?.expected || 0).toLocaleString()}
                                         </div>
                                         <p className="text-sm text-green-600">Expected Shares</p>
                                     </div>
@@ -580,14 +612,14 @@ export default function AIVideoAnalyzer({
                                         <div>
                                             <div className="flex justify-between text-sm mb-1">
                                                 <span>Views</span>
-                                                <span>{analysis.engagement_predictions.predicted_views.conservative.toLocaleString()} - {analysis.engagement_predictions.predicted_views.optimistic.toLocaleString()}</span>
+                                                <span>{(analysis.engagement_predictions?.predicted_views?.conservative || 0).toLocaleString()} - {(analysis.engagement_predictions?.predicted_views?.optimistic || 0).toLocaleString()}</span>
                                             </div>
                                             <Progress value={60} className="h-2" />
                                         </div>
                                         <div>
                                             <div className="flex justify-between text-sm mb-1">
                                                 <span>Likes</span>
-                                                <span>{analysis.engagement_predictions.predicted_likes.conservative.toLocaleString()} - {analysis.engagement_predictions.predicted_likes.optimistic.toLocaleString()}</span>
+                                                <span>{(analysis.engagement_predictions?.predicted_likes?.conservative || 0).toLocaleString()} - {(analysis.engagement_predictions?.predicted_likes?.optimistic || 0).toLocaleString()}</span>
                                             </div>
                                             <Progress value={60} className="h-2" />
                                         </div>
@@ -606,7 +638,7 @@ export default function AIVideoAnalyzer({
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {analysis.suggested_thumbnails.error ? (
+                                {analysis.suggested_thumbnails?.error ? (
                                     <div className="text-center py-8 text-gray-500">
                                         <Image className="w-12 h-12 mx-auto mb-3 opacity-50" />
                                         <p>Thumbnail analysis not available</p>
@@ -614,7 +646,7 @@ export default function AIVideoAnalyzer({
                                     </div>
                                 ) : (
                                     <div className="grid md:grid-cols-3 gap-4">
-                                        {analysis.suggested_thumbnails.best_thumbnails.map((thumb, index) => (
+                                        {(analysis.suggested_thumbnails?.best_thumbnails || []).map((thumb, index) => (
                                             <div key={index} className="p-4 border rounded-lg">
                                                 <div className="aspect-video bg-gray-100 rounded mb-3 flex items-center justify-center">
                                                     <Image className="w-8 h-8 text-gray-400" />
@@ -644,7 +676,7 @@ export default function AIVideoAnalyzer({
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {analysis.auto_chapters.length === 0 ? (
+                                {(analysis.auto_chapters?.length || 0) === 0 ? (
                                     <div className="text-center py-8 text-gray-500">
                                         <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
                                         <p>No chapters detected</p>
@@ -652,7 +684,7 @@ export default function AIVideoAnalyzer({
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        {analysis.auto_chapters.map((chapter, index) => (
+                                        {(analysis.auto_chapters || []).map((chapter, index) => (
                                             <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                                                 <Badge variant="outline" className="mt-1">
                                                     {formatDuration(chapter.start_time)}
@@ -670,14 +702,14 @@ export default function AIVideoAnalyzer({
                     </TabsContent>
                 </Tabs>
 
-                {analysis.status === 'partial_analysis' && analysis.errors && (
+                {analysis.status === 'partial_analysis' && analysis.errors?.length && (
                     <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <div className="flex items-center gap-2 mb-2">
                             <AlertCircle className="w-5 h-5 text-yellow-600" />
                             <h4 className="font-medium text-yellow-800">Partial Analysis</h4>
                         </div>
                         <div className="space-y-1">
-                            {analysis.errors.map((error, index) => (
+                            {(analysis.errors || []).map((error, index) => (
                                 <p key={index} className="text-sm text-yellow-700">{error}</p>
                             ))}
                         </div>

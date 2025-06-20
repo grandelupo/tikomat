@@ -174,12 +174,11 @@ class AIVideoAnalyzerService
                 mkdir($tempDir, 0755, true);
             }
             
-            $audio = $video->getAudio();
             $format = new Mp3();
             $format->setAudioChannels(1); // Mono for transcription
             $format->setAudioKiloBitrate(64); // Lower quality for transcription
             
-            $audio->save($format, $audioPath);
+            $video->save($format, $audioPath);
             
             return $audioPath;
             

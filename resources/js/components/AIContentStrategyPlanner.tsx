@@ -37,6 +37,7 @@ interface StrategyData {
 const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ video }) => {
     const [strategyData, setStrategyData] = useState<StrategyData | null>(null);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState('overview');
     const [settings, setSettings] = useState({
         timeframe: '90d',
@@ -71,6 +72,7 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
 
     const generateStrategy = async () => {
         setLoading(true);
+        setError(null);
         try {
             const response = await fetch('/ai/strategy-generate', {
                 method: 'POST',
@@ -81,12 +83,45 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
                 body: JSON.stringify(settings),
             });
 
+            // Check if response is ok before parsing JSON
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', errorText);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
             if (data.success) {
                 setStrategyData(data.data);
+            } else {
+                throw new Error(data.message || 'Failed to generate strategy');
             }
         } catch (error) {
             console.error('Error generating strategy:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            setError(`Failed to generate strategy: ${errorMessage}`);
+            
+            // Set a default strategy structure to prevent UI errors
+            setStrategyData({
+                user_id: 0,
+                generated_at: new Date().toISOString(),
+                timeframe: settings.timeframe,
+                industry: settings.industry,
+                platforms: settings.platforms,
+                goals: settings.goals,
+                strategic_overview: null,
+                content_pillars: null,
+                competitive_analysis: null,
+                content_calendar_strategy: null,
+                platform_strategies: null,
+                kpi_framework: null,
+                growth_roadmap: null,
+                risk_analysis: null,
+                budget_recommendations: null,
+                success_metrics: null,
+                strategy_score: 0,
+                confidence_level: 'low',
+            });
         } finally {
             setLoading(false);
         }
@@ -602,6 +637,21 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Error Display */}
+            {error && (
+                <Card>
+                    <CardContent className="py-6">
+                        <div className="flex items-center space-x-3 text-red-600">
+                            <AlertCircle className="h-5 w-5" />
+                            <div>
+                                <p className="font-medium">Error</p>
+                                <p className="text-sm text-red-500">{error}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Strategy Results */}
             {strategyData && (

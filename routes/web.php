@@ -45,7 +45,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('channels/{channel:slug}/videos/create', [VideoController::class, 'create'])->name('videos.create');
     Route::post('channels/{channel:slug}/videos', [VideoController::class, 'store'])->name('videos.store');
     Route::get('videos', [VideoController::class, 'index'])->name('videos.index');
-    Route::resource('videos', VideoController::class)->except(['create', 'store', 'index']);
+    Route::resource('videos', VideoController::class)->except(['create', 'store', 'index', 'show']);
     Route::post('video-targets/{target}/retry', [VideoController::class, 'retryTarget'])
         ->name('video-targets.retry');
     Route::delete('video-targets/{target}', [VideoController::class, 'deleteTarget'])
@@ -197,18 +197,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // Stripe webhooks (outside auth middleware)
 Route::post('stripe/webhook', '\Laravel\Cashier\Http\Controllers\WebhookController@handleWebhook');
 
-// Public video access (needed for Instagram API)
-Route::get('storage/videos/{filename}', function ($filename) {
-    $path = storage_path('app/videos/' . $filename);
-    
-    if (!file_exists($path)) {
-        abort(404);
-    }
-    
-    return response()->file($path, [
-        'Content-Type' => 'video/mp4'
-    ]);
-})->name('video.public');
+// Video access route (requires authentication)
+Route::middleware('auth')->get('storage/videos/{filename}', [VideoController::class, 'serveVideo'])->name('video.serve');
 
 // Chat routes
 Route::middleware('auth')->group(function () {

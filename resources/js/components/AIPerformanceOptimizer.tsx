@@ -350,6 +350,28 @@ export default function AIPerformanceOptimizer({
         );
     }
 
+    // Safety checks for analysis data
+    if (!analysis || !analysis.overall_performance || !analysis.comparative_analysis || 
+        !analysis.platform_breakdown || !analysis.trend_analysis) {
+        return (
+            <Card className={cn("border-2 border-red-200 bg-gradient-to-br from-red-50 to-orange-50", className)}>
+                <CardContent className="p-8 text-center space-y-4">
+                    <AlertTriangle className="w-12 h-12 text-red-500 mx-auto" />
+                    <div>
+                        <h3 className="text-lg font-semibold text-red-700 mb-2">Analysis Data Incomplete</h3>
+                        <p className="text-red-600 mb-4">
+                            The performance analysis data is incomplete or missing.
+                        </p>
+                        <Button onClick={analyzePerformance} variant="outline" className="border-red-300 text-red-700">
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Try Again
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
     return (
         <Card className={cn("border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50", className)}>
             <CardHeader className="pb-4">
@@ -409,16 +431,16 @@ export default function AIPerformanceOptimizer({
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Total Views:</span>
-                                        <span className="font-medium">{formatNumber(analysis.overall_performance.total_views)}</span>
+                                        <span className="font-medium">{formatNumber(analysis.overall_performance?.total_views || 0)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Engagement Rate:</span>
-                                        <span className="font-medium">{analysis.overall_performance.engagement_rate}%</span>
+                                        <span className="font-medium">{analysis.overall_performance?.engagement_rate || 0}%</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Performance Tier:</span>
-                                        <Badge className={getPerformanceTierColor(analysis.overall_performance.performance_tier)}>
-                                            {analysis.overall_performance.performance_tier.replace('_', ' ')}
+                                        <Badge className={getPerformanceTierColor(analysis.overall_performance?.performance_tier || 'unknown')}>
+                                            {(analysis.overall_performance?.performance_tier || 'unknown').replace('_', ' ')}
                                         </Badge>
                                     </div>
                                 </CardContent>
@@ -436,34 +458,34 @@ export default function AIPerformanceOptimizer({
                                         <div className="flex justify-between items-center">
                                             <span className="text-sm text-gray-600">Views vs Industry:</span>
                                             <div className="flex items-center gap-1">
-                                                {analysis.comparative_analysis.views_vs_industry.performance === 'above_average' ? (
+                                                {(analysis.comparative_analysis?.views_vs_industry?.performance || 'below_average') === 'above_average' ? (
                                                     <ArrowUp className="w-3 h-3 text-green-600" />
                                                 ) : (
                                                     <ArrowDown className="w-3 h-3 text-red-600" />
                                                 )}
                                                 <span className={cn(
                                                     "text-sm font-medium",
-                                                    analysis.comparative_analysis.views_vs_industry.performance === 'above_average' ? 
+                                                    (analysis.comparative_analysis?.views_vs_industry?.performance || 'below_average') === 'above_average' ? 
                                                         "text-green-600" : "text-red-600"
                                                 )}>
-                                                    {Math.abs(analysis.comparative_analysis.views_vs_industry.difference_percentage)}%
+                                                    {Math.abs(analysis.comparative_analysis?.views_vs_industry?.difference_percentage || 0)}%
                                                 </span>
                                             </div>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-sm text-gray-600">Engagement vs Industry:</span>
                                             <div className="flex items-center gap-1">
-                                                {analysis.comparative_analysis.engagement_vs_industry.performance === 'above_average' ? (
+                                                {(analysis.comparative_analysis?.engagement_vs_industry?.performance || 'below_average') === 'above_average' ? (
                                                     <ArrowUp className="w-3 h-3 text-green-600" />
                                                 ) : (
                                                     <ArrowDown className="w-3 h-3 text-red-600" />
                                                 )}
                                                 <span className={cn(
                                                     "text-sm font-medium",
-                                                    analysis.comparative_analysis.engagement_vs_industry.performance === 'above_average' ? 
+                                                    (analysis.comparative_analysis?.engagement_vs_industry?.performance || 'below_average') === 'above_average' ? 
                                                         "text-green-600" : "text-red-600"
                                                 )}>
-                                                    {Math.abs(analysis.comparative_analysis.engagement_vs_industry.difference_percentage)}%
+                                                    {Math.abs(analysis.comparative_analysis?.engagement_vs_industry?.difference_percentage || 0)}%
                                                 </span>
                                             </div>
                                         </div>
@@ -471,7 +493,7 @@ export default function AIPerformanceOptimizer({
                                     <div className="pt-2 border-t">
                                         <div className="text-sm text-gray-600">Growth Potential:</div>
                                         <div className="text-lg font-medium text-purple-600">
-                                            {formatNumber(analysis.comparative_analysis.growth_potential.views_growth_potential)} more views
+                                            {formatNumber(analysis.comparative_analysis?.growth_potential?.views_growth_potential || 0)} more views
                                         </div>
                                     </div>
                                 </CardContent>
@@ -493,16 +515,16 @@ export default function AIPerformanceOptimizer({
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Platforms:</span>
-                                        <span className="font-medium">{analysis.overall_performance.platform_count}</span>
+                                        <span className="font-medium">{analysis.overall_performance?.platform_count || 0}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Days Since Upload:</span>
-                                        <span className="font-medium">{analysis.overall_performance.days_since_upload}</span>
+                                        <span className="font-medium">{analysis.overall_performance?.days_since_upload || 0}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Lifecycle Stage:</span>
                                         <Badge variant="outline">
-                                            {analysis.trend_analysis.lifecycle_stage}
+                                            {analysis.trend_analysis?.lifecycle_stage || 'unknown'}
                                         </Badge>
                                     </div>
                                 </CardContent>
@@ -519,13 +541,13 @@ export default function AIPerformanceOptimizer({
                             </CardHeader>
                             <CardContent>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {Object.entries(analysis.platform_breakdown).map(([platform, data]) => (
+                                    {Object.entries(analysis.platform_breakdown || {}).map(([platform, data]) => (
                                         <div key={platform} className="text-center p-4 bg-gray-50 rounded-lg">
                                             <div className="text-2xl mb-2">{getPlatformIcon(platform)}</div>
                                             <div className="font-medium capitalize mb-1">{platform}</div>
-                                            <div className="text-sm text-gray-600">#{data.ranking}</div>
-                                            <div className="text-lg font-bold text-blue-600">{data.performance_score}/100</div>
-                                            <div className="text-xs text-gray-500">{formatNumber(data.views)} views</div>
+                                            <div className="text-sm text-gray-600">#{data?.ranking || 0}</div>
+                                            <div className="text-lg font-bold text-blue-600">{data?.performance_score || 0}/100</div>
+                                            <div className="text-xs text-gray-500">{formatNumber(data?.views || 0)} views</div>
                                         </div>
                                     ))}
                                 </div>
@@ -535,17 +557,17 @@ export default function AIPerformanceOptimizer({
 
                     <TabsContent value="platforms" className="space-y-4">
                         <div className="grid gap-4">
-                            {Object.entries(analysis.platform_breakdown).map(([platform, data]) => (
+                            {Object.entries(analysis.platform_breakdown || {}).map(([platform, data]) => (
                                 <Card key={platform}>
                                     <CardHeader className="pb-3">
                                         <div className="flex items-center justify-between">
                                             <CardTitle className="text-lg flex items-center gap-2">
                                                 <span className="text-xl">{getPlatformIcon(platform)}</span>
                                                 <span className="capitalize">{platform}</span>
-                                                <Badge className="ml-2">#{data.ranking}</Badge>
+                                                <Badge className="ml-2">#{data?.ranking || 0}</Badge>
                                             </CardTitle>
                                             <div className="text-right">
-                                                <div className="text-2xl font-bold text-blue-600">{data.performance_score}/100</div>
+                                                <div className="text-2xl font-bold text-blue-600">{data?.performance_score || 0}/100</div>
                                                 <div className="text-sm text-gray-600">Performance Score</div>
                                             </div>
                                         </div>
@@ -554,30 +576,30 @@ export default function AIPerformanceOptimizer({
                                         <div className="grid md:grid-cols-3 gap-4">
                                             <div className="text-center p-3 bg-blue-50 rounded-lg">
                                                 <Eye className="w-6 h-6 text-blue-600 mx-auto mb-1" />
-                                                <div className="text-lg font-bold">{formatNumber(data.views)}</div>
+                                                <div className="text-lg font-bold">{formatNumber(data?.views || 0)}</div>
                                                 <div className="text-xs text-gray-600">Views</div>
                                             </div>
                                             <div className="text-center p-3 bg-green-50 rounded-lg">
                                                 <Heart className="w-6 h-6 text-green-600 mx-auto mb-1" />
-                                                <div className="text-lg font-bold">{formatNumber(data.engagement)}</div>
+                                                <div className="text-lg font-bold">{formatNumber(data?.engagement || 0)}</div>
                                                 <div className="text-xs text-gray-600">Total Engagement</div>
                                             </div>
                                             <div className="text-center p-3 bg-purple-50 rounded-lg">
                                                 <TrendingUp className="w-6 h-6 text-purple-600 mx-auto mb-1" />
-                                                <div className="text-lg font-bold">{data.engagement_rate}%</div>
+                                                <div className="text-lg font-bold">{data?.engagement_rate || 0}%</div>
                                                 <div className="text-xs text-gray-600">Engagement Rate</div>
                                             </div>
                                         </div>
 
                                         <div className="grid md:grid-cols-2 gap-4">
-                                            {data.strengths.length > 0 && (
+                                            {(data?.strengths || []).length > 0 && (
                                                 <div>
                                                     <h4 className="font-medium text-green-700 mb-2 flex items-center gap-2">
                                                         <Trophy className="w-4 h-4" />
                                                         Strengths
                                                     </h4>
                                                     <ul className="space-y-1">
-                                                        {data.strengths.map((strength, index) => (
+                                                        {(data?.strengths || []).map((strength, index) => (
                                                             <li key={index} className="text-sm text-green-600 flex items-start gap-2">
                                                                 <span className="w-1.5 h-1.5 bg-green-400 rounded-full mt-2 flex-shrink-0"></span>
                                                                 {strength}
@@ -587,14 +609,14 @@ export default function AIPerformanceOptimizer({
                                                 </div>
                                             )}
 
-                                            {data.weaknesses.length > 0 && (
+                                            {(data?.weaknesses || []).length > 0 && (
                                                 <div>
                                                     <h4 className="font-medium text-red-700 mb-2 flex items-center gap-2">
                                                         <AlertTriangle className="w-4 h-4" />
                                                         Areas for Improvement
                                                     </h4>
                                                     <ul className="space-y-1">
-                                                        {data.weaknesses.map((weakness, index) => (
+                                                        {(data?.weaknesses || []).map((weakness, index) => (
                                                             <li key={index} className="text-sm text-red-600 flex items-start gap-2">
                                                                 <span className="w-1.5 h-1.5 bg-red-400 rounded-full mt-2 flex-shrink-0"></span>
                                                                 {weakness}
@@ -605,14 +627,14 @@ export default function AIPerformanceOptimizer({
                                             )}
                                         </div>
 
-                                        {data.recommendations.length > 0 && (
+                                        {(data?.recommendations || []).length > 0 && (
                                             <div>
                                                 <h4 className="font-medium text-blue-700 mb-2 flex items-center gap-2">
                                                     <Lightbulb className="w-4 h-4" />
                                                     Recommendations
                                                 </h4>
                                                 <div className="space-y-2">
-                                                    {data.recommendations.map((recommendation, index) => (
+                                                    {(data?.recommendations || []).map((recommendation, index) => (
                                                         <div key={index} className="p-3 bg-blue-50 rounded-lg">
                                                             <span className="text-sm text-blue-800">{recommendation}</span>
                                                         </div>
@@ -628,7 +650,7 @@ export default function AIPerformanceOptimizer({
 
                     <TabsContent value="opportunities" className="space-y-4">
                         <div className="grid gap-4">
-                            {Object.entries(analysis.optimization_opportunities).map(([platform, opportunities]) => (
+                            {Object.entries(analysis.optimization_opportunities || {}).map(([platform, opportunities]) => (
                                 <Card key={platform}>
                                     <CardHeader className="pb-3">
                                         <CardTitle className="text-lg flex items-center gap-2">
@@ -637,29 +659,29 @@ export default function AIPerformanceOptimizer({
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
-                                        {opportunities.map((opportunity, index) => (
+                                        {(opportunities || []).map((opportunity, index) => (
                                             <div key={index} className="p-4 border rounded-lg">
                                                 <div className="flex items-start justify-between mb-3">
                                                     <div>
                                                         <h4 className="font-medium flex items-center gap-2">
                                                             <Target className="w-4 h-4" />
-                                                            {opportunity.title}
+                                                            {opportunity?.title || 'Untitled'}
                                                         </h4>
-                                                        <p className="text-sm text-gray-600 mt-1">{opportunity.description}</p>
+                                                        <p className="text-sm text-gray-600 mt-1">{opportunity?.description || 'No description available'}</p>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <Badge className={getPriorityColor(opportunity.priority)}>
-                                                            {opportunity.priority}
+                                                        <Badge className={getPriorityColor(opportunity?.priority || 'low')}>
+                                                            {opportunity?.priority || 'low'}
                                                         </Badge>
                                                         <Badge variant="outline">
-                                                            {opportunity.potential_impact} impact
+                                                            {opportunity?.potential_impact || 'unknown'} impact
                                                         </Badge>
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <h5 className="font-medium text-sm mb-2">Action Steps:</h5>
                                                     <div className="space-y-1">
-                                                        {opportunity.actions.map((action, actionIndex) => (
+                                                        {(opportunity?.actions || []).map((action, actionIndex) => (
                                                             <div key={actionIndex} className="flex items-start gap-2 text-sm">
                                                                 <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 flex-shrink-0"></span>
                                                                 {action}
@@ -688,21 +710,21 @@ export default function AIPerformanceOptimizer({
                                     <div className="flex items-center justify-between">
                                         <span className="text-gray-600">Trend Direction:</span>
                                         <div className="flex items-center gap-2">
-                                            {getTrendIcon(analysis.trend_analysis.trend_direction)}
-                                            <span className="font-medium capitalize">{analysis.trend_analysis.trend_direction}</span>
+                                            {getTrendIcon(analysis.trend_analysis?.trend_direction || 'stable')}
+                                            <span className="font-medium capitalize">{analysis.trend_analysis?.trend_direction || 'stable'}</span>
                                         </div>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Daily Avg Views:</span>
-                                        <span className="font-medium">{formatNumber(analysis.trend_analysis.daily_average_views)}</span>
+                                        <span className="font-medium">{formatNumber(analysis.trend_analysis?.daily_average_views || 0)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Momentum Score:</span>
-                                        <span className="font-medium">{analysis.trend_analysis.momentum_score}/100</span>
+                                        <span className="font-medium">{analysis.trend_analysis?.momentum_score || 0}/100</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Lifecycle Stage:</span>
-                                        <Badge variant="outline">{analysis.trend_analysis.lifecycle_stage}</Badge>
+                                        <Badge variant="outline">{analysis.trend_analysis?.lifecycle_stage || 'unknown'}</Badge>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -717,13 +739,13 @@ export default function AIPerformanceOptimizer({
                                 <CardContent className="space-y-4">
                                     <div className="text-center p-4 bg-blue-50 rounded-lg">
                                         <div className="text-2xl font-bold text-blue-600">
-                                            {formatNumber(analysis.trend_analysis.projected_30_day_views)}
+                                            {formatNumber(analysis.trend_analysis?.projected_30_day_views || 0)}
                                         </div>
                                         <div className="text-sm text-blue-600">Projected 30-Day Views</div>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Peak Performance Day:</span>
-                                        <span className="font-medium">Day {analysis.trend_analysis.peak_performance_day}</span>
+                                        <span className="font-medium">Day {analysis.trend_analysis?.peak_performance_day || 0}</span>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -732,7 +754,7 @@ export default function AIPerformanceOptimizer({
 
                     <TabsContent value="timing" className="space-y-4">
                         <div className="grid gap-4">
-                            {Object.entries(analysis.posting_time_optimization).map(([platform, timing]) => (
+                            {Object.entries(analysis.posting_time_optimization || {}).map(([platform, timing]) => (
                                 <Card key={platform}>
                                     <CardHeader className="pb-3">
                                         <CardTitle className="text-lg flex items-center gap-2">
@@ -747,16 +769,16 @@ export default function AIPerformanceOptimizer({
                                                 <div className="space-y-2">
                                                     <div className="flex justify-between">
                                                         <span className="text-gray-600">Posted at:</span>
-                                                        <span className="font-medium">{timing.current_posting_time || 'Unknown'}</span>
+                                                        <span className="font-medium">{timing?.current_posting_time || 'Unknown'}</span>
                                                     </div>
                                                     <div className="flex justify-between">
                                                         <span className="text-gray-600">Day type:</span>
-                                                        <span className="font-medium">{timing.current_day_type}</span>
+                                                        <span className="font-medium">{timing?.current_day_type || 'unknown'}</span>
                                                     </div>
                                                     <div className="flex justify-between">
                                                         <span className="text-gray-600">Improvement potential:</span>
-                                                        <Badge className={getPriorityColor(timing.improvement_potential)}>
-                                                            {timing.improvement_potential}
+                                                        <Badge className={getPriorityColor(timing?.improvement_potential || 'low')}>
+                                                            {timing?.improvement_potential || 'low'}
                                                         </Badge>
                                                     </div>
                                                 </div>
@@ -766,11 +788,11 @@ export default function AIPerformanceOptimizer({
                                                 <div className="space-y-2">
                                                     <div className="flex justify-between">
                                                         <span className="text-gray-600">Best time:</span>
-                                                        <span className="font-medium text-green-600">{timing.best_time}</span>
+                                                        <span className="font-medium text-green-600">{timing?.best_time || 'unknown'}</span>
                                                     </div>
                                                     <div className="text-sm text-gray-600">All optimal times:</div>
                                                     <div className="flex flex-wrap gap-1">
-                                                        {timing.optimal_times.map((time, index) => (
+                                                        {(timing?.optimal_times || []).map((time, index) => (
                                                             <Badge key={index} variant="outline" className="text-xs">
                                                                 {time}
                                                             </Badge>
@@ -795,19 +817,19 @@ export default function AIPerformanceOptimizer({
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid gap-4">
-                                    {analysis.ab_test_suggestions.map((suggestion, index) => (
+                                    {(analysis.ab_test_suggestions || []).map((suggestion, index) => (
                                         <div key={index} className="p-4 border rounded-lg">
                                             <div className="flex items-start justify-between mb-3">
                                                 <div>
                                                     <h4 className="font-medium flex items-center gap-2">
                                                         <TestTube className="w-4 h-4" />
-                                                        {suggestion.title}
+                                                        {suggestion?.title || 'Untitled Test'}
                                                     </h4>
-                                                    <p className="text-sm text-gray-600 mt-1">{suggestion.description}</p>
+                                                    <p className="text-sm text-gray-600 mt-1">{suggestion?.description || 'No description available'}</p>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <Badge className={getPriorityColor(suggestion.priority)}>
-                                                        {suggestion.priority}
+                                                    <Badge className={getPriorityColor(suggestion?.priority || 'low')}>
+                                                        {suggestion?.priority || 'low'}
                                                     </Badge>
                                                     <Button
                                                         size="sm"
@@ -824,7 +846,7 @@ export default function AIPerformanceOptimizer({
                                                 <div>
                                                     <h5 className="font-medium text-sm mb-2">Test Variations:</h5>
                                                     <div className="space-y-1">
-                                                        {suggestion.test_variations.map((variation, vIndex) => (
+                                                        {(suggestion?.test_variations || []).map((variation, vIndex) => (
                                                             <div key={vIndex} className="text-sm text-gray-600 flex items-start gap-2">
                                                                 <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 flex-shrink-0"></span>
                                                                 {variation}
@@ -835,14 +857,14 @@ export default function AIPerformanceOptimizer({
                                                 <div>
                                                     <h5 className="font-medium text-sm mb-2">Success Metrics:</h5>
                                                     <div className="space-y-1">
-                                                        {suggestion.success_metrics.map((metric, mIndex) => (
+                                                        {(suggestion?.success_metrics || []).map((metric, mIndex) => (
                                                             <Badge key={mIndex} variant="outline" className="text-xs mr-1">
                                                                 {metric.replace('_', ' ')}
                                                             </Badge>
                                                         ))}
                                                     </div>
                                                     <div className="text-xs text-gray-500 mt-2">
-                                                        Duration: {suggestion.duration}
+                                                        Duration: {suggestion?.duration || 'Unknown'}
                                                     </div>
                                                 </div>
                                             </div>
@@ -882,7 +904,7 @@ export default function AIPerformanceOptimizer({
                             <div>
                                 <label className="text-sm font-medium mb-2 block">Success Metrics</label>
                                 <div className="space-y-2">
-                                    {selectedTest?.success_metrics.map((metric: string, index: number) => (
+                                    {(selectedTest?.success_metrics || []).map((metric: string, index: number) => (
                                         <div key={index} className="flex items-center space-x-2">
                                             <Checkbox id={`metric-${index}`} defaultChecked />
                                             <label htmlFor={`metric-${index}`} className="text-sm">

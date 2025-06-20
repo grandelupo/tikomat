@@ -45,8 +45,14 @@ export default function CreateVideo({
     connectedPlatforms, 
     allowedPlatforms 
 }: CreateVideoProps) {
+    // Ensure all platform arrays are properly initialized as arrays
+    const safeAvailablePlatforms = Array.isArray(availablePlatforms) ? availablePlatforms : [];
+    const safeDefaultPlatforms = Array.isArray(defaultPlatforms) ? defaultPlatforms : [];
+    const safeConnectedPlatforms = Array.isArray(connectedPlatforms) ? connectedPlatforms : [];
+    const safeAllowedPlatforms = Array.isArray(allowedPlatforms) ? allowedPlatforms : [];
+    
     // defaultPlatforms now only contains connected platforms (filtered in backend)
-    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(defaultPlatforms);
+    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(safeDefaultPlatforms);
     const [publishType, setPublishType] = useState<'now' | 'scheduled'>('now');
     const [isDragOver, setIsDragOver] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +79,7 @@ export default function CreateVideo({
         video: null as File | null,
         title: '',
         description: '',
-        platforms: defaultPlatforms,
+        platforms: safeDefaultPlatforms,
         publish_type: 'now',
         publish_at: '',
         cloud_providers: [] as string[],
@@ -391,9 +397,9 @@ export default function CreateVideo({
                                 <div className="grid grid-cols-1 gap-3">
                                     {Object.entries(platformData).map(([platformKey, platform]) => {
                                         const IconComponent = platform.icon;
-                                        const isAvailable = availablePlatforms.includes(platformKey);
-                                        const isConnected = connectedPlatforms.includes(platformKey);
-                                        const isAllowed = allowedPlatforms.includes(platformKey);
+                                        const isAvailable = safeAvailablePlatforms.includes(platformKey);
+                                        const isConnected = safeConnectedPlatforms.includes(platformKey);
+                                        const isAllowed = safeAllowedPlatforms.includes(platformKey);
                                         const isChecked = selectedPlatforms.includes(platformKey);
                                         
                                         return (
@@ -453,7 +459,7 @@ export default function CreateVideo({
                                     <p className="text-sm text-red-600">{errors.platforms || clientErrors.platforms}</p>
                                 )}
                                 
-                                {availablePlatforms.length === 0 && (
+                                {safeAvailablePlatforms.length === 0 && (
                                     <Alert className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
                                         <AlertDescription className="text-yellow-800 dark:text-yellow-200">
                                             No platforms available for upload. Please connect at least one platform to this channel.

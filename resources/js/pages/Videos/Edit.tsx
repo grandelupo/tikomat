@@ -4,9 +4,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import AIVideoAnalyzer from '@/components/AIVideoAnalyzer';
 import AIContentOptimizer from '@/components/AIContentOptimizer';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import AIPerformanceOptimizer from '@/components/AIPerformanceOptimizer';
 import AIThumbnailOptimizer from '@/components/AIThumbnailOptimizer';
 import AIContentCalendar from '@/components/AIContentCalendar';
@@ -17,9 +20,19 @@ import AISEOOptimizer from '@/components/AISEOOptimizer';
 import AIWatermarkRemover from '@/components/AIWatermarkRemover';
 import AISubtitleGenerator from '@/components/AISubtitleGenerator';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Calendar, TrendingUp, Users, Target, Search, Scan, Mic } from 'lucide-react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
+import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Calendar, TrendingUp, Users, Target, Search, Scan, Mic, Trash2, ExternalLink, X, Youtube, Instagram, Video as VideoIcon, Clock, CheckCircle, XCircle, AlertCircle, Play } from 'lucide-react';
 import { useState } from 'react';
+
+interface VideoTarget {
+    id: number;
+    platform: string;
+    status: string;
+    error_message: string | null;
+    publish_at: string | null;
+    platform_video_id?: string;
+    platform_url?: string;
+}
 
 interface Video {
     id: number;
@@ -29,13 +42,40 @@ interface Video {
     formatted_duration: string;
     created_at: string;
     file_path?: string;
+    video_path?: string;
+    original_file_path?: string;
     tags?: string[];
     thumbnail?: string;
+    targets?: VideoTarget[];
 }
 
 interface VideoEditProps {
     video: Video;
 }
+
+const platformIcons = {
+    youtube: Youtube,
+    instagram: Instagram,
+    tiktok: VideoIcon,
+    facebook: VideoIcon,
+    snapchat: VideoIcon,
+    pinterest: VideoIcon,
+    twitter: VideoIcon,
+};
+
+const statusIcons = {
+    pending: Clock,
+    processing: AlertCircle,
+    success: CheckCircle,
+    failed: XCircle,
+};
+
+const statusColors = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    processing: 'bg-blue-100 text-blue-800',
+    success: 'bg-green-100 text-green-800',
+    failed: 'bg-red-100 text-red-800',
+};
 
 export default function VideoEdit({ video }: VideoEditProps) {
     const breadcrumbs: BreadcrumbItem[] = [
@@ -49,22 +89,20 @@ export default function VideoEdit({ video }: VideoEditProps) {
         },
         {
             title: video.title,
-            href: `/videos/${video.id}`,
-        },
-        {
-            title: 'Edit',
             href: `/videos/${video.id}/edit`,
         },
     ];
 
-    const { data, setData, put, processing, errors } = useForm<Video>({
+    const { data, setData, put, processing, errors } = useForm({
         title: video.title || '',
         description: video.description || '',
         tags: video.tags || [],
         thumbnail: null,
     });
 
-    const [activeTab, setActiveTab] = useState('edit');
+    const [activeTab, setActiveTab] = useState('overview');
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [deleteOption, setDeleteOption] = useState<'all' | 'tikomat'>('tikomat');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -89,45 +127,266 @@ export default function VideoEdit({ video }: VideoEditProps) {
         }
     };
 
+    const handleDeleteVideo = () => {
+        setShowDeleteDialog(true);
+    };
+
+    const confirmDelete = () => {
+        router.delete(`/videos/${video.id}`, {
+            data: { delete_option: deleteOption },
+            onSuccess: () => {
+                router.visit('/videos');
+            },
+        });
+    };
+
+    const handleRemoveFromPlatform = (targetId: number, platform: string) => {
+        if (confirm(`Are you sure you want to remove this video from ${platform}?`)) {
+            router.delete(`/video-targets/${targetId}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    // Video page will be refreshed automatically
+                },
+                onError: (errors) => {
+                    console.error('Failed to remove video from platform:', errors);
+                    alert('Failed to remove video from platform. Please try again.');
+                }
+            });
+        }
+    };
+
+    const getPlatformUrl = (target: VideoTarget) => {
+        if (target.platform_url) {
+            return target.platform_url;
+        }
+
+        // Default platform URLs based on platform_video_id
+        switch (target.platform) {
+            case 'youtube':
+                return target.platform_video_id ? `https://youtube.com/watch?v=${target.platform_video_id}` : null;
+            case 'instagram':
+                return target.platform_video_id ? `https://instagram.com/p/${target.platform_video_id}` : null;
+            case 'tiktok':
+                return target.platform_video_id ? `https://tiktok.com/@username/video/${target.platform_video_id}` : null;
+            default:
+                return null;
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Edit: ${video.title}`} />
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Header */}
-                <div className="flex items-center gap-4">
-                    <Link href={`/videos/${video.id}`}>
-                        <Button variant="outline" size="sm">
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Back to Video
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link href="/videos">
+                            <Button variant="outline" size="sm">
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Back to Videos
+                            </Button>
+                        </Link>
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-tight">{video.title}</h1>
+                            <p className="text-muted-foreground">
+                                Edit and optimize your video with AI-powered tools
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="outline" 
+                            onClick={handleDeleteVideo}
+                            className="text-red-600 hover:text-red-700"
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
                         </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Edit Video</h1>
-                        <p className="text-muted-foreground">
-                            Update your video with AI-powered optimization and analysis
-                        </p>
                     </div>
                 </div>
 
                 <div className="grid lg:grid-cols-3 gap-6">
-                    {/* Main Edit Form */}
+                    {/* Main Content */}
                     <div className="lg:col-span-2">
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <TabsList className="grid w-full grid-cols-12">
-                                <TabsTrigger value="edit">Edit</TabsTrigger>
-                                <TabsTrigger value="ai-optimize">AI Optimize</TabsTrigger>
-                                <TabsTrigger value="ai-analyze">AI Analyze</TabsTrigger>
-                                <TabsTrigger value="ai-performance">AI Performance</TabsTrigger>
-                                <TabsTrigger value="ai-thumbnails">AI Thumbnails</TabsTrigger>
-                                <TabsTrigger value="ai-calendar">AI Calendar</TabsTrigger>
-                                <TabsTrigger value="ai-trends">AI Trends</TabsTrigger>
-                                <TabsTrigger value="ai-audience">AI Audience</TabsTrigger>
-                                <TabsTrigger value="ai-strategy">AI Strategy</TabsTrigger>
-                                <TabsTrigger value="ai-seo">AI SEO</TabsTrigger>
-                                <TabsTrigger value="ai-watermark">AI Watermark</TabsTrigger>
-                                <TabsTrigger value="ai-subtitles">AI Subtitles</TabsTrigger>
+                            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-1">
+                                <TabsTrigger value="overview" className="text-xs px-2 py-1">Overview</TabsTrigger>
+                                <TabsTrigger value="edit" className="text-xs px-2 py-1">Edit</TabsTrigger>
+                                <TabsTrigger value="ai-optimize" className="text-xs px-2 py-1">AI Optimize</TabsTrigger>
+                                <TabsTrigger value="ai-analyze" className="text-xs px-2 py-1">AI Analyze</TabsTrigger>
+                                <TabsTrigger value="ai-performance" className="text-xs px-2 py-1">Performance</TabsTrigger>
+                                <TabsTrigger value="ai-thumbnails" className="text-xs px-2 py-1">Thumbnails</TabsTrigger>
+                                <TabsTrigger value="ai-calendar" className="text-xs px-2 py-1">Calendar</TabsTrigger>
+                                <TabsTrigger value="ai-trends" className="text-xs px-2 py-1">Trends</TabsTrigger>
+                                <TabsTrigger value="ai-audience" className="text-xs px-2 py-1">Audience</TabsTrigger>
+                                <TabsTrigger value="ai-strategy" className="text-xs px-2 py-1">Strategy</TabsTrigger>
+                                <TabsTrigger value="ai-seo" className="text-xs px-2 py-1">SEO</TabsTrigger>
+                                <TabsTrigger value="ai-subtitles" className="text-xs px-2 py-1">Subtitles</TabsTrigger>
                             </TabsList>
 
+                            {/* Overview Tab - Video Preview and Details */}
+                            <TabsContent value="overview" className="space-y-6">
+                                <div className="grid gap-6 md:grid-cols-2">
+                                    {/* Video Player */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2">
+                                                <Play className="w-5 h-5" />
+                                                Video Preview
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
+                                                {video.video_path || video.file_path ? (
+                                                    <video 
+                                                        src={video.video_path || video.file_path}
+                                                        controls
+                                                        className="w-full h-full"
+                                                        onError={(e) => {
+                                                            console.error('Video failed to load:', e);
+                                                            e.currentTarget.style.display = 'none';
+                                                            const errorDiv = e.currentTarget.nextElementSibling as HTMLElement;
+                                                            if (errorDiv) errorDiv.style.display = 'flex';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div className="flex items-center justify-center h-full text-white">
+                                                        <div className="text-center">
+                                                            <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                                                            <p>No video file available</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center justify-center h-full text-white" style={{display: 'none'}}>
+                                                    <div className="text-center">
+                                                        <XCircle className="w-12 h-12 mx-auto mb-2 text-red-500" />
+                                                        <p>Failed to load video</p>
+                                                        <p className="text-sm opacity-75">Check if the video file exists</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Video Details */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Video Details</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div>
+                                                <h3 className="font-medium text-sm text-muted-foreground">Title</h3>
+                                                <p className="mt-1">{video.title}</p>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-medium text-sm text-muted-foreground">Description</h3>
+                                                <p className="mt-1">{video.description}</p>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-medium text-sm text-muted-foreground">Duration</h3>
+                                                <p className="mt-1">{video.formatted_duration}</p>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-medium text-sm text-muted-foreground">Upload Date</h3>
+                                                <p className="mt-1">{new Date(video.created_at).toLocaleString()}</p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                {/* Publishing Status */}
+                                {video.targets && video.targets.length > 0 && (
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Publishing Status</CardTitle>
+                                            <CardDescription>
+                                                Current status for each platform
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="space-y-4">
+                                                {video.targets.map((target) => {
+                                                    const StatusIcon = statusIcons[target.status as keyof typeof statusIcons];
+                                                    const PlatformIcon = platformIcons[target.platform as keyof typeof platformIcons];
+                                                    const platformUrl = getPlatformUrl(target);
+                                                    
+                                                    return (
+                                                        <div key={target.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                                            <div className="flex items-center gap-3">
+                                                                <PlatformIcon className="h-5 w-5" />
+                                                                <div>
+                                                                    <p className="font-medium capitalize">{target.platform}</p>
+                                                                    {target.publish_at && (
+                                                                        <p className="text-sm text-muted-foreground">
+                                                                            Scheduled: {new Date(target.publish_at).toLocaleString()}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <Badge className={statusColors[target.status as keyof typeof statusColors]}>
+                                                                    <StatusIcon className="w-3 h-3 mr-1" />
+                                                                    {target.status}
+                                                                </Badge>
+                                                                {platformUrl && target.status === 'success' && (
+                                                                    <a 
+                                                                        href={platformUrl}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-blue-600 hover:text-blue-700"
+                                                                    >
+                                                                        <ExternalLink className="w-4 h-4" />
+                                                                    </a>
+                                                                )}
+                                                                {target.status === 'success' && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleRemoveFromPlatform(target.id, target.platform)}
+                                                                        className="text-red-600 hover:text-red-700"
+                                                                    >
+                                                                        <X className="w-3 h-3 mr-1" />
+                                                                        Remove
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {/* Error Details */}
+                                {video.targets && video.targets.some(target => target.status === 'failed' && target.error_message) && (
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-red-600">Error Details</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="space-y-3">
+                                                {video.targets
+                                                    .filter(target => target.status === 'failed' && target.error_message)
+                                                    .map((target) => (
+                                                        <div key={target.id} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <XCircle className="h-4 w-4 text-red-600" />
+                                                                <span className="font-medium capitalize text-red-600">
+                                                                    {target.platform} Error
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-sm text-red-700">{target.error_message}</p>
+                                                        </div>
+                                                    ))
+                                                }
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
+                            </TabsContent>
+
+                            {/* Edit Tab */}
                             <TabsContent value="edit" className="space-y-6">
                                 <Card>
                                     <CardHeader>
@@ -183,11 +442,9 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
                                             {/* Submit Buttons */}
                                             <div className="flex justify-end space-x-4">
-                                                <Link href={`/videos/${video.id}`}>
-                                                    <Button type="button" variant="outline">
-                                                        Cancel
-                                                    </Button>
-                                                </Link>
+                                                <Button type="button" variant="outline" onClick={() => setActiveTab('overview')}>
+                                                    Cancel
+                                                </Button>
                                                 <Button 
                                                     type="submit" 
                                                     disabled={processing}
@@ -203,17 +460,25 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
                             <TabsContent value="ai-optimize" className="space-y-6">
                                 <AIContentOptimizer
-                                    initialTitle={data.title}
-                                    initialDescription={data.description}
-                                    onOptimizationApply={handleOptimizationApply}
+                                    title={data.title}
+                                    description={data.description}
+                                    platforms={video.targets?.map(t => t.platform) || ['youtube']}
+                                    onTitleChange={(title) => setData('title', title)}
+                                    onDescriptionChange={(description) => setData('description', description)}
+                                    onTagsUpdate={(platform, tags) => {
+                                        // Handle tags update for specific platform
+                                        console.log(`Tags for ${platform}:`, tags);
+                                    }}
                                 />
                             </TabsContent>
 
                             <TabsContent value="ai-analyze" className="space-y-6">
-                                <AIVideoAnalyzer
-                                    videoPath={video.file_path}
-                                    onAnalysisComplete={handleAnalysisComplete}
-                                />
+                                <ErrorBoundary>
+                                    <AIVideoAnalyzer
+                                        videoPath={video.original_file_path}
+                                        onAnalysisComplete={handleAnalysisComplete}
+                                    />
+                                </ErrorBoundary>
                             </TabsContent>
 
                             <TabsContent value="ai-performance">
@@ -226,7 +491,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                             <TabsContent value="ai-thumbnails">
                                 <AIThumbnailOptimizer 
                                     videoId={video.id}
-                                    videoPath="/path/to/video" // In real implementation, this would come from video data
+                                    videoPath={video.original_file_path || "/path/to/video"}
                                     title={data.title}
                                     className="mb-4"
                                 />
@@ -266,16 +531,9 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                 />
                             </TabsContent>
 
-                            <TabsContent value="ai-watermark">
-                                <AIWatermarkRemover 
-                                    videoPath={video.file_path}
-                                    onRemovalComplete={(result) => console.log('Watermark removal completed:', result)}
-                                />
-                            </TabsContent>
-
                             <TabsContent value="ai-subtitles">
                                 <AISubtitleGenerator 
-                                    videoPath={video.file_path}
+                                    videoPath={video.original_file_path || "/path/to/video"}
                                 />
                             </TabsContent>
                         </Tabs>
@@ -321,16 +579,6 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         </p>
                                     </div>
 
-                                    <div className="p-3 bg-white rounded-lg border border-red-100">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Scan className="w-4 h-4 text-red-600" />
-                                            <span className="font-medium text-sm">AI Watermark Remover</span>
-                                        </div>
-                                        <p className="text-xs text-gray-600">
-                                            Automatically detect and remove watermarks from your videos using advanced AI techniques.
-                                        </p>
-                                    </div>
-
                                     <div className="p-3 bg-white rounded-lg border border-purple-100">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Mic className="w-4 h-4 text-purple-600" />
@@ -350,115 +598,75 @@ export default function VideoEdit({ video }: VideoEditProps) {
                             </CardContent>
                         </Card>
 
-                        {/* Quick Actions */}
-                        <Card>
-                            <CardHeader className="pb-4">
-                                <CardTitle className="text-lg">Quick Actions</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-full justify-start"
-                                    onClick={() => {
-                                        // Switch to optimize tab
-                                        const tabTrigger = document.querySelector('[data-value="ai-optimize"]') as HTMLElement;
-                                        tabTrigger?.click();
-                                    }}
-                                >
-                                    <Wand2 className="w-4 h-4 mr-2" />
-                                    Optimize Content
-                                </Button>
-                                
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-full justify-start"
-                                    onClick={() => {
-                                        // Switch to analyze tab
-                                        const tabTrigger = document.querySelector('[data-value="ai-analyze"]') as HTMLElement;
-                                        tabTrigger?.click();
-                                    }}
-                                >
-                                    <Brain className="w-4 h-4 mr-2" />
-                                    Analyze Video
-                                </Button>
-                                
-                                <Button 
-                                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                                    onClick={() => setActiveTab('ai-performance')}
-                                >
-                                    <BarChart3 className="w-4 h-4 mr-2" />
-                                    Performance Optimizer
-                                </Button>
-
-                                <Button 
-                                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                                    onClick={() => setActiveTab('ai-thumbnails')}
-                                >
-                                    <Image className="w-4 h-4 mr-2" />
-                                    Thumbnail Optimizer
-                                </Button>
-
-                                <Button 
-                                    className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white"
-                                    onClick={() => setActiveTab('ai-calendar')}
-                                >
-                                    <Calendar className="w-4 h-4 mr-2" />
-                                    Content Calendar
-                                </Button>
-
-                                <Button 
-                                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                                    onClick={() => setActiveTab('ai-trends')}
-                                >
-                                    <TrendingUp className="w-4 h-4 mr-2" />
-                                    Trend Analyzer
-                                </Button>
-
-                                <Button 
-                                    className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white"
-                                    onClick={() => setActiveTab('ai-audience')}
-                                >
-                                    <Users className="w-4 h-4 mr-2" />
-                                    Audience Insights
-                                </Button>
-
-                                <Button 
-                                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
-                                    onClick={() => setActiveTab('ai-strategy')}
-                                >
-                                    <Target className="w-4 h-4 mr-2" />
-                                    Strategy Planner
-                                </Button>
-
-                                <Button 
-                                    className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
-                                    onClick={() => setActiveTab('ai-seo')}
-                                >
-                                    <Search className="w-4 h-4 mr-2" />
-                                    SEO Optimizer
-                                </Button>
-
-                                <Button 
-                                    className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white"
-                                    onClick={() => setActiveTab('ai-watermark')}
-                                >
-                                    <Scan className="w-4 h-4 mr-2" />
-                                    Watermark Remover
-                                </Button>
-
-                                <Button 
-                                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                                    onClick={() => setActiveTab('ai-subtitles')}
-                                >
-                                    <Mic className="w-4 h-4 mr-2" />
-                                    Subtitle Generator
-                                </Button>
-                            </CardContent>
-                        </Card>
+                        
                     </div>
                 </div>
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Delete Video</DialogTitle>
+                            <DialogDescription>
+                                Choose how you want to handle this video deletion. This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-3">
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
+                                    <input
+                                        type="radio"
+                                        id="delete-tikomat"
+                                        name="delete-option"
+                                        value="tikomat"
+                                        checked={deleteOption === 'tikomat'}
+                                        onChange={(e) => setDeleteOption(e.target.value as 'tikomat')}
+                                        className="h-4 w-4 mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                        <label htmlFor="delete-tikomat" className="text-sm font-medium cursor-pointer">
+                                            Remove only from Tikomat
+                                        </label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Video will remain published on all platforms but removed from Tikomat's tracking
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('all')}>
+                                    <input
+                                        type="radio"
+                                        id="delete-all"
+                                        name="delete-option"
+                                        value="all"
+                                        checked={deleteOption === 'all'}
+                                        onChange={(e) => setDeleteOption(e.target.value as 'all')}
+                                        className="h-4 w-4 mt-0.5"
+                                    />
+                                    <div className="flex-1">
+                                        <label htmlFor="delete-all" className="text-sm font-medium cursor-pointer">
+                                            Take down from all platforms
+                                        </label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Video will be completely removed from all platforms and Tikomat
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                                Cancel
+                            </Button>
+                            <Button 
+                                variant="destructive" 
+                                onClick={confirmDelete}
+                            >
+                                {deleteOption === 'all' ? 'Take Down Video' : 'Remove from Tikomat'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

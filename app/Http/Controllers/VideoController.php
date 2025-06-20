@@ -14,6 +14,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class VideoController extends Controller
 {
@@ -259,25 +260,13 @@ class VideoController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(Video $video): Response
-    {
-        $this->authorize('view', $video);
-
-        $video->load(['targets']);
-
-        return Inertia::render('Videos/Show', [
-            'video' => $video,
-        ]);
-    }
-
-    /**
      * Show the form for editing the specified resource.
      */
     public function edit(Video $video): Response
     {
         $this->authorize('update', $video);
+
+        $video->load(['targets']);
 
         return Inertia::render('Videos/Edit', [
             'video' => $video,
@@ -344,11 +333,11 @@ class VideoController extends Controller
                 }
             }
 
-            return redirect()->route('videos.show', $video)
+            return redirect()->route('videos.edit', $video)
                 ->with('success', 'Video updated successfully! Video metadata is being updated on all published platforms.');
         }
 
-        return redirect()->route('videos.show', $video)
+        return redirect()->route('videos.edit', $video)
             ->with('success', 'Video updated successfully!');
     }
 
@@ -469,5 +458,41 @@ class VideoController extends Controller
             return redirect()->back()
                 ->with('error', "Failed to remove video from {$platform}: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Serve video file for authenticated users.
+     */
+    public function serveVideo(string $filename)
+    {
+        // Find the video that belongs to the authenticated user
+        $video = Video::where('user_id', auth()->id())
+            ->where('original_file_path', 'like', '%' . $filename)
+            ->first();
+
+        if (!$video) {
+            abort(404, 'Video not found or unauthorized access');
+        }
+
+        $path = Storage::path($video->original_file_path);
+        
+        if (!file_exists($path)) {
+            abort(404, 'Video file not found on disk');
+        }
+
+        // Get the MIME type based on file extension
+        $mimeType = match (strtolower(pathinfo($filename, PATHINFO_EXTENSION))) {
+            'mp4' => 'video/mp4',
+            'webm' => 'video/webm',
+            'ogg' => 'video/ogg',
+            'avi' => 'video/x-msvideo',
+            'mov' => 'video/quicktime',
+            default => 'video/mp4',
+        };
+
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
     }
 }
