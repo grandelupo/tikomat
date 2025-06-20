@@ -15,6 +15,7 @@ class Video extends Model
         'description',
         'original_file_path',
         'thumbnail_path',
+        'thumbnail_time',
         'duration',
         'video_width',
         'video_height',
@@ -82,7 +83,7 @@ class Video extends Model
             $filename = basename($this->original_file_path);
             
             // Use the video serving route that handles private storage
-            return url('storage/videos/' . $filename);
+            return route('video.serve', ['filename' => $filename]);
         }
         
         return '';

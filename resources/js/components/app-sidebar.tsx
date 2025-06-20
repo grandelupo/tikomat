@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, BarChart3, Link as LinkIcon, Video, Workflow } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, BarChart3, Link as LinkIcon, Video, Workflow, Calendar, TrendingUp, Users, Target, Brain } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -35,6 +35,29 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+const aiToolsNavItems: NavItem[] = [
+    {
+        title: 'Content Calendar',
+        href: '/ai/content-calendar',
+        icon: Calendar,
+    },
+    {
+        title: 'Trend Analyzer',
+        href: '/ai/trend-analyzer',
+        icon: TrendingUp,
+    },
+    {
+        title: 'Audience Insights',
+        href: '/ai/audience-insights',
+        icon: Users,
+    },
+    {
+        title: 'Strategy Planner',
+        href: '/ai/strategy-planner',
+        icon: Target,
+    },
+];
+
 const footerNavItems: NavItem[] = [];
 
 export function AppSidebar() {
@@ -54,6 +77,15 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
+                <div className="mt-6">
+                    <div className="px-3 py-2">
+                        <div className="flex items-center gap-2 text-sm font-medium text-sidebar-foreground/70">
+                            <Brain className="h-4 w-4" />
+                            AI Tools
+                        </div>
+                    </div>
+                    <NavMain items={aiToolsNavItems} />
+                </div>
             </SidebarContent>
 
             <SidebarFooter>

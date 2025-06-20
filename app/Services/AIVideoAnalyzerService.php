@@ -267,36 +267,85 @@ class AIVideoAnalyzerService
     protected function analyzeFrameWithAI(string $framePath): ?string
     {
         try {
-            // For now, return a placeholder - OpenAI Vision API integration would go here
-            // This would require the Vision API which has specific image upload requirements
+            // Check if file exists and is readable
+            if (!file_exists($framePath) || !is_readable($framePath)) {
+                Log::error('Frame file not accessible', ['path' => $framePath]);
+                return null;
+            }
+
+            // Encode image to base64 for OpenAI Vision API
+            $imageData = file_get_contents($framePath);
+            $base64Image = base64_encode($imageData);
+            $mimeType = mime_content_type($framePath);
+
+            // Use OpenAI Vision API to analyze the frame
+            $response = OpenAI::chat()->create([
+                'model' => 'gpt-4o-mini', // Using the latest vision model
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => [
+                            [
+                                'type' => 'text',
+                                'text' => 'Analyze this video frame and provide a concise description of what you see. Focus on the main subject, setting, lighting, composition, and any notable visual elements. Keep it under 100 words and be specific about what makes this frame interesting or notable.'
+                            ],
+                            [
+                                'type' => 'image_url',
+                                'image_url' => [
+                                    'url' => "data:{$mimeType};base64,{$base64Image}",
+                                    'detail' => 'low' // Use low detail for faster processing
+                                ]
+                            ]
+                        ]
+                    ]
+                ],
+                'max_tokens' => 150,
+                'temperature' => 0.3, // Lower temperature for more consistent descriptions
+            ]);
+
+            $description = $response->choices[0]->message->content ?? null;
             
-            // Placeholder implementation using basic scene detection
-            return $this->analyzeFrameBasic($framePath);
+            if ($description) {
+                Log::info('Successfully analyzed frame with AI', [
+                    'frame_path' => basename($framePath),
+                    'description_length' => strlen($description)
+                ]);
+                return trim($description);
+            }
+
+            Log::warning('No description returned from AI analysis', ['frame_path' => $framePath]);
+            return null;
             
         } catch (\Exception $e) {
-            Log::error('AI frame analysis failed', ['error' => $e->getMessage()]);
-            return null;
+            Log::error('AI frame analysis failed', [
+                'error' => $e->getMessage(),
+                'frame_path' => $framePath,
+                'error_type' => get_class($e)
+            ]);
+            
+            // Return a fallback description based on basic image analysis
+            return $this->getFallbackFrameDescription($framePath);
         }
     }
 
     /**
-     * Basic frame analysis without AI Vision
+     * Get fallback frame description when AI analysis fails
      */
-    protected function analyzeFrameBasic(string $framePath): string
+    protected function getFallbackFrameDescription(string $framePath): string
     {
-        // Basic analysis based on image properties
-        $imageInfo = getimagesize($framePath);
-        $brightness = $this->calculateImageBrightness($framePath);
-        
-        $descriptions = [
-            'Well-lit scene with clear visibility',
-            'Indoor setting with moderate lighting',
-            'Outdoor scene with natural lighting',
-            'Close-up shot with focused subject',
-            'Wide angle view with multiple elements',
-        ];
-        
-        return $descriptions[array_rand($descriptions)];
+        try {
+            $imageInfo = getimagesize($framePath);
+            $brightness = $this->calculateImageBrightness($framePath);
+            
+            $lightingDesc = $brightness > 180 ? 'bright' : ($brightness > 100 ? 'well-lit' : 'dimly lit');
+            $aspectRatio = $imageInfo[0] / $imageInfo[1];
+            $compositionDesc = $aspectRatio > 1.5 ? 'wide-angle' : ($aspectRatio < 0.8 ? 'portrait' : 'standard');
+            
+            return "A {$lightingDesc} {$compositionDesc} scene captured from the video";
+            
+        } catch (\Exception $e) {
+            return "Video frame with visual content";
+        }
     }
 
     /**

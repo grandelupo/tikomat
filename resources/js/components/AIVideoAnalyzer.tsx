@@ -100,12 +100,14 @@ interface VideoAnalysis {
 }
 
 interface AIVideoAnalyzerProps {
+    videoId?: number;
     videoPath?: string;
     onAnalysisComplete?: (analysis: VideoAnalysis) => void;
     className?: string;
 }
 
 export default function AIVideoAnalyzer({
+    videoId,
     videoPath,
     onAnalysisComplete,
     className
@@ -116,10 +118,10 @@ export default function AIVideoAnalyzer({
     const { toast } = useToast();
 
     const analyzeVideo = async () => {
-        if (!videoPath) {
+        if (!videoId) {
             toast({
                 title: "No Video Selected",
-                description: "Please upload a video first before analyzing.",
+                description: "Please select a video first before analyzing.",
                 variant: "destructive",
             });
             return;
@@ -135,7 +137,7 @@ export default function AIVideoAnalyzer({
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
                 body: JSON.stringify({
-                    video_path: videoPath,
+                    video_id: videoId,
                 }),
             });
 
@@ -223,6 +225,52 @@ export default function AIVideoAnalyzer({
             general: '📹',
         };
         return categoryEmojis[category as keyof typeof categoryEmojis] || '📹';
+    };
+
+    const hasQualityIssues = () => {
+        if (!analysis?.quality_score) return false;
+        
+        const resolutionScore = analysis.quality_score.resolution_score || 0;
+        const audioScore = analysis.quality_score.audio_score || 0;
+        const bitrateScore = analysis.quality_score.bitrate_score || 0;
+        
+        // Consider it a quality issue if any score is below 70
+        return resolutionScore < 70 || audioScore < 70 || bitrateScore < 70;
+    };
+
+    const getQualityIssues = () => {
+        if (!analysis?.quality_score) return [];
+        
+        const issues = [];
+        const resolutionScore = analysis.quality_score.resolution_score || 0;
+        const audioScore = analysis.quality_score.audio_score || 0;
+        const bitrateScore = analysis.quality_score.bitrate_score || 0;
+        
+        if (resolutionScore < 70) {
+            issues.push({
+                type: 'Resolution',
+                score: resolutionScore,
+                severity: resolutionScore < 40 ? 'high' : 'medium'
+            });
+        }
+        
+        if (audioScore < 70) {
+            issues.push({
+                type: 'Audio Quality',
+                score: audioScore,
+                severity: audioScore < 40 ? 'high' : 'medium'
+            });
+        }
+        
+        if (bitrateScore < 70) {
+            issues.push({
+                type: 'Bitrate',
+                score: bitrateScore,
+                severity: bitrateScore < 40 ? 'high' : 'medium'
+            });
+        }
+        
+        return issues;
     };
 
     if (!analysis && !isAnalyzing) {
@@ -362,12 +410,9 @@ export default function AIVideoAnalyzer({
 
             <CardContent>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-6">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="quality">Quality</TabsTrigger>
-                        <TabsTrigger value="content">Content</TabsTrigger>
                         <TabsTrigger value="engagement">Engagement</TabsTrigger>
-                        <TabsTrigger value="thumbnails">Thumbnails</TabsTrigger>
                         <TabsTrigger value="chapters">Chapters</TabsTrigger>
                     </TabsList>
 
@@ -484,94 +529,7 @@ export default function AIVideoAnalyzer({
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="quality" className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Settings className="w-5 h-5" />
-                                    Quality Assessment
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <div>
-                                        <div className="flex justify-between mb-2">
-                                            <span>Resolution Quality</span>
-                                            <span className="font-medium">{analysis.quality_score?.resolution_score || 0}/100</span>
-                                        </div>
-                                        <Progress value={analysis.quality_score?.resolution_score || 0} className="mb-2" />
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between mb-2">
-                                            <span>Audio Quality</span>
-                                            <span className="font-medium">{analysis.quality_score?.audio_score || 0}/100</span>
-                                        </div>
-                                        <Progress value={analysis.quality_score?.audio_score || 0} className="mb-2" />
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between mb-2">
-                                            <span>Bitrate Quality</span>
-                                            <span className="font-medium">{analysis.quality_score?.bitrate_score || 0}/100</span>
-                                        </div>
-                                        <Progress value={analysis.quality_score?.bitrate_score || 0} className="mb-2" />
-                                    </div>
-                                </div>
-                                
-                                <div className="mt-6">
-                                    <h4 className="font-medium mb-3 flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4" />
-                                        Improvement Suggestions
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {(analysis.quality_score?.suggestions || []).map((suggestion, index) => (
-                                            <div key={index} className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg">
-                                                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 flex-shrink-0"></span>
-                                                <span className="text-sm text-blue-800">{suggestion}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
 
-                    <TabsContent value="content" className="space-y-4">
-                        <div className="grid gap-6">
-                            {analysis.transcript?.success && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <FileText className="w-5 h-5" />
-                                            Transcript
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="bg-gray-50 p-4 rounded-lg max-h-40 overflow-y-auto">
-                                            <p className="text-sm text-gray-700">{analysis.transcript?.text || 'No transcript available'}</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
-
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Hash className="w-5 h-5" />
-                                        Content Tags
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="flex flex-wrap gap-2">
-                                        {(analysis.content_tags || []).map((tag, index) => (
-                                            <Badge key={index} variant="outline">
-                                                {tag}
-                                            </Badge>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </TabsContent>
 
                     <TabsContent value="engagement" className="space-y-4">
                         <Card>
@@ -629,43 +587,7 @@ export default function AIVideoAnalyzer({
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="thumbnails" className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Image className="w-5 h-5" />
-                                    Thumbnail Suggestions
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {analysis.suggested_thumbnails?.error ? (
-                                    <div className="text-center py-8 text-gray-500">
-                                        <Image className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                        <p>Thumbnail analysis not available</p>
-                                        <p className="text-sm">{analysis.suggested_thumbnails.error}</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid md:grid-cols-3 gap-4">
-                                        {(analysis.suggested_thumbnails?.best_thumbnails || []).map((thumb, index) => (
-                                            <div key={index} className="p-4 border rounded-lg">
-                                                <div className="aspect-video bg-gray-100 rounded mb-3 flex items-center justify-center">
-                                                    <Image className="w-8 h-8 text-gray-400" />
-                                                </div>
-                                                <div className="text-center">
-                                                    <Badge className="mb-2">
-                                                        Score: {Math.round(thumb.recommendation_score)}
-                                                    </Badge>
-                                                    <p className="text-xs text-gray-600">
-                                                        At {formatDuration(thumb.timestamp)}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
+
 
                     <TabsContent value="chapters" className="space-y-4">
                         <Card>
@@ -701,6 +623,57 @@ export default function AIVideoAnalyzer({
                         </Card>
                     </TabsContent>
                 </Tabs>
+
+                {/* Quality Issues Section - Show at bottom if there are quality issues */}
+                {hasQualityIssues() && (
+                    <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                            <AlertCircle className="w-5 h-5 text-orange-600" />
+                            <h4 className="font-medium text-orange-800">Video Quality Suggestions</h4>
+                        </div>
+                        <div className="space-y-3">
+                            {getQualityIssues().map((issue, index) => (
+                                <div key={index} className={cn(
+                                    "flex items-center justify-between p-3 rounded-lg",
+                                    issue.severity === 'high' ? 'bg-red-100 border border-red-200' : 'bg-yellow-100 border border-yellow-200'
+                                )}>
+                                    <div className="flex items-center gap-2">
+                                        <span className={cn(
+                                            "w-2 h-2 rounded-full",
+                                            issue.severity === 'high' ? 'bg-red-500' : 'bg-yellow-500'
+                                        )}></span>
+                                        <span className={cn(
+                                            "font-medium",
+                                            issue.severity === 'high' ? 'text-red-800' : 'text-yellow-800'
+                                        )}>
+                                            {issue.type} needs improvement
+                                        </span>
+                                    </div>
+                                    <Badge variant="outline" className={cn(
+                                        issue.severity === 'high' ? 'border-red-300 text-red-700' : 'border-yellow-300 text-yellow-700'
+                                    )}>
+                                        Score: {issue.score}/100
+                                    </Badge>
+                                </div>
+                            ))}
+                            
+                            {/* Show quality suggestions */}
+                            {(analysis.quality_score?.suggestions || []).length > 0 && (
+                                <div className="mt-4 pt-3 border-t border-orange-200">
+                                    <h5 className="font-medium text-orange-800 mb-2">Recommendations:</h5>
+                                    <div className="space-y-2">
+                                        {(analysis.quality_score?.suggestions || []).map((suggestion, index) => (
+                                            <div key={index} className="flex items-start gap-2 text-sm text-orange-700">
+                                                <span className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-2 flex-shrink-0"></span>
+                                                <span>{suggestion}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {analysis.status === 'partial_analysis' && analysis.errors?.length && (
                     <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">

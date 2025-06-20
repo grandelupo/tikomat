@@ -16,8 +16,9 @@ use App\Services\AISubtitleGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class AIController extends Controller
 {
@@ -54,7 +55,7 @@ class AIController extends Controller
     public function analyzeVideo(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'video_path' => 'required|string',
+            'video_id' => 'required|integer|exists:videos,id',
             'options' => 'nullable|array',
         ]);
 
@@ -67,12 +68,31 @@ class AIController extends Controller
         }
 
         try {
-            $videoPath = Storage::path($request->video_path);
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Ensure user owns this video
+            if ($video->user_id !== $request->user()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+            
+            // Get video file path from storage
+            if (!$video->original_file_path) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file path not available. Please ensure the video is properly uploaded.',
+                ], 404);
+            }
+
+            // Convert storage path to absolute path
+            $videoPath = Storage::path($video->original_file_path);
             
             if (!file_exists($videoPath)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Video file not found',
+                    'message' => 'Video file not found on disk. The file may have been moved or deleted.',
                 ], 404);
             }
 
@@ -80,7 +100,8 @@ class AIController extends Controller
 
             Log::info('Video analysis completed', [
                 'user_id' => $request->user()->id,
-                'video_path' => $request->video_path,
+                'video_id' => $video->id,
+                'video_title' => $video->title,
                 'analysis_quality' => $analysis['quality_score']['overall_score'] ?? 'unknown',
             ]);
 
@@ -93,8 +114,8 @@ class AIController extends Controller
         } catch (\Exception $e) {
             Log::error('Video analysis failed', [
                 'user_id' => $request->user()->id,
+                'video_id' => $request->video_id ?? 'unknown',
                 'error' => $e->getMessage(),
-                'video_path' => $request->video_path ?? 'unknown',
             ]);
 
             return response()->json([
@@ -111,7 +132,7 @@ class AIController extends Controller
     public function assessVideoQuality(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'video_path' => 'required|string',
+            'video_id' => 'required|integer|exists:videos,id',
         ]);
 
         if ($validator->fails()) {
@@ -123,7 +144,24 @@ class AIController extends Controller
         }
 
         try {
-            $videoPath = Storage::path($request->video_path);
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Ensure user owns this video
+            if ($video->user_id !== $request->user()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+            
+            if (!$video->original_file_path) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file path not available',
+                ], 404);
+            }
+
+            $videoPath = Storage::path($video->original_file_path);
             
             if (!file_exists($videoPath)) {
                 return response()->json([
@@ -164,7 +202,7 @@ class AIController extends Controller
     public function generateThumbnailSuggestions(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'video_path' => 'required|string',
+            'video_id' => 'required|integer|exists:videos,id',
         ]);
 
         if ($validator->fails()) {
@@ -176,7 +214,24 @@ class AIController extends Controller
         }
 
         try {
-            $videoPath = Storage::path($request->video_path);
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Ensure user owns this video
+            if ($video->user_id !== $request->user()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+            
+            if (!$video->original_file_path) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file path not available',
+                ], 404);
+            }
+
+            $videoPath = Storage::path($video->original_file_path);
             
             if (!file_exists($videoPath)) {
                 return response()->json([
@@ -217,7 +272,7 @@ class AIController extends Controller
     public function extractVideoTags(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'video_path' => 'required|string',
+            'video_id' => 'required|integer|exists:videos,id',
         ]);
 
         if ($validator->fails()) {
@@ -229,7 +284,24 @@ class AIController extends Controller
         }
 
         try {
-            $videoPath = Storage::path($request->video_path);
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Ensure user owns this video
+            if ($video->user_id !== $request->user()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+            
+            if (!$video->original_file_path) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file path not available',
+                ], 404);
+            }
+
+            $videoPath = Storage::path($video->original_file_path);
             
             if (!file_exists($videoPath)) {
                 return response()->json([
@@ -909,7 +981,7 @@ class AIController extends Controller
     public function optimizeThumbnails(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'video_path' => 'required|string',
+            'video_id' => 'required|integer|exists:videos,id',
             'title' => 'nullable|string|max:255',
             'platforms' => 'nullable|array',
             'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter',
@@ -924,17 +996,47 @@ class AIController extends Controller
         }
 
         try {
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Verify the user owns this video
+            if ($video->user_id !== $request->user()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+
+            // Get video file path from storage
+            if (!$video->original_file_path) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file path not available. Please ensure the video is properly uploaded.',
+                ], 404);
+            }
+
+            // Convert storage path to absolute path
+            $videoPath = Storage::path($video->original_file_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found on disk. The file may have been moved or deleted.',
+                ], 404);
+            }
+
             $options = [
-                'title' => $request->title ?? 'Amazing Video',
+                'title' => $request->title ?? $video->title ?? 'Amazing Video',
                 'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'video_id' => $video->id,
             ];
 
-            $analysis = $this->thumbnailOptimizerService->optimizeThumbnails($request->video_path, $options);
+            $analysis = $this->thumbnailOptimizerService->optimizeThumbnails($videoPath, $options);
 
             Log::info('Thumbnail optimization completed', [
                 'user_id' => $request->user()->id,
-                'video_path' => $request->video_path,
+                'video_id' => $video->id,
                 'overall_score' => $analysis['overall_score'],
+                'frames_extracted' => count($analysis['extracted_frames'] ?? []),
             ]);
 
             return response()->json([
@@ -946,7 +1048,7 @@ class AIController extends Controller
         } catch (\Exception $e) {
             Log::error('Thumbnail optimization failed', [
                 'user_id' => $request->user()->id,
-                'video_path' => $request->video_path,
+                'video_id' => $request->video_id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -3360,6 +3462,522 @@ class AIController extends Controller
                 'success' => false,
                 'message' => 'Failed to get available styles. Please try again.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate AI-optimized title and description based on video content analysis
+     */
+    public function generateVideoContent(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+            'content_type' => 'required|string|in:title,description,both',
+            'current_title' => 'nullable|string|max:255',
+            'current_description' => 'nullable|string|max:5000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Get video file path from storage
+            if (!$video->original_file_path) {
+                Log::warning('Video analysis skipped - no original file path', [
+                    'video_id' => $video->id,
+                    'user_id' => $request->user()->id,
+                    'video_title' => $video->title,
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file path not available. This may be an external video or the file was not properly uploaded. Please upload a video file to use AI content generation.',
+                ], 404);
+            }
+
+            // Convert storage path to absolute path
+            $videoPath = Storage::path($video->original_file_path);
+            
+            if (!file_exists($videoPath)) {
+                Log::error('Video file missing from disk', [
+                    'video_id' => $video->id,
+                    'user_id' => $request->user()->id,
+                    'original_file_path' => $video->original_file_path,
+                    'absolute_path' => $videoPath,
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found on disk. The file may have been moved or deleted. Please re-upload your video to use AI content generation.',
+                ], 404);
+            }
+
+            // Analyze video content
+            Log::info('Analyzing video content for AI generation', [
+                'video_id' => $video->id,
+                'video_path' => $videoPath
+            ]);
+
+            $videoAnalysis = $this->videoAnalyzerService->analyzeVideo($videoPath, [
+                'include_transcript' => true,
+                'include_scenes' => true,
+                'include_mood' => true
+            ]);
+            
+            $result = [];
+            
+            if ($request->content_type === 'title' || $request->content_type === 'both') {
+                $result['optimized_title'] = $this->aiService->generateTitleFromVideoAnalysis($videoAnalysis);
+            }
+            
+            if ($request->content_type === 'description' || $request->content_type === 'both') {
+                $result['optimized_description'] = $this->aiService->generateDescriptionFromVideoAnalysis($videoAnalysis);
+            }
+
+            // Include analysis summary for debugging
+            $result['analysis_summary'] = [
+                'has_transcript' => $videoAnalysis['transcript']['success'] ?? false,
+                'content_category' => $videoAnalysis['content_category']['primary_category'] ?? 'unknown',
+                'mood' => $videoAnalysis['mood_analysis']['dominant_mood'] ?? 'neutral',
+                'scenes_detected' => count($videoAnalysis['scenes']['scenes'] ?? []),
+                'duration' => $videoAnalysis['basic_info']['duration'] ?? 0,
+            ];
+
+            Log::info('AI video content generation completed', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'content_type' => $request->content_type,
+                'has_transcript' => $result['analysis_summary']['has_transcript'],
+                'category' => $result['analysis_summary']['content_category'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Content generated successfully based on video analysis',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('AI video content generation failed', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze video and generate content. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Apply subtitles to video (burn subtitles into video)
+     */
+    public function applySubtitlesToVideo(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $result = $this->subtitleGeneratorService->applySubtitlesToVideo($request->generation_id);
+
+            Log::info('Subtitles applied to video successfully', [
+                'generation_id' => $request->generation_id,
+                'processed_video_path' => $result['processed_video_path'] ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Subtitles applied to video successfully. The processed video is ready for download.',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to apply subtitles to video', [
+                'generation_id' => $request->generation_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to apply subtitles to video. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Set a thumbnail for a video
+     */
+    public function setVideoThumbnail(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+            'frame_id' => 'required|string',
+            'thumbnail_path' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Verify the user owns this video
+            if ($video->user_id !== $request->user()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+
+            // Verify the thumbnail file exists
+            $thumbnailPath = $request->thumbnail_path;
+            if (!Storage::exists($thumbnailPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Thumbnail file not found',
+                ], 404);
+            }
+
+            // Update the video's thumbnail
+            $video->update([
+                'thumbnail_path' => $thumbnailPath,
+            ]);
+
+            Log::info('Video thumbnail set', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'frame_id' => $request->frame_id,
+                'thumbnail_path' => $thumbnailPath,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Thumbnail set successfully for all platforms',
+                'data' => [
+                    'video_id' => $video->id,
+                    'thumbnail_path' => $thumbnailPath,
+                    'thumbnail_url' => Storage::url($thumbnailPath),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Setting video thumbnail failed', [
+                'user_id' => $request->user()->id,
+                'video_id' => $request->video_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to set thumbnail. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Update subtitle text
+     */
+    public function updateSubtitleText(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+            'subtitle_id' => 'required|string',
+            'text' => 'required|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $result = $this->subtitleGeneratorService->updateSubtitleText(
+                $request->generation_id,
+                $request->subtitle_id,
+                $request->text
+            );
+
+            Log::info('Subtitle text updated', [
+                'generation_id' => $request->generation_id,
+                'subtitle_id' => $request->subtitle_id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Subtitle text updated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update subtitle text', [
+                'generation_id' => $request->generation_id,
+                'subtitle_id' => $request->subtitle_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update subtitle text. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Update subtitle style for individual subtitle
+     */
+    public function updateIndividualSubtitleStyle(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+            'subtitle_id' => 'required|string',
+            'style' => 'required|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $result = $this->subtitleGeneratorService->updateIndividualSubtitleStyle(
+                $request->generation_id,
+                $request->subtitle_id,
+                $request->style
+            );
+
+            Log::info('Individual subtitle style updated', [
+                'generation_id' => $request->generation_id,
+                'subtitle_id' => $request->subtitle_id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Subtitle style updated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update individual subtitle style', [
+                'generation_id' => $request->generation_id,
+                'subtitle_id' => $request->subtitle_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update subtitle style. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Update subtitle position for individual subtitle
+     */
+    public function updateIndividualSubtitlePosition(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+            'subtitle_id' => 'required|string',
+            'position' => 'required|array',
+            'position.x' => 'required|numeric|min:0|max:100',
+            'position.y' => 'required|numeric|min:0|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $result = $this->subtitleGeneratorService->updateIndividualSubtitlePosition(
+                $request->generation_id,
+                $request->subtitle_id,
+                $request->position
+            );
+
+            Log::info('Individual subtitle position updated', [
+                'generation_id' => $request->generation_id,
+                'subtitle_id' => $request->subtitle_id,
+                'position' => $request->position,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Subtitle position updated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update individual subtitle position', [
+                'generation_id' => $request->generation_id,
+                'subtitle_id' => $request->subtitle_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update subtitle position. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Render video with subtitles and upload to all platforms
+     */
+    public function renderVideoWithSubtitles(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+            'video_id' => 'required|integer|exists:videos,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Verify the user owns this video
+            if ($video->user_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+
+            $subtitleService = new \App\Services\AISubtitleGeneratorService();
+            $result = $subtitleService->renderVideoWithSubtitles($request->generation_id, $request->video_id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Video rendered successfully and uploaded to all platforms',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error rendering video with subtitles: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to render video with subtitles: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Set video thumbnail from captured frame
+     */
+    public function setVideoThumbnailFromFrame(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+            'frame_id' => 'required|string',
+            'thumbnail' => 'required|image|mimes:jpeg,png,jpg|max:5120', // 5MB max
+            'current_time' => 'required|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Verify the user owns this video
+            if ($video->user_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+
+            $thumbnailFile = $request->file('thumbnail');
+            $frameId = $request->frame_id;
+            $currentTime = (float) $request->current_time;
+
+            // Generate a unique filename for the thumbnail
+            $thumbnailPath = 'thumbnails/' . $video->id . '_' . $frameId . '_' . time() . '.jpg';
+            
+            // Store the thumbnail
+            $storedPath = $thumbnailFile->storeAs('public', $thumbnailPath);
+            
+            if (!$storedPath) {
+                throw new \Exception('Failed to store thumbnail file');
+            }
+
+            // Update the video record with the new thumbnail
+            $video->update([
+                'thumbnail_path' => $thumbnailPath,
+                'thumbnail_time' => $currentTime,
+                'updated_at' => now(),
+            ]);
+
+            // Generate the public URL for the thumbnail
+            $thumbnailUrl = Storage::url($thumbnailPath);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'thumbnail_path' => $thumbnailPath,
+                    'thumbnail_url' => $thumbnailUrl,
+                    'frame_id' => $frameId,
+                    'current_time' => $currentTime,
+                ],
+                'message' => 'Thumbnail set successfully from video frame',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error setting video thumbnail from frame: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to set thumbnail: ' . $e->getMessage(),
             ], 500);
         }
     }

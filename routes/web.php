@@ -31,6 +31,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
+    // AI Tool Pages
+    Route::get('ai/content-calendar', function () {
+        return Inertia::render('AI/ContentCalendar');
+    })->name('ai.content-calendar');
+    Route::get('ai/trend-analyzer', function () {
+        return Inertia::render('AI/TrendAnalyzer');
+    })->name('ai.trend-analyzer');
+    Route::get('ai/audience-insights', function () {
+        return Inertia::render('AI/AudienceInsights');
+    })->name('ai.audience-insights');
+    Route::get('ai/strategy-planner', function () {
+        return Inertia::render('AI/StrategyPlanner');
+    })->name('ai.strategy-planner');
+    
     // Connections
     Route::get('connections', [ConnectionsController::class, 'index'])->name('connections');
     
@@ -76,13 +90,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('platform-performance-comparison', [AIController::class, 'getPlatformPerformanceComparison'])->name('platform-performance-comparison');
         Route::post('trending-performance-insights', [AIController::class, 'getTrendingPerformanceInsights'])->name('trending-performance-insights');
         
-        // Thumbnail Optimization
-        Route::post('optimize-thumbnails', [AIController::class, 'optimizeThumbnails'])->name('optimize-thumbnails');
-        Route::post('generate-optimized-thumbnail', [AIController::class, 'generateOptimizedThumbnail'])->name('generate-optimized-thumbnail');
-        Route::post('thumbnail-design-analysis', [AIController::class, 'getThumbnailDesignAnalysis'])->name('thumbnail-design-analysis');
-        Route::post('thumbnail-ctr-predictions', [AIController::class, 'getThumbnailCTRPredictions'])->name('thumbnail-ctr-predictions');
-        Route::post('thumbnail-text-suggestions', [AIController::class, 'getThumbnailTextSuggestions'])->name('thumbnail-text-suggestions');
-        Route::post('create-thumbnail-ab-test', [AIController::class, 'createThumbnailABTest'])->name('create-thumbnail-ab-test');
+            // Thumbnail Optimization
+    Route::post('optimize-thumbnails', [AIController::class, 'optimizeThumbnails'])->name('optimize-thumbnails');
+    Route::post('generate-optimized-thumbnail', [AIController::class, 'generateOptimizedThumbnail'])->name('generate-optimized-thumbnail');
+    Route::post('set-video-thumbnail', [AIController::class, 'setVideoThumbnail'])->name('set-video-thumbnail');
+    Route::post('thumbnail-design-analysis', [AIController::class, 'getThumbnailDesignAnalysis'])->name('thumbnail-design-analysis');
+    Route::post('thumbnail-ctr-predictions', [AIController::class, 'getThumbnailCTRPredictions'])->name('thumbnail-ctr-predictions');
+    Route::post('thumbnail-text-suggestions', [AIController::class, 'getThumbnailTextSuggestions'])->name('thumbnail-text-suggestions');
+    Route::post('create-thumbnail-ab-test', [AIController::class, 'createThumbnailABTest'])->name('create-thumbnail-ab-test');
         
         // Content Calendar
         Route::post('generate-content-calendar', [AIController::class, 'generateContentCalendar'])->name('generate-content-calendar');
@@ -101,7 +116,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('competitive-analysis', [AIController::class, 'getCompetitiveAnalysis'])->name('competitive-analysis');
         
         // Audience Insights
-        Route::post('audience-insights', [AIController::class, 'analyzeAudienceInsights'])->name('audience-insights');
+        Route::post('audience-insights', [AIController::class, 'analyzeAudienceInsights'])->name('ai.analyze-audience-insights');
         Route::post('demographic-breakdown', [AIController::class, 'getDemographicBreakdown'])->name('demographic-breakdown');
         Route::post('audience-segments', [AIController::class, 'getAudienceSegments'])->name('audience-segments');
         Route::post('behavior-patterns', [AIController::class, 'getBehaviorPatterns'])->name('behavior-patterns');
@@ -116,13 +131,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('strategy-roadmap', [AIController::class, 'getGrowthRoadmap'])->name('strategy-roadmap');
         Route::post('strategy-kpis', [AIController::class, 'getKPIFramework'])->name('strategy-kpis');
         
-        // SEO Optimizer
-        Route::post('seo-analyze', [AIController::class, 'analyzeSEOPerformance'])->name('seo-analyze');
-        Route::post('seo-keywords', [AIController::class, 'researchKeywords'])->name('seo-keywords');
-        Route::post('seo-optimize', [AIController::class, 'optimizeContentSEO'])->name('seo-optimize');
-        Route::post('seo-performance', [AIController::class, 'trackSearchPerformance'])->name('seo-performance');
-        Route::post('seo-recommendations', [AIController::class, 'generateSEORecommendations'])->name('seo-recommendations');
-        Route::post('seo-competitor', [AIController::class, 'analyzeCompetitorSEO'])->name('seo-competitor');
+        // SEO Optimizer routes removed as per user request
 
         // AI Watermark Remover
         Route::post('watermark-detect', [AIController::class, 'detectWatermarks'])->name('watermark-detect');
@@ -132,15 +141,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('watermark-quality', [AIController::class, 'analyzeRemovalQuality'])->name('watermark-quality');
         Route::post('watermark-report', [AIController::class, 'generateRemovalReport'])->name('watermark-report');
         
-        // AI Subtitle Generator
-        Route::post('subtitle-generate', [AIController::class, 'generateSubtitles'])->name('subtitle-generate');
-        Route::post('subtitle-progress', [AIController::class, 'getSubtitleProgress'])->name('subtitle-progress');
-        Route::post('subtitle-style', [AIController::class, 'updateSubtitleStyle'])->name('subtitle-style');
-        Route::post('subtitle-position', [AIController::class, 'updateSubtitlePosition'])->name('subtitle-position');
-        Route::post('subtitle-export', [AIController::class, 'exportSubtitles'])->name('subtitle-export');
-        Route::post('subtitle-quality', [AIController::class, 'analyzeSubtitleQuality'])->name('subtitle-quality');
-        Route::get('subtitle-languages', [AIController::class, 'getSubtitleLanguages'])->name('subtitle-languages');
-        Route::get('subtitle-styles', [AIController::class, 'getSubtitleStyles'])->name('subtitle-styles');
+            // AI Content Generation
+    Route::post('generate-video-content', [AIController::class, 'generateVideoContent'])->name('generate-video-content');
+    
+    // AI Subtitle Generator
+    Route::post('subtitle-generate', [AIController::class, 'generateSubtitles'])->name('subtitle-generate');
+    Route::post('subtitle-progress', [AIController::class, 'getSubtitleProgress'])->name('subtitle-progress');
+    Route::post('subtitle-style', [AIController::class, 'updateSubtitleStyle'])->name('subtitle-style');
+    Route::post('subtitle-position', [AIController::class, 'updateSubtitlePosition'])->name('subtitle-position');
+    Route::post('subtitle-export', [AIController::class, 'exportSubtitles'])->name('subtitle-export');
+    Route::post('subtitle-quality', [AIController::class, 'analyzeSubtitleQuality'])->name('subtitle-quality');
+    Route::post('subtitle-apply', [AIController::class, 'applySubtitlesToVideo'])->name('subtitle-apply');
+    Route::get('subtitle-languages', [AIController::class, 'getSubtitleLanguages'])->name('subtitle-languages');
+    Route::get('subtitle-styles', [AIController::class, 'getSubtitleStyles'])->name('subtitle-styles');
+    
+    // New WYSIWYG subtitle editor endpoints
+    Route::post('subtitle-update-text', [AIController::class, 'updateSubtitleText'])->name('subtitle-update-text');
+    Route::post('subtitle-update-style', [AIController::class, 'updateIndividualSubtitleStyle'])->name('subtitle-update-style');
+    Route::post('subtitle-update-position', [AIController::class, 'updateIndividualSubtitlePosition'])->name('subtitle-update-position');
+    Route::post('subtitle-render-video', [AIController::class, 'renderVideoWithSubtitles'])->name('subtitle-render-video');
+    Route::post('set-video-thumbnail-from-frame', [AIController::class, 'setVideoThumbnailFromFrame'])->name('set-video-thumbnail-from-frame');
     });
     
     // Workflow routes
@@ -240,3 +260,20 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
+
+// Public thumbnail serving route (outside auth middleware)
+Route::get('thumbnails/{path}', function ($path) {
+    // Handle both direct files and subdirectory files
+    $fullPath = 'public/thumbnails/' . $path;
+    
+    if (!Storage::exists($fullPath)) {
+        abort(404);
+    }
+    
+    $file = Storage::get($fullPath);
+    $mimeType = Storage::mimeType($fullPath);
+    
+    return response($file, 200)
+        ->header('Content-Type', $mimeType)
+        ->header('Cache-Control', 'public, max-age=31536000');
+})->where('path', '.*')->name('thumbnail.serve');

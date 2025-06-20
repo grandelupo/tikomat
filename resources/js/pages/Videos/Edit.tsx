@@ -6,23 +6,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Slider } from '@/components/ui/slider';
+import { Progress } from '@/components/ui/progress';
 import AppLayout from '@/layouts/app-layout';
 import AIVideoAnalyzer from '@/components/AIVideoAnalyzer';
-import AIContentOptimizer from '@/components/AIContentOptimizer';
-import ErrorBoundary from '@/components/ErrorBoundary';
 import AIPerformanceOptimizer from '@/components/AIPerformanceOptimizer';
 import AIThumbnailOptimizer from '@/components/AIThumbnailOptimizer';
-import AIContentCalendar from '@/components/AIContentCalendar';
-import AITrendAnalyzer from '@/components/AITrendAnalyzer';
-import AIAudienceInsights from '@/components/AIAudienceInsights';
-import AIContentStrategyPlanner from '@/components/AIContentStrategyPlanner';
-import AISEOOptimizer from '@/components/AISEOOptimizer';
-import AIWatermarkRemover from '@/components/AIWatermarkRemover';
 import AISubtitleGenerator from '@/components/AISubtitleGenerator';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm, router } from '@inertiajs/react';
-import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Calendar, TrendingUp, Users, Target, Search, Scan, Mic, Trash2, ExternalLink, X, Youtube, Instagram, Video as VideoIcon, Clock, CheckCircle, XCircle, AlertCircle, Play } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Play, Clock, CheckCircle, XCircle, AlertCircle, Youtube, Instagram, Video as VideoIcon, ExternalLink, X, Trash2, Upload, Zap, Star, Eye, Heart, Share, ThumbsUp, Camera, Palette, Type, Target, Layers, TrendingUp } from 'lucide-react';
+import { useState, useRef } from 'react';
 
 interface VideoTarget {
     id: number;
@@ -42,17 +37,20 @@ interface Video {
     formatted_duration: string;
     created_at: string;
     file_path?: string;
-    video_path?: string;
-    original_file_path?: string;
+    video_path?: string; // Computed attribute from getVideoPathAttribute()
+    original_file_path?: string; // Raw storage path
     tags?: string[];
     thumbnail?: string;
     targets?: VideoTarget[];
+    width?: number;
+    height?: number;
 }
 
 interface VideoEditProps {
     video: Video;
 }
 
+// Enhanced platform icons and status mapping
 const platformIcons = {
     youtube: Youtube,
     instagram: Instagram,
@@ -75,6 +73,16 @@ const statusColors = {
     processing: 'bg-blue-100 text-blue-800',
     success: 'bg-green-100 text-green-800',
     failed: 'bg-red-100 text-red-800',
+};
+
+// Video quality assessment helper
+const getVideoQualityStatus = (width?: number, height?: number) => {
+    if (!width || !height) return { status: 'unknown', color: 'text-gray-500', label: 'Unknown' };
+    
+    const pixels = width * height;
+    if (pixels >= 1920 * 1080) return { status: 'great', color: 'text-green-600', label: '1080p+' };
+    if (pixels >= 1280 * 720) return { status: 'good', color: 'text-orange-500', label: '720p' };
+    return { status: 'poor', color: 'text-red-600', label: 'Low Quality' };
 };
 
 export default function VideoEdit({ video }: VideoEditProps) {
@@ -103,28 +111,20 @@ export default function VideoEdit({ video }: VideoEditProps) {
     const [activeTab, setActiveTab] = useState('overview');
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [deleteOption, setDeleteOption] = useState<'all' | 'tikomat'>('tikomat');
+    const [generatingTitle, setGeneratingTitle] = useState(false);
+    const [generatingDescription, setGeneratingDescription] = useState(false);
+    const [selectedThumbnail, setSelectedThumbnail] = useState<string | null>(video.thumbnail || null);
+    const [thumbnailSliderValue, setThumbnailSliderValue] = useState([0]);
+    const [customThumbnail, setCustomThumbnail] = useState<File | null>(null);
+    const [videoAnalysis, setVideoAnalysis] = useState<any>(null);
+    const [thumbnailSuggestions, setThumbnailSuggestions] = useState<any[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const videoQuality = getVideoQualityStatus(video.width, video.height);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         put(`/videos/${video.id}`);
-    };
-
-    const handleOptimizationApply = (optimizedData: any) => {
-        // Apply optimized content to the form
-        if (optimizedData.title) {
-            setData('title', optimizedData.title);
-        }
-        if (optimizedData.description) {
-            setData('description', optimizedData.description);
-        }
-    };
-
-    const handleAnalysisComplete = (analysis: any) => {
-        // Use analysis data to pre-populate content if needed
-        if (analysis.content_tags && analysis.content_tags.length > 0) {
-            // Could add tags to description or use for optimization
-            console.log('Video analysis completed:', analysis);
-        }
     };
 
     const handleDeleteVideo = () => {
@@ -173,6 +173,164 @@ export default function VideoEdit({ video }: VideoEditProps) {
         }
     };
 
+    const generateAITitle = async () => {
+        setGeneratingTitle(true);
+        try {
+            const response = await fetch('/ai/generate-video-content', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    video_id: video.id,
+                    content_type: 'title',
+                    current_title: data.title
+                }),
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data.optimized_title) {
+                    setData('title', result.data.optimized_title);
+                    
+                    // Show analysis info if available
+                    const analysis = result.data.analysis_summary;
+                    let message = "Title generated based on video content analysis";
+                    
+                    if (analysis) {
+                        const details = [];
+                        if (analysis.has_transcript) details.push("audio transcription");
+                        if (analysis.scenes_detected > 0) details.push(`${analysis.scenes_detected} visual scenes`);
+                        if (analysis.content_category !== 'unknown') details.push(`${analysis.content_category} content`);
+                        
+                        if (details.length > 0) {
+                            message += `. Analyzed: ${details.join(', ')}.`;
+                        }
+                    }
+                    
+                    alert(`✅ AI Title Generated!\n\n${message}`);
+                }
+            } else {
+                const error = await response.json();
+                console.error('Failed to generate AI title:', error);
+                alert(`Failed to generate title: ${error.message || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Failed to generate AI title:', error);
+            alert('An error occurred while generating the title. Please try again.');
+        } finally {
+            setGeneratingTitle(false);
+        }
+    };
+
+    const generateAIDescription = async () => {
+        setGeneratingDescription(true);
+        try {
+            const response = await fetch('/ai/generate-video-content', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    video_id: video.id,
+                    content_type: 'description',
+                    current_description: data.description
+                }),
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data.optimized_description) {
+                    setData('description', result.data.optimized_description);
+                    
+                    // Show analysis info if available
+                    const analysis = result.data.analysis_summary;
+                    let message = "Description generated based on video content analysis";
+                    
+                    if (analysis) {
+                        const details = [];
+                        if (analysis.has_transcript) details.push("audio transcription");
+                        if (analysis.scenes_detected > 0) details.push(`${analysis.scenes_detected} visual scenes`);
+                        if (analysis.content_category !== 'unknown') details.push(`${analysis.content_category} content`);
+                        
+                        if (details.length > 0) {
+                            message += `. Analyzed: ${details.join(', ')}.`;
+                        }
+                    }
+                    
+                    alert(`✅ AI Description Generated!\n\n${message}`);
+                }
+            } else {
+                const error = await response.json();
+                console.error('Failed to generate AI description:', error);
+                alert(`Failed to generate description: ${error.message || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Failed to generate AI description:', error);
+            alert('An error occurred while generating the description. Please try again.');
+        } finally {
+            setGeneratingDescription(false);
+        }
+    };
+
+    const handleThumbnailUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setCustomThumbnail(file);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setSelectedThumbnail(e.target?.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleVideoAnalysisComplete = (analysis: any) => {
+        setVideoAnalysis(analysis);
+    };
+
+    const generateThumbnailSuggestions = async () => {
+        try {
+            const response = await fetch('/ai/generate-thumbnail-suggestions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({ video_id: video.id }),
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                setThumbnailSuggestions(result.suggestions || []);
+            }
+        } catch (error) {
+            console.error('Failed to generate thumbnail suggestions:', error);
+        }
+    };
+
+    // Mock data for demonstration - replace with real API calls
+    const mockScores = {
+        videoQuality: 8.5,
+        engagementScore: 7.2,
+        viralityPotential: 6.8,
+        expectedViews: '12.5K',
+        expectedLikes: '850',
+        expectedShares: '120'
+    };
+
+    const mockThumbnailRating = {
+        contrast: 8.2,
+        faceVisibility: 9.1,
+        textReadability: 7.5,
+        emotionalAppeal: 8.7,
+        visualHierarchy: 7.8,
+        brandConsistency: 8.0,
+        predictedCTR: 6.9
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Edit: ${video.title}`} />
@@ -205,94 +363,64 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     </div>
                 </div>
 
-                <div className="grid lg:grid-cols-3 gap-6">
-                    {/* Main Content */}
-                    <div className="lg:col-span-2">
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-1">
-                                <TabsTrigger value="overview" className="text-xs px-2 py-1">Overview</TabsTrigger>
-                                <TabsTrigger value="edit" className="text-xs px-2 py-1">Edit</TabsTrigger>
-                                <TabsTrigger value="ai-optimize" className="text-xs px-2 py-1">AI Optimize</TabsTrigger>
-                                <TabsTrigger value="ai-analyze" className="text-xs px-2 py-1">AI Analyze</TabsTrigger>
-                                <TabsTrigger value="ai-performance" className="text-xs px-2 py-1">Performance</TabsTrigger>
-                                <TabsTrigger value="ai-thumbnails" className="text-xs px-2 py-1">Thumbnails</TabsTrigger>
-                                <TabsTrigger value="ai-calendar" className="text-xs px-2 py-1">Calendar</TabsTrigger>
-                                <TabsTrigger value="ai-trends" className="text-xs px-2 py-1">Trends</TabsTrigger>
-                                <TabsTrigger value="ai-audience" className="text-xs px-2 py-1">Audience</TabsTrigger>
-                                <TabsTrigger value="ai-strategy" className="text-xs px-2 py-1">Strategy</TabsTrigger>
-                                <TabsTrigger value="ai-seo" className="text-xs px-2 py-1">SEO</TabsTrigger>
-                                <TabsTrigger value="ai-subtitles" className="text-xs px-2 py-1">Subtitles</TabsTrigger>
-                            </TabsList>
+                {/* Simplified Tabs */}
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="overview">Overview/Edit</TabsTrigger>
+                        <TabsTrigger value="performance">Performance</TabsTrigger>
+                    </TabsList>
 
-                            {/* Overview Tab - Video Preview and Details */}
-                            <TabsContent value="overview" className="space-y-6">
-                                <div className="grid gap-6 md:grid-cols-2">
-                                    {/* Video Player */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <Play className="w-5 h-5" />
-                                                Video Preview
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
-                                                {video.video_path || video.file_path ? (
-                                                    <video 
-                                                        src={video.video_path || video.file_path}
-                                                        controls
-                                                        className="w-full h-full"
-                                                        onError={(e) => {
-                                                            console.error('Video failed to load:', e);
-                                                            e.currentTarget.style.display = 'none';
-                                                            const errorDiv = e.currentTarget.nextElementSibling as HTMLElement;
-                                                            if (errorDiv) errorDiv.style.display = 'flex';
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <div className="flex items-center justify-center h-full text-white">
-                                                        <div className="text-center">
-                                                            <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                                            <p>No video file available</p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                <div className="flex items-center justify-center h-full text-white" style={{display: 'none'}}>
+                    {/* Overview/Edit Tab */}
+                    <TabsContent value="overview" className="space-y-6">
+                        <div className="grid lg:grid-cols-2 gap-6">
+                            {/* Left Column */}
+                            <div className="space-y-6">
+                                {/* 1. Video Preview */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Play className="w-5 h-5" />
+                                            Video Preview
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
+                                            {video.video_path || video.file_path ? (
+                                                <video 
+                                                    src={video.video_path || video.file_path}
+                                                    controls
+                                                    className="w-full h-full"
+                                                />
+                                            ) : (
+                                                <div className="flex items-center justify-center h-full text-white">
                                                     <div className="text-center">
-                                                        <XCircle className="w-12 h-12 mx-auto mb-2 text-red-500" />
-                                                        <p>Failed to load video</p>
-                                                        <p className="text-sm opacity-75">Check if the video file exists</p>
+                                                        <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                                                        <p>No video file available</p>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
-                                    {/* Video Details */}
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Video Details</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div>
-                                                <h3 className="font-medium text-sm text-muted-foreground">Title</h3>
-                                                <p className="mt-1">{video.title}</p>
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium text-sm text-muted-foreground">Description</h3>
-                                                <p className="mt-1">{video.description}</p>
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium text-sm text-muted-foreground">Duration</h3>
-                                                <p className="mt-1">{video.formatted_duration}</p>
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium text-sm text-muted-foreground">Upload Date</h3>
-                                                <p className="mt-1">{new Date(video.created_at).toLocaleString()}</p>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
+                                {/* 2. Subtitle Generator Button */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Type className="w-5 h-5" />
+                                            Subtitles
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ErrorBoundary>
+                                            <AISubtitleGenerator 
+                                                videoPath={video.video_path || video.file_path || ''}
+                                                videoId={video.id}
+                                                videoTitle={video.title}
+                                            />
+                                        </ErrorBoundary>
+                                    </CardContent>
+                                </Card>
 
                                 {/* Publishing Status */}
                                 {video.targets && video.targets.length > 0 && (
@@ -357,312 +485,411 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         </CardContent>
                                     </Card>
                                 )}
+                            </div>
 
-                                {/* Error Details */}
-                                {video.targets && video.targets.some(target => target.status === 'failed' && target.error_message) && (
+                            {/* Right Column */}
+                            <div className="space-y-6">
+                                <form onSubmit={handleSubmit} className="space-y-6">
+                                    {/* 3. Editable Title Field */}
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle className="text-red-600">Error Details</CardTitle>
+                                            <CardTitle>Title</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="space-y-3">
-                                                {video.targets
-                                                    .filter(target => target.status === 'failed' && target.error_message)
-                                                    .map((target) => (
-                                                        <div key={target.id} className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <XCircle className="h-4 w-4 text-red-600" />
-                                                                <span className="font-medium capitalize text-red-600">
-                                                                    {target.platform} Error
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-sm text-red-700">{target.error_message}</p>
-                                                        </div>
-                                                    ))
-                                                }
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )}
-                            </TabsContent>
-
-                            {/* Edit Tab */}
-                            <TabsContent value="edit" className="space-y-6">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Video Information</CardTitle>
-                                        <CardDescription>
-                                            Edit the basic information for your video
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <form onSubmit={handleSubmit} className="space-y-6">
-                                            {/* Video Info (Read-only) */}
-                                            <div className="p-4 bg-gray-50 rounded-lg dark:bg-gray-800">
-                                                <div className="flex justify-between items-center">
-                                                    <div>
-                                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Duration</p>
-                                                        <p className="text-lg dark:text-gray-400">{video.formatted_duration}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Upload Date</p>
-                                                        <p className="text-lg dark:text-gray-400">{new Date(video.created_at).toLocaleDateString()}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Title */}
-                                            <div className="space-y-2">
-                                                <Label htmlFor="title">Title</Label>
+                                            <div className="flex gap-2">
                                                 <Input
-                                                    id="title"
                                                     value={data.title}
                                                     onChange={(e) => setData('title', e.target.value)}
                                                     placeholder="Enter video title"
+                                                    className="flex-1"
                                                 />
-                                                {errors.title && (
-                                                    <p className="text-sm text-red-600">{errors.title}</p>
-                                                )}
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={generateAITitle}
+                                                    disabled={generatingTitle}
+                                                >
+                                                    {generatingTitle ? (
+                                                        <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+                                                    ) : (
+                                                        <Brain className="w-4 h-4" />
+                                                    )}
+                                                </Button>
                                             </div>
+                                            {errors.title && (
+                                                <p className="text-sm text-red-600 mt-1">{errors.title}</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
 
-                                            {/* Description */}
+                                    {/* 4. Editable Description Field */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Description</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
                                             <div className="space-y-2">
-                                                <Label htmlFor="description">Description</Label>
                                                 <Textarea
-                                                    id="description"
                                                     value={data.description}
                                                     onChange={(e) => setData('description', e.target.value)}
                                                     placeholder="Enter video description"
                                                     rows={4}
                                                 />
-                                                {errors.description && (
-                                                    <p className="text-sm text-red-600">{errors.description}</p>
-                                                )}
+                                                <div className="flex justify-end">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={generateAIDescription}
+                                                        disabled={generatingDescription}
+                                                    >
+                                                        {generatingDescription ? (
+                                                            <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+                                                        ) : (
+                                                            <Brain className="w-4 h-4 mr-2" />
+                                                        )}
+                                                        AI Generate
+                                                    </Button>
+                                                </div>
                                             </div>
+                                            {errors.description && (
+                                                <p className="text-sm text-red-600">{errors.description}</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
 
-                                            {/* Submit Buttons */}
-                                            <div className="flex justify-end space-x-4">
-                                                <Button type="button" variant="outline" onClick={() => setActiveTab('overview')}>
-                                                    Cancel
-                                                </Button>
-                                                <Button 
-                                                    type="submit" 
-                                                    disabled={processing}
-                                                >
-                                                    <Save className="mr-2 h-4 w-4" />
-                                                    {processing ? 'Saving...' : 'Save Changes'}
-                                                </Button>
+                                    {/* Submit Button */}
+                                    <div className="flex justify-end">
+                                        <Button type="submit" disabled={processing}>
+                                            {processing ? (
+                                                <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+                                            ) : (
+                                                <Save className="w-4 h-4 mr-2" />
+                                            )}
+                                            Save Changes
+                                        </Button>
+                                    </div>
+                                </form>
+
+                                {/* 5. Video Details Section */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Video Details</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-sm font-medium text-muted-foreground">Duration</p>
+                                                <p className="text-lg">{video.formatted_duration}</p>
                                             </div>
-                                        </form>
+                                            <div>
+                                                <p className="text-sm font-medium text-muted-foreground">Resolution</p>
+                                                <p className={`text-lg ${videoQuality.color}`}>
+                                                    {video.width && video.height ? `${video.width}x${video.height}` : 'Unknown'}
+                                                </p>
+                                                <p className={`text-sm ${videoQuality.color}`}>{videoQuality.label}</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground">Upload Date</p>
+                                            <p className="text-lg">{new Date(video.created_at).toLocaleString()}</p>
+                                        </div>
                                     </CardContent>
                                 </Card>
-                            </TabsContent>
 
-                            <TabsContent value="ai-optimize" className="space-y-6">
-                                <AIContentOptimizer
-                                    title={data.title}
-                                    description={data.description}
-                                    platforms={video.targets?.map(t => t.platform) || ['youtube']}
-                                    onTitleChange={(title) => setData('title', title)}
-                                    onDescriptionChange={(description) => setData('description', description)}
-                                    onTagsUpdate={(platform, tags) => {
-                                        // Handle tags update for specific platform
-                                        console.log(`Tags for ${platform}:`, tags);
-                                    }}
-                                />
-                            </TabsContent>
+                                {/* 6. AI-Generated Category */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Target className="w-5 h-5" />
+                                            AI Analysis
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ErrorBoundary>
+                                            <AIVideoAnalyzer 
+                                                videoId={video.id}
+                                                videoPath={video.video_path || video.file_path}
+                                                onAnalysisComplete={handleVideoAnalysisComplete}
+                                            />
+                                        </ErrorBoundary>
+                                        {videoAnalysis && (
+                                            <div className="mt-4 space-y-3">
+                                                <div>
+                                                    <p className="text-sm font-medium text-muted-foreground">Category</p>
+                                                    <p className="text-lg">{videoAnalysis.category || 'Entertainment'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-muted-foreground">Mood</p>
+                                                    <p className="text-lg">{videoAnalysis.mood || 'Positive'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-muted-foreground">Tags</p>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {(videoAnalysis.tags || ['creative', 'engaging', 'trending']).map((tag: string, index: number) => (
+                                                            <Badge key={index} variant="secondary" className="text-xs">
+                                                                {tag}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
 
-                            <TabsContent value="ai-analyze" className="space-y-6">
+                                {/* 9. Scores Section */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <BarChart3 className="w-5 h-5" />
+                                            Video Scores
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-sm font-medium">Video Quality</span>
+                                                    <span className="text-sm text-muted-foreground">{mockScores.videoQuality}/10</span>
+                                                </div>
+                                                <Progress value={mockScores.videoQuality * 10} className="h-2" />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-sm font-medium">Engagement</span>
+                                                    <span className="text-sm text-muted-foreground">{mockScores.engagementScore}/10</span>
+                                                </div>
+                                                <Progress value={mockScores.engagementScore * 10} className="h-2" />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-sm font-medium">Virality</span>
+                                                    <span className="text-sm text-muted-foreground">{mockScores.viralityPotential}/10</span>
+                                                </div>
+                                                <Progress value={mockScores.viralityPotential * 10} className="h-2" />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                                            <div className="text-center">
+                                                <div className="flex items-center justify-center gap-1 mb-1">
+                                                    <Eye className="w-4 h-4 text-blue-600" />
+                                                    <span className="text-sm font-medium">Views</span>
+                                                </div>
+                                                <p className="text-lg font-bold text-blue-600">{mockScores.expectedViews}</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="flex items-center justify-center gap-1 mb-1">
+                                                    <Heart className="w-4 h-4 text-red-600" />
+                                                    <span className="text-sm font-medium">Likes</span>
+                                                </div>
+                                                <p className="text-lg font-bold text-red-600">{mockScores.expectedLikes}</p>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="flex items-center justify-center gap-1 mb-1">
+                                                    <Share className="w-4 h-4 text-green-600" />
+                                                    <span className="text-sm font-medium">Shares</span>
+                                                </div>
+                                                <p className="text-lg font-bold text-green-600">{mockScores.expectedShares}</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+
+                        {/* 10. Thumbnail Suggestions Section */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Image className="w-5 h-5" />
+                                    Thumbnail Optimization
+                                </CardTitle>
+                                <CardDescription>
+                                    Choose or upload a thumbnail for your video
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
                                 <ErrorBoundary>
-                                    <AIVideoAnalyzer
-                                        videoPath={video.original_file_path}
-                                        onAnalysisComplete={handleAnalysisComplete}
+                                    <AIThumbnailOptimizer 
+                                        videoId={video.id}
+                                        videoPath={video.video_path || video.file_path}
+                                        title={data.title}
                                     />
                                 </ErrorBoundary>
-                            </TabsContent>
-
-                            <TabsContent value="ai-performance">
-                                <AIPerformanceOptimizer 
-                                    videoId={video.id}
-                                    className="mb-4"
-                                />
-                            </TabsContent>
-
-                            <TabsContent value="ai-thumbnails">
-                                <AIThumbnailOptimizer 
-                                    videoId={video.id}
-                                    videoPath={video.original_file_path || "/path/to/video"}
-                                    title={data.title}
-                                    className="mb-4"
-                                />
-                            </TabsContent>
-
-                            <TabsContent value="ai-calendar">
-                                <AIContentCalendar 
-                                    userId={1} // In real implementation, this would come from auth
-                                    className="mb-4"
-                                />
-                            </TabsContent>
-
-                            <TabsContent value="ai-trends">
-                                <AITrendAnalyzer 
-                                    userId={1} // In real implementation, this would come from auth
-                                    className="mb-4"
-                                />
-                            </TabsContent>
-
-                            <TabsContent value="ai-audience">
-                                <AIAudienceInsights 
-                                    videoId={video.id}
-                                />
-                            </TabsContent>
-
-                            <TabsContent value="ai-strategy">
-                                <AIContentStrategyPlanner 
-                                    video={video}
-                                />
-                            </TabsContent>
-
-                            <TabsContent value="ai-seo">
-                                <AISEOOptimizer 
-                                    video={video}
-                                    contentId={video.id}
-                                    contentType="video"
-                                />
-                            </TabsContent>
-
-                            <TabsContent value="ai-subtitles">
-                                <AISubtitleGenerator 
-                                    videoPath={video.original_file_path || "/path/to/video"}
-                                />
-                            </TabsContent>
-                        </Tabs>
-                    </div>
-
-                    {/* AI Sidebar */}
-                    <div className="space-y-6">
-                        <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
-                            <CardHeader className="pb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
-                                        <Brain className="w-5 h-5 text-white" />
+                                
+                                {/* Custom Upload and Frame Selection */}
+                                <div className="mt-6 space-y-4">
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
+                                            <Upload className="w-4 h-4 mr-2" />
+                                            Upload Custom
+                                        </Button>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleThumbnailUpload}
+                                            className="hidden"
+                                        />
                                     </div>
+
+                                    {/* Frame Selection Slider */}
                                     <div>
-                                        <CardTitle className="text-lg bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                                            AI Assistant
-                                        </CardTitle>
-                                        <p className="text-sm text-gray-600">
-                                            Powered by advanced AI
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-3">
-                                    <div className="p-3 bg-white rounded-lg border border-purple-100">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Wand2 className="w-4 h-4 text-purple-600" />
-                                            <span className="font-medium text-sm">AI Content Optimization</span>
+                                        <Label className="text-sm font-medium">Select Frame from Video</Label>
+                                        <div className="mt-2 space-y-2">
+                                            <Slider
+                                                value={thumbnailSliderValue}
+                                                onValueChange={setThumbnailSliderValue}
+                                                max={video.duration || 100}
+                                                step={1}
+                                                className="w-full"
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                Frame at {thumbnailSliderValue[0]}s
+                                            </p>
                                         </div>
-                                        <p className="text-xs text-gray-600">
-                                            Generate platform-specific titles, descriptions, and hashtags optimized for maximum engagement.
-                                        </p>
-                                    </div>
-                                    
-                                    <div className="p-3 bg-white rounded-lg border border-blue-100">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Brain className="w-4 h-4 text-blue-600" />
-                                            <span className="font-medium text-sm">AI Video Analysis</span>
-                                        </div>
-                                        <p className="text-xs text-gray-600">
-                                            Deep analysis of your video content including quality assessment, transcription, and engagement predictions.
-                                        </p>
-                                    </div>
-
-                                    <div className="p-3 bg-white rounded-lg border border-purple-100">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Mic className="w-4 h-4 text-purple-600" />
-                                            <span className="font-medium text-sm">AI Subtitle Generator</span>
-                                        </div>
-                                        <p className="text-xs text-gray-600">
-                                            Automatically generate precise subtitles with perfect timing and customizable animated styles.
-                                        </p>
                                     </div>
                                 </div>
 
-                                <div className="pt-3 border-t border-purple-100">
-                                    <p className="text-xs text-gray-500 text-center">
-                                        ✨ Switch between tabs to access different AI features
-                                    </p>
-                                </div>
+                                {/* Thumbnail Rating */}
+                                {selectedThumbnail && (
+                                    <div className="mt-6 p-4 bg-gray-50 rounded-lg dark:bg-gray-800">
+                                        <h4 className="font-medium mb-3">Thumbnail Analysis</h4>
+                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                            <div className="flex justify-between">
+                                                <span>Contrast:</span>
+                                                <span className="font-medium text-green-600">{mockThumbnailRating.contrast}/10</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Face Visibility:</span>
+                                                <span className="font-medium text-green-600">{mockThumbnailRating.faceVisibility}/10</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Text Readability:</span>
+                                                <span className="font-medium text-orange-500">{mockThumbnailRating.textReadability}/10</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Emotional Appeal:</span>
+                                                <span className="font-medium text-green-600">{mockThumbnailRating.emotionalAppeal}/10</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Visual Hierarchy:</span>
+                                                <span className="font-medium text-orange-500">{mockThumbnailRating.visualHierarchy}/10</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Brand Consistency:</span>
+                                                <span className="font-medium text-green-600">{mockThumbnailRating.brandConsistency}/10</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t">
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-medium">Predicted CTR:</span>
+                                                <span className="font-bold text-lg text-blue-600">{mockThumbnailRating.predictedCTR}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
-                        
-                    </div>
-                </div>
+                        {/* 11. AI Suggestions Section */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Zap className="w-5 h-5" />
+                                    AI Suggestions
+                                </CardTitle>
+                                <CardDescription>
+                                    Most important optimization recommendations
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-3">
+                                    <div className="flex items-start gap-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded dark:bg-blue-950">
+                                        <Star className="w-5 h-5 text-blue-600 mt-0.5" />
+                                        <div>
+                                            <p className="font-medium text-blue-900 dark:text-blue-100">Optimize Title</p>
+                                            <p className="text-sm text-blue-700 dark:text-blue-200">
+                                                Consider adding trending keywords like "2024" or "Ultimate Guide" to increase discoverability.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 bg-green-50 border-l-4 border-green-500 rounded dark:bg-green-950">
+                                        <TrendingUp className="w-5 h-5 text-green-600 mt-0.5" />
+                                        <div>
+                                            <p className="font-medium text-green-900 dark:text-green-100">Perfect Upload Time</p>
+                                            <p className="text-sm text-green-700 dark:text-green-200">
+                                                Your audience is most active between 7-9 PM. Consider scheduling posts during this window.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 bg-orange-50 border-l-4 border-orange-500 rounded dark:bg-orange-950">
+                                        <Image className="w-5 h-5 text-orange-600 mt-0.5" />
+                                        <div>
+                                            <p className="font-medium text-orange-900 dark:text-orange-100">Thumbnail Enhancement</p>
+                                            <p className="text-sm text-orange-700 dark:text-orange-200">
+                                                Adding bright colors and clear text could improve your CTR by up to 15%.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-                {/* Delete Confirmation Dialog */}
+                    {/* Performance Tab */}
+                    <TabsContent value="performance" className="space-y-6">
+                        <ErrorBoundary>
+                            <AIPerformanceOptimizer videoId={video.id} />
+                        </ErrorBoundary>
+                    </TabsContent>
+                </Tabs>
+
+                {/* Delete Dialog */}
                 <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                    <DialogContent className="sm:max-w-md">
+                    <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Delete Video</DialogTitle>
                             <DialogDescription>
-                                Choose how you want to handle this video deletion. This action cannot be undone.
+                                This action cannot be undone. Choose what you want to delete:
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-3">
-                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
-                                    <input
-                                        type="radio"
-                                        id="delete-tikomat"
-                                        name="delete-option"
-                                        value="tikomat"
-                                        checked={deleteOption === 'tikomat'}
-                                        onChange={(e) => setDeleteOption(e.target.value as 'tikomat')}
-                                        className="h-4 w-4 mt-0.5"
-                                    />
-                                    <div className="flex-1">
-                                        <label htmlFor="delete-tikomat" className="text-sm font-medium cursor-pointer">
-                                            Remove only from Tikomat
-                                        </label>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Video will remain published on all platforms but removed from Tikomat's tracking
-                                        </p>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('all')}>
-                                    <input
-                                        type="radio"
-                                        id="delete-all"
-                                        name="delete-option"
-                                        value="all"
-                                        checked={deleteOption === 'all'}
-                                        onChange={(e) => setDeleteOption(e.target.value as 'all')}
-                                        className="h-4 w-4 mt-0.5"
-                                    />
-                                    <div className="flex-1">
-                                        <label htmlFor="delete-all" className="text-sm font-medium cursor-pointer">
-                                            Take down from all platforms
-                                        </label>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Video will be completely removed from all platforms and Tikomat
-                                        </p>
-                                    </div>
-                                </div>
+                        <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="radio"
+                                    id="delete-tikomat"
+                                    name="delete-option"
+                                    value="tikomat"
+                                    checked={deleteOption === 'tikomat'}
+                                    onChange={(e) => setDeleteOption(e.target.value as 'tikomat' | 'all')}
+                                />
+                                <Label htmlFor="delete-tikomat">Delete only from Tikomat (keep on social platforms)</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="radio"
+                                    id="delete-all"
+                                    name="delete-option"
+                                    value="all"
+                                    checked={deleteOption === 'all'}
+                                    onChange={(e) => setDeleteOption(e.target.value as 'tikomat' | 'all')}
+                                />
+                                <Label htmlFor="delete-all">Delete from everywhere (Tikomat + all social platforms)</Label>
                             </div>
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
                                 Cancel
                             </Button>
-                            <Button 
-                                variant="destructive" 
-                                onClick={confirmDelete}
-                            >
-                                {deleteOption === 'all' ? 'Take Down Video' : 'Remove from Tikomat'}
+                            <Button variant="destructive" onClick={confirmDelete}>
+                                Delete Video
                             </Button>
                         </DialogFooter>
                     </DialogContent>

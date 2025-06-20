@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
     Image, 
@@ -19,7 +19,6 @@ import {
     TrendingUp,
     User,
     ZoomIn,
-    Clock,
     Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -43,6 +42,7 @@ interface ThumbnailAnalysis {
 interface Frame {
     id: string;
     timestamp: number;
+    path: string;
     preview_url: string;
     quality_score: number;
     has_faces: boolean;
@@ -52,10 +52,21 @@ interface Frame {
 interface ThumbnailSuggestion {
     frame_id: string;
     timestamp: number;
+    path: string;
     preview_url: string;
     predicted_ctr: number;
     confidence_score: number;
     reasons: string[];
+    design_scores?: {
+        contrast: number;
+        face_visibility: number;
+        text_readability: number;
+        emotional_appeal: number;
+        visual_hierarchy: number;
+        brand_consistency: number;
+        color_harmony: number;
+        composition: number;
+    };
 }
 
 interface AIThumbnailOptimizerProps {
@@ -78,10 +89,10 @@ export default function AIThumbnailOptimizer({
     const { toast } = useToast();
 
     const optimizeThumbnails = async () => {
-        if (!videoPath) {
+        if (!videoId) {
             toast({
-                title: "No Video Path",
-                description: "Please provide a video path to optimize thumbnails.",
+                title: "No Video ID",
+                description: "Please provide a video ID to optimize thumbnails.",
                 variant: "destructive",
             });
             return;
@@ -97,7 +108,7 @@ export default function AIThumbnailOptimizer({
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
                 body: JSON.stringify({
-                    video_path: videoPath,
+                    video_id: videoId,
                     title: title || 'Amazing Video',
                     platforms: ['youtube', 'instagram', 'tiktok'],
                 }),
@@ -109,7 +120,7 @@ export default function AIThumbnailOptimizer({
                 setAnalysis(data.data);
                 toast({
                     title: "Thumbnail Optimization Complete! 🎨",
-                    description: "AI has analyzed your video frames and generated thumbnail recommendations.",
+                    description: `AI has analyzed your video and extracted ${data.data.extracted_frames?.length || 0} thumbnail frames.`,
                 });
             } else {
                 throw new Error(data.message || 'Failed to optimize thumbnails');
@@ -126,17 +137,27 @@ export default function AIThumbnailOptimizer({
         }
     };
 
-    const generateOptimizedThumbnail = async (frameId: string) => {
+    const setVideoThumbnail = async (frameId: string, thumbnailPath: string) => {
+        if (!videoId) {
+            toast({
+                title: "Error",
+                description: "Video ID is required to set thumbnail.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         try {
-            const response = await fetch('/ai/generate-optimized-thumbnail', {
+            const response = await fetch('/ai/set-video-thumbnail', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
                 body: JSON.stringify({
+                    video_id: videoId,
                     frame_id: frameId,
-                    optimizations: ['add_text', 'enhance_contrast', 'resize_platform'],
+                    thumbnail_path: thumbnailPath,
                 }),
             });
 
@@ -144,15 +165,17 @@ export default function AIThumbnailOptimizer({
 
             if (data.success) {
                 toast({
-                    title: "Thumbnail Generated! 🖼️",
-                    description: "Your optimized thumbnail is ready for download.",
+                    title: "Thumbnail Set Successfully! 🎯",
+                    description: "This thumbnail has been set for all platforms.",
                 });
+            } else {
+                throw new Error(data.message || 'Failed to set thumbnail');
             }
         } catch (error) {
-            console.error('Thumbnail generation error:', error);
+            console.error('Set thumbnail error:', error);
             toast({
-                title: "Generation Failed",
-                description: "Failed to generate optimized thumbnail.",
+                title: "Setting Failed",
+                description: "Failed to set thumbnail. Please try again.",
                 variant: "destructive",
             });
         }
@@ -194,17 +217,17 @@ export default function AIThumbnailOptimizer({
                     
                     <Button 
                         onClick={optimizeThumbnails}
-                        disabled={!videoPath}
+                        disabled={!videoId}
                         size="lg"
                         className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                     >
                         <Sparkles className="w-5 h-5 mr-2" />
-                        Start Thumbnail Optimization
+                        Analyze Video & Extract Thumbnails
                     </Button>
                     
-                    {!videoPath && (
+                    {!videoId && (
                         <p className="text-sm text-gray-500">
-                            Video path required for thumbnail optimization
+                            Video ID required for thumbnail analysis
                         </p>
                     )}
                 </CardContent>
@@ -224,7 +247,9 @@ export default function AIThumbnailOptimizer({
                         <p className="text-gray-600 mb-4">
                             AI is analyzing frames, detecting faces, and predicting CTR
                         </p>
-                        <Progress value={75} className="w-full max-w-md mx-auto" />
+                        <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2">
+                            <div className="bg-gradient-to-r from-purple-600 to-pink-600 h-2 rounded-full animate-pulse" style={{ width: '75%' }}></div>
+                        </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div className="flex items-center justify-center gap-2 p-3 bg-white rounded-lg">
@@ -276,12 +301,9 @@ export default function AIThumbnailOptimizer({
 
             <CardContent>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-6">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
-                        <TabsTrigger value="frames">Frames</TabsTrigger>
-                        <TabsTrigger value="design">Design</TabsTrigger>
-                        <TabsTrigger value="ctr">CTR Analysis</TabsTrigger>
-                        <TabsTrigger value="platforms">Platforms</TabsTrigger>
+                        <TabsTrigger value="platforms">Platform Thumbnail Specifications</TabsTrigger>
                         <TabsTrigger value="testing">A/B Testing</TabsTrigger>
                     </TabsList>
 
@@ -292,7 +314,17 @@ export default function AIThumbnailOptimizer({
                                     <CardContent className="p-4">
                                         <div className="flex items-start gap-4">
                                             <div className="relative">
-                                                <div className="w-32 h-18 bg-gray-200 rounded-lg flex items-center justify-center">
+                                                <img 
+                                                    src={suggestion.preview_url} 
+                                                    alt={`Thumbnail at ${suggestion.timestamp}s`}
+                                                    className="w-32 h-18 object-cover rounded-lg border-2 border-gray-200"
+                                                    onError={(e) => {
+                                                        const target = e.target as HTMLImageElement;
+                                                        target.style.display = 'none';
+                                                        target.nextElementSibling?.classList.remove('hidden');
+                                                    }}
+                                                />
+                                                <div className="w-32 h-18 bg-gray-200 rounded-lg flex items-center justify-center hidden">
                                                     <Play className="w-6 h-6 text-gray-400" />
                                                 </div>
                                                 {index === 0 && (
@@ -312,7 +344,7 @@ export default function AIThumbnailOptimizer({
                                                         {suggestion.confidence_score}% confidence
                                                     </Badge>
                                                 </div>
-                                                <div className="space-y-2">
+                                                <div className="space-y-3">
                                                     <div>
                                                         <h5 className="text-sm font-medium text-gray-700 mb-1">Why this frame:</h5>
                                                         <ul className="text-sm text-gray-600">
@@ -324,19 +356,42 @@ export default function AIThumbnailOptimizer({
                                                             ))}
                                                         </ul>
                                                     </div>
+                                                    
+                                                    {suggestion.design_scores && (
+                                                        <div>
+                                                            <h5 className="text-sm font-medium text-gray-700 mb-2">Design Feature Scores:</h5>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                {Object.entries(suggestion.design_scores).map(([feature, score]) => (
+                                                                    <div key={feature} className="flex items-center justify-between text-xs">
+                                                                        <span className="text-gray-600 capitalize">
+                                                                            {feature.replace('_', ' ')}:
+                                                                        </span>
+                                                                        <Badge 
+                                                                            variant="outline" 
+                                                                            className={cn(
+                                                                                "text-xs px-1.5 py-0.5",
+                                                                                score >= 80 ? "border-green-500 text-green-700 bg-green-50" :
+                                                                                score >= 60 ? "border-yellow-500 text-yellow-700 bg-yellow-50" :
+                                                                                "border-red-500 text-red-700 bg-red-50"
+                                                                            )}
+                                                                        >
+                                                                            {score}
+                                                                        </Badge>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-2">
                                                 <Button 
                                                     size="sm" 
-                                                    onClick={() => generateOptimizedThumbnail(suggestion.frame_id)}
+                                                    onClick={() => setVideoThumbnail(suggestion.frame_id, suggestion.path)}
+                                                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                                                 >
-                                                    <Download className="w-4 h-4 mr-2" />
-                                                    Generate
-                                                </Button>
-                                                <Button size="sm" variant="outline">
-                                                    <ZoomIn className="w-4 h-4 mr-2" />
-                                                    Preview
+                                                    <Target className="w-4 h-4 mr-2" />
+                                                    Set as Thumbnail
                                                 </Button>
                                             </div>
                                         </div>
@@ -346,96 +401,7 @@ export default function AIThumbnailOptimizer({
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="frames" className="space-y-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {analysis.extracted_frames.map((frame) => (
-                                <Card 
-                                    key={frame.id} 
-                                    className={cn(
-                                        "cursor-pointer transition-all hover:shadow-md",
-                                        selectedFrame === frame.id ? "ring-2 ring-purple-500" : ""
-                                    )}
-                                    onClick={() => setSelectedFrame(frame.id)}
-                                >
-                                    <CardContent className="p-3">
-                                        <div className="aspect-video bg-gray-200 rounded-lg mb-3 flex items-center justify-center">
-                                            <Play className="w-6 h-6 text-gray-400" />
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-sm font-medium mb-1">
-                                                <Clock className="w-3 h-3 inline mr-1" />
-                                                {frame.timestamp}s
-                                            </div>
-                                            <div className="text-xs text-gray-600 mb-2">
-                                                Quality: {frame.quality_score}/100
-                                            </div>
-                                            <div className="flex justify-center gap-1">
-                                                {frame.has_faces && (
-                                                    <Badge variant="outline" className="text-xs">
-                                                        <User className="w-3 h-3 mr-1" />
-                                                        {frame.face_count}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </TabsContent>
 
-                    <TabsContent value="design" className="space-y-4">
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {Object.entries(analysis.design_analysis).map(([principle, data]) => (
-                                <Card key={principle}>
-                                    <CardHeader className="pb-3">
-                                        <CardTitle className="text-lg">{data.name}</CardTitle>
-                                        <p className="text-sm text-gray-600">{data.description}</p>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm font-medium">Score:</span>
-                                                <span className="text-lg font-bold text-purple-600">
-                                                    {data.average_score}/100
-                                                </span>
-                                            </div>
-                                            <Progress value={data.average_score} className="w-full" />
-                                            <div className="text-sm text-gray-600">
-                                                Weight: {Math.round(data.weight * 100)}% of total score
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="ctr" className="space-y-4">
-                        <div className="grid gap-4">
-                            {Object.entries(analysis.ctr_predictions).map(([frameId, prediction]) => (
-                                <Card key={frameId}>
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="font-medium">Frame: {frameId}</h4>
-                                            <div className="text-right">
-                                                <div className="text-2xl font-bold text-green-600">
-                                                    {prediction.predicted_ctr}%
-                                                </div>
-                                                <div className="text-xs text-gray-500">Predicted CTR</div>
-                                            </div>
-                                        </div>
-                                        <div className="text-sm text-gray-600 mb-2">
-                                            Confidence Range: {prediction.confidence_interval.low}% - {prediction.confidence_interval.high}%
-                                        </div>
-                                        <div className="text-sm text-gray-700">
-                                            {prediction.explanation}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </TabsContent>
 
                     <TabsContent value="platforms" className="space-y-4">
                         <div className="grid gap-4">

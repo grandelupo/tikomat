@@ -175,6 +175,204 @@ class AIContentOptimizationService
     }
 
     /**
+     * Generate optimized title only
+     */
+    public function generateOptimizedTitleOnly(string $title, string $description, array $platforms = ['youtube']): string
+    {
+        $platform = $platforms[0] ?? 'youtube';
+        $category = $this->detectContentCategory($title . ' ' . $description);
+        $prompts = $this->platformSpecificPrompts[$platform] ?? $this->platformSpecificPrompts['youtube'];
+        $categoryContext = $category ? "Content category: {$category}. " : '';
+        
+        return $this->generateOptimizedTitle($prompts['title_prompt'], $title, $description, $categoryContext);
+    }
+    
+    /**
+     * Generate optimized description only
+     */
+    public function generateOptimizedDescriptionOnly(string $title, string $description, array $platforms = ['youtube']): string
+    {
+        $platform = $platforms[0] ?? 'youtube';
+        $category = $this->detectContentCategory($title . ' ' . $description);
+        $prompts = $this->platformSpecificPrompts[$platform] ?? $this->platformSpecificPrompts['youtube'];
+        $categoryContext = $category ? "Content category: {$category}. " : '';
+        
+        return $this->generateOptimizedDescription($prompts['description_prompt'], $title, $description, $categoryContext);
+    }
+
+    /**
+     * Generate title based on comprehensive video analysis
+     */
+    public function generateTitleFromVideoAnalysis(array $videoAnalysis): string
+    {
+        try {
+            // Extract key information from video analysis
+            $transcript = $videoAnalysis['transcript']['text'] ?? '';
+            $category = $videoAnalysis['content_category']['primary_category'] ?? 'general';
+            $mood = $videoAnalysis['mood_analysis']['dominant_mood'] ?? 'neutral';
+            $scenes = $videoAnalysis['scenes']['scenes'] ?? [];
+            $tags = $videoAnalysis['content_tags'] ?? [];
+            $duration = $videoAnalysis['basic_info']['duration'] ?? 0;
+            
+            // Build context from video analysis
+            $context = $this->buildVideoContext($transcript, $category, $mood, $scenes, $tags, $duration);
+            
+            $prompt = "Based on this comprehensive video analysis, create an engaging, SEO-optimized title that captures the essence of the video content. The title should be:
+            - Under 60 characters for optimal display
+            - Click-worthy and engaging
+            - Accurate to the actual content
+            - Optimized for YouTube, TikTok, and Instagram
+            - Include relevant keywords naturally
+            
+            Video Analysis:
+            {$context}
+            
+            Generate ONLY the title, nothing else:";
+
+            $response = OpenAI::chat()->create([
+                'model' => 'gpt-4o-mini',
+                'messages' => [
+                    [
+                        'role' => 'system', 
+                        'content' => 'You are an expert content creator who analyzes video content to create compelling titles. You understand what makes content viral and engaging across social media platforms.'
+                    ],
+                    ['role' => 'user', 'content' => $prompt],
+                ],
+                'max_tokens' => 100,
+                'temperature' => 0.7,
+            ]);
+
+            $title = trim($response->choices[0]->message->content);
+            
+            // Remove quotes if AI added them
+            $title = trim($title, '"\'');
+            
+            return $title;
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to generate title from video analysis', [
+                'error' => $e->getMessage(),
+                'category' => $videoAnalysis['content_category']['primary_category'] ?? 'unknown'
+            ]);
+            
+            // Fallback to a generic title based on category
+            $category = $videoAnalysis['content_category']['primary_category'] ?? 'video';
+            return "Amazing " . ucfirst($category) . " Content You Need to See";
+        }
+    }
+
+    /**
+     * Generate description based on comprehensive video analysis
+     */
+    public function generateDescriptionFromVideoAnalysis(array $videoAnalysis): string
+    {
+        try {
+            // Extract key information from video analysis
+            $transcript = $videoAnalysis['transcript']['text'] ?? '';
+            $category = $videoAnalysis['content_category']['primary_category'] ?? 'general';
+            $mood = $videoAnalysis['mood_analysis']['dominant_mood'] ?? 'neutral';
+            $scenes = $videoAnalysis['scenes']['scenes'] ?? [];
+            $tags = $videoAnalysis['content_tags'] ?? [];
+            $duration = $videoAnalysis['basic_info']['duration'] ?? 0;
+            $chapters = $videoAnalysis['auto_chapters'] ?? [];
+            
+            // Build context from video analysis
+            $context = $this->buildVideoContext($transcript, $category, $mood, $scenes, $tags, $duration);
+            
+            // Add chapter information if available
+            $chapterInfo = '';
+            if (!empty($chapters)) {
+                $chapterInfo = "\n\nChapters detected:\n";
+                foreach ($chapters as $chapter) {
+                    $time = gmdate("i:s", intval($chapter['start_time']));
+                    $chapterInfo .= "- {$time}: {$chapter['title']}\n";
+                }
+            }
+            
+            $prompt = "Based on this comprehensive video analysis, create an engaging description optimized for social media platforms (YouTube, TikTok, Instagram). The description should:
+            - Summarize the video content accurately
+            - Include relevant keywords naturally
+            - Be engaging and encourage interaction
+            - Include timestamps if chapters are provided
+            - Have clear structure with sections
+            - End with relevant hashtags
+            - Be 200-500 words
+            
+            Video Analysis:
+            {$context}{$chapterInfo}
+            
+            Generate the complete description:";
+
+            $response = OpenAI::chat()->create([
+                'model' => 'gpt-4o-mini',
+                'messages' => [
+                    [
+                        'role' => 'system', 
+                        'content' => 'You are an expert social media content creator who writes compelling video descriptions that drive engagement and discoverability.'
+                    ],
+                    ['role' => 'user', 'content' => $prompt],
+                ],
+                'max_tokens' => 800,
+                'temperature' => 0.7,
+            ]);
+
+            return trim($response->choices[0]->message->content);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to generate description from video analysis', [
+                'error' => $e->getMessage(),
+                'category' => $videoAnalysis['content_category']['primary_category'] ?? 'unknown'
+            ]);
+            
+            // Fallback to a generic description
+            $category = $videoAnalysis['content_category']['primary_category'] ?? 'content';
+            $transcript = $videoAnalysis['transcript']['text'] ?? '';
+            
+            if (!empty($transcript)) {
+                $summary = substr($transcript, 0, 200) . '...';
+                return "Check out this amazing {$category} video! {$summary}\n\n#video #{$category} #content #viral";
+            }
+            
+            return "Amazing {$category} content that you don't want to miss! This video delivers exactly what you're looking for.\n\n#video #{$category} #content #amazing";
+        }
+    }
+
+    /**
+     * Build comprehensive context from video analysis
+     */
+    private function buildVideoContext(string $transcript, string $category, string $mood, array $scenes, array $tags, float $duration): string
+    {
+        $context = "Content Category: " . ucfirst($category) . "\n";
+        $context .= "Video Mood: " . ucfirst($mood) . "\n";
+        $context .= "Duration: " . gmdate("i:s", intval($duration)) . "\n\n";
+        
+        if (!empty($transcript)) {
+            // Use first 500 characters of transcript for context
+            $transcriptSummary = strlen($transcript) > 500 ? substr($transcript, 0, 500) . '...' : $transcript;
+            $context .= "Audio/Speech Content:\n{$transcriptSummary}\n\n";
+        }
+        
+        if (!empty($scenes)) {
+            $context .= "Visual Scenes Detected:\n";
+            $sceneCount = min(5, count($scenes)); // Limit to first 5 scenes
+            for ($i = 0; $i < $sceneCount; $i++) {
+                $scene = $scenes[$i];
+                $time = isset($scene['timestamp']) ? gmdate("i:s", intval($scene['timestamp'])) : ($i * 30) . 's';
+                $description = $scene['description'] ?? $scene['scene_description'] ?? "Scene " . ($i + 1);
+                $context .= "- {$time}: {$description}\n";
+            }
+            $context .= "\n";
+        }
+        
+        if (!empty($tags)) {
+            $tagList = implode(', ', array_slice($tags, 0, 10)); // Limit to 10 tags
+            $context .= "Key Topics/Tags: {$tagList}\n\n";
+        }
+        
+        return $context;
+    }
+
+    /**
      * Analyze content and suggest optimal posting times
      */
     public function suggestOptimalPostingTimes(string $platform, string $content, array $userTimeZone = null): array
