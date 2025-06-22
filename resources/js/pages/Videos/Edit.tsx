@@ -16,8 +16,9 @@ import AISubtitleGenerator from '@/components/AISubtitleGenerator';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm, router } from '@inertiajs/react';
-import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Play, Clock, CheckCircle, XCircle, AlertCircle, Youtube, Instagram, Video as VideoIcon, ExternalLink, X, Trash2, Upload, Zap, Star, Eye, Heart, Share, ThumbsUp, Camera, Palette, Type, Target, Layers, TrendingUp } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Play, Clock, CheckCircle, XCircle, AlertCircle, Youtube, Instagram, Video as VideoIcon, ExternalLink, X, Trash2, Upload, Zap, Star, Eye, Heart, Share, ThumbsUp, Camera, Palette, Type, Target, Layers, TrendingUp, Plus, Minus, Settings2, Sparkles, Tag, RefreshCw } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import ThumbnailOptimizerPopup from '@/components/ThumbnailOptimizerPopup';
 
 interface VideoTarget {
     id: number;
@@ -118,6 +119,10 @@ export default function VideoEdit({ video }: VideoEditProps) {
     const [customThumbnail, setCustomThumbnail] = useState<File | null>(null);
     const [videoAnalysis, setVideoAnalysis] = useState<any>(null);
     const [thumbnailSuggestions, setThumbnailSuggestions] = useState<any[]>([]);
+    const [showThumbnailOptimizer, setShowThumbnailOptimizer] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [isGeneratingTags, setIsGeneratingTags] = useState(false);
+    const [availablePlatforms] = useState(['youtube', 'instagram', 'tiktok', 'facebook', 'twitter', 'pinterest', 'snapchat']);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const videoQuality = getVideoQualityStatus(video.width, video.height);
@@ -331,6 +336,181 @@ export default function VideoEdit({ video }: VideoEditProps) {
         predictedCTR: 6.9
     };
 
+    // Track changes for platform update button
+    useEffect(() => {
+        const initialData = {
+            title: video.title || '',
+            description: video.description || '',
+            tags: video.tags || []
+        };
+        
+        const hasChanges = JSON.stringify(data) !== JSON.stringify(initialData);
+        setHasUnsavedChanges(hasChanges);
+    }, [data, video]);
+
+    const generateTags = async () => {
+        setIsGeneratingTags(true);
+        
+        const makeRequest = async (retryCount = 0) => {
+            try {
+                // Get CSRF token with fallback
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                                document.querySelector('input[name="_token"]')?.getAttribute('value') || '';
+                
+                if (!csrfToken) {
+                    throw new Error('CSRF token not found');
+                }
+
+                const response = await fetch('/ai/analyze-video-tags', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_id: video.id,
+                        title: data.title || '',
+                        description: data.description || ''
+                    }),
+                });
+
+                // If we get a CSRF error and haven't retried yet, try to refresh the token
+                if (response.status === 419 && retryCount === 0) {
+                    console.log('CSRF token expired, refreshing...');
+                    
+                    // Try to refresh the CSRF token
+                    const tokenResponse = await fetch('/');
+                    if (tokenResponse.ok) {
+                        const html = await tokenResponse.text();
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newToken = doc.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                        
+                        if (newToken) {
+                            // Update the token in the current page
+                            const currentTokenMeta = document.querySelector('meta[name="csrf-token"]');
+                            if (currentTokenMeta) {
+                                currentTokenMeta.setAttribute('content', newToken);
+                            }
+                            
+                            // Retry the request with the new token
+                            return makeRequest(1);
+                        }
+                    }
+                }
+
+                return response;
+            } catch (error) {
+                if (retryCount === 0) {
+                    console.log('Request failed, retrying once...', error);
+                    return makeRequest(1);
+                } else {
+                    throw error;
+                }
+            }
+        };
+
+        try {
+            const response = await makeRequest();
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Tag generation response:', result);
+                
+                if (result.success && result.data && result.data.analysis.tags) {
+                    setData('tags', result.data.analysis.tags);
+                } else {
+                    console.warn('Unexpected response structure:', result);
+                    // Show user-friendly error message
+                    const errorElement = document.createElement('div');
+                    errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                    errorElement.textContent = '⚠️ Tag generation failed - unexpected response';
+                    document.body.appendChild(errorElement);
+                    setTimeout(() => {
+                        if (document.body.contains(errorElement)) {
+                            document.body.removeChild(errorElement);
+                        }
+                    }, 5000);
+                }
+            } else {
+                // Handle HTTP error response
+                const errorText = await response.text();
+                console.error('HTTP Error:', response.status, response.statusText, errorText);
+                
+                // Show user-friendly error message
+                const errorElement = document.createElement('div');
+                errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                errorElement.textContent = `⚠️ Tag generation failed - Server error (${response.status})`;
+                document.body.appendChild(errorElement);
+                setTimeout(() => {
+                    if (document.body.contains(errorElement)) {
+                        document.body.removeChild(errorElement);
+                    }
+                }, 5000);
+            }
+        } catch (error) {
+            console.error('Failed to generate tags:', error);
+            
+            // Show user-friendly error message
+            const errorElement = document.createElement('div');
+            errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            errorElement.textContent = '⚠️ Tag generation failed - Network error';
+            document.body.appendChild(errorElement);
+            setTimeout(() => {
+                if (document.body.contains(errorElement)) {
+                    document.body.removeChild(errorElement);
+                }
+            }, 5000);
+        } finally {
+            setIsGeneratingTags(false);
+        }
+    };
+
+    const addTag = (tag: string) => {
+        if (!data.tags.includes(tag)) {
+            setData('tags', [...data.tags, tag]);
+        }
+    };
+
+    const removeTag = (tagToRemove: string) => {
+        setData('tags', data.tags.filter(tag => tag !== tagToRemove));
+    };
+
+    const updateAllPlatforms = async () => {
+        try {
+            const response = await fetch(`/videos/${video.id}/update-platforms`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    title: data.title,
+                    description: data.description,
+                    tags: data.tags
+                }),
+            });
+            
+            if (response.ok) {
+                setHasUnsavedChanges(false);
+                // Show success message
+                const confirmElement = document.createElement('div');
+                confirmElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                confirmElement.textContent = '✓ All platforms updated successfully!';
+                document.body.appendChild(confirmElement);
+                
+                setTimeout(() => {
+                    if (document.body.contains(confirmElement)) {
+                        document.body.removeChild(confirmElement);
+                    }
+                }, 3000);
+            }
+        } catch (error) {
+            console.error('Failed to update platforms:', error);
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Edit: ${video.title}`} />
@@ -363,6 +543,41 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     </div>
                 </div>
 
+                {/* Update Platforms Button - Show when there are unsaved changes */}
+                {hasUnsavedChanges && (
+                    <Card className="border-blue-200 bg-blue-50">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-500 rounded-full">
+                                        <RefreshCw className="w-4 h-4 text-white" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-blue-900">Unsaved Changes Detected</p>
+                                        <p className="text-sm text-blue-700">Update all connected platforms with your changes</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button 
+                                        onClick={updateAllPlatforms}
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                        <RefreshCw className="w-4 h-4 mr-2" />
+                                        Update All Platforms
+                                    </Button>
+                                    <Button 
+                                        variant="outline"
+                                        onClick={() => {/* Add platform manager */}}
+                                    >
+                                        <Settings2 className="w-4 h-4 mr-2" />
+                                        Manage Platforms
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 {/* Simplified Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
@@ -375,40 +590,12 @@ export default function VideoEdit({ video }: VideoEditProps) {
                         <div className="grid lg:grid-cols-2 gap-6">
                             {/* Left Column */}
                             <div className="space-y-6">
-                                {/* 1. Video Preview */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Play className="w-5 h-5" />
-                                            Video Preview
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
-                                            {video.video_path || video.file_path ? (
-                                                <video 
-                                                    src={video.video_path || video.file_path}
-                                                    controls
-                                                    className="w-full h-full"
-                                                />
-                                            ) : (
-                                                <div className="flex items-center justify-center h-full text-white">
-                                                    <div className="text-center">
-                                                        <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                                        <p>No video file available</p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
 
                                 {/* 2. Subtitle Generator Button */}
                                 <Card>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
-                                            <Type className="w-5 h-5" />
-                                            Subtitles
+                                            Video Editor
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
@@ -419,6 +606,93 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                 videoTitle={video.title}
                                             />
                                         </ErrorBoundary>
+                                    </CardContent>
+                                </Card>
+
+                                {/* AI Analysis Section */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Target className="w-5 h-5" />
+                                            AI Analysis
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ErrorBoundary>
+                                            <AIVideoAnalyzer 
+                                                videoId={video.id}
+                                                videoPath={video.video_path || video.file_path}
+                                                onAnalysisComplete={handleVideoAnalysisComplete}
+                                            />
+                                        </ErrorBoundary>
+                                        {videoAnalysis && (
+                                            <div className="mt-4 space-y-3">
+                                                <div>
+                                                    <p className="text-sm font-medium text-muted-foreground">Category</p>
+                                                    <p className="text-lg">{videoAnalysis.category || 'Entertainment'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-muted-foreground">Mood</p>
+                                                    <p className="text-lg">{videoAnalysis.mood || 'Positive'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-muted-foreground">AI Tags</p>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {(videoAnalysis.tags || ['creative', 'engaging', 'trending']).map((tag: string, index: number) => (
+                                                            <Badge key={index} variant="secondary" className="text-xs">
+                                                                {tag}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                {/* AI Suggestions Section */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Zap className="w-5 h-5" />
+                                            AI Suggestions
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Most important optimization recommendations
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-4">
+                                            <div className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
+                                                <div className="flex items-start gap-3">
+                                                    <TrendingUp className="w-5 h-5 text-orange-600 mt-0.5" />
+                                                    <div>
+                                                        <h4 className="font-medium text-orange-900">Increase Engagement</h4>
+                                                        <p className="text-sm text-orange-700">Add a call-to-action in the first 5 seconds to boost viewer retention.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg">
+                                                <div className="flex items-start gap-3">
+                                                    <Eye className="w-5 h-5 text-blue-600 mt-0.5" />
+                                                    <div>
+                                                        <h4 className="font-medium text-blue-900">Optimize Thumbnail</h4>
+                                                        <p className="text-sm text-blue-700">Consider adding text overlay to your thumbnail to increase click-through rate.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="p-4 border border-green-200 bg-green-50 rounded-lg">
+                                                <div className="flex items-start gap-3">
+                                                    <Tag className="w-5 h-5 text-green-600 mt-0.5" />
+                                                    <div>
+                                                        <h4 className="font-medium text-green-900">Add More Tags</h4>
+                                                        <p className="text-sm text-green-700">Include platform-specific hashtags to improve discoverability.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </CardContent>
                                 </Card>
 
@@ -559,6 +833,73 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         </CardContent>
                                     </Card>
 
+                                    {/* Tags Section */}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2">
+                                                <Tag className="w-5 h-5" />
+                                                Tags
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="space-y-4">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {data.tags.map((tag, index) => (
+                                                        <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                                                            {tag}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeTag(tag)}
+                                                                className="ml-1 text-xs hover:text-red-600"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </Badge>
+                                                    ))}
+                                                    {data.tags.length === 0 && (
+                                                        <p className="text-sm text-gray-500">No tags added yet</p>
+                                                    )}
+                                                </div>
+                                                
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        placeholder="Add a tag..."
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                const tag = e.currentTarget.value.trim();
+                                                                if (tag) {
+                                                                    addTag(tag);
+                                                                    e.currentTarget.value = '';
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="flex-1"
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={generateTags}
+                                                        disabled={isGeneratingTags}
+                                                    >
+                                                        {isGeneratingTags ? (
+                                                            <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+                                                        ) : (
+                                                            <Sparkles className="w-4 h-4 mr-2" />
+                                                        )}
+                                                        AI Generate
+                                                    </Button>
+                                                </div>
+                                                
+                                                {data.tags.length > 0 && (
+                                                    <p className="text-xs text-gray-500">
+                                                        Tags help categorize your video and improve discoverability across platforms
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
                                     {/* Submit Button */}
                                     <div className="flex justify-end">
                                         <Button type="submit" disabled={processing}>
@@ -598,108 +939,11 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                     </CardContent>
                                 </Card>
 
-                                {/* 6. AI-Generated Category */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Target className="w-5 h-5" />
-                                            AI Analysis
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <ErrorBoundary>
-                                            <AIVideoAnalyzer 
-                                                videoId={video.id}
-                                                videoPath={video.video_path || video.file_path}
-                                                onAnalysisComplete={handleVideoAnalysisComplete}
-                                            />
-                                        </ErrorBoundary>
-                                        {videoAnalysis && (
-                                            <div className="mt-4 space-y-3">
-                                                <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Category</p>
-                                                    <p className="text-lg">{videoAnalysis.category || 'Entertainment'}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Mood</p>
-                                                    <p className="text-lg">{videoAnalysis.mood || 'Positive'}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Tags</p>
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {(videoAnalysis.tags || ['creative', 'engaging', 'trending']).map((tag: string, index: number) => (
-                                                            <Badge key={index} variant="secondary" className="text-xs">
-                                                                {tag}
-                                                            </Badge>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
 
-                                {/* 9. Scores Section */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <BarChart3 className="w-5 h-5" />
-                                            Video Scores
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="text-sm font-medium">Video Quality</span>
-                                                    <span className="text-sm text-muted-foreground">{mockScores.videoQuality}/10</span>
-                                                </div>
-                                                <Progress value={mockScores.videoQuality * 10} className="h-2" />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="text-sm font-medium">Engagement</span>
-                                                    <span className="text-sm text-muted-foreground">{mockScores.engagementScore}/10</span>
-                                                </div>
-                                                <Progress value={mockScores.engagementScore * 10} className="h-2" />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="text-sm font-medium">Virality</span>
-                                                    <span className="text-sm text-muted-foreground">{mockScores.viralityPotential}/10</span>
-                                                </div>
-                                                <Progress value={mockScores.viralityPotential * 10} className="h-2" />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                                            <div className="text-center">
-                                                <div className="flex items-center justify-center gap-1 mb-1">
-                                                    <Eye className="w-4 h-4 text-blue-600" />
-                                                    <span className="text-sm font-medium">Views</span>
-                                                </div>
-                                                <p className="text-lg font-bold text-blue-600">{mockScores.expectedViews}</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <div className="flex items-center justify-center gap-1 mb-1">
-                                                    <Heart className="w-4 h-4 text-red-600" />
-                                                    <span className="text-sm font-medium">Likes</span>
-                                                </div>
-                                                <p className="text-lg font-bold text-red-600">{mockScores.expectedLikes}</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <div className="flex items-center justify-center gap-1 mb-1">
-                                                    <Share className="w-4 h-4 text-green-600" />
-                                                    <span className="text-sm font-medium">Shares</span>
-                                                </div>
-                                                <p className="text-lg font-bold text-green-600">{mockScores.expectedShares}</p>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
                             </div>
                         </div>
 
-                        {/* 10. Thumbnail Suggestions Section */}
+                        {/* 10. Thumbnail Optimization Section */}
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -707,140 +951,45 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                     Thumbnail Optimization
                                 </CardTitle>
                                 <CardDescription>
-                                    Choose or upload a thumbnail for your video
+                                    Set your video thumbnail using AI optimization or custom upload
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <ErrorBoundary>
-                                    <AIThumbnailOptimizer 
-                                        videoId={video.id}
-                                        videoPath={video.video_path || video.file_path}
-                                        title={data.title}
+                                <div className="flex gap-2">
+                                    <Button
+                                        onClick={() => setShowThumbnailOptimizer(true)}
+                                        className="bg-purple-600 hover:bg-purple-700"
+                                    >
+                                        <Sparkles className="w-4 h-4 mr-2" />
+                                        AI Optimize Thumbnail
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        Upload Custom Thumbnail
+                                    </Button>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleThumbnailUpload}
+                                        className="hidden"
                                     />
-                                </ErrorBoundary>
-                                
-                                {/* Custom Upload and Frame Selection */}
-                                <div className="mt-6 space-y-4">
-                                    <div className="flex gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => fileInputRef.current?.click()}
-                                        >
-                                            <Upload className="w-4 h-4 mr-2" />
-                                            Upload Custom
-                                        </Button>
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleThumbnailUpload}
-                                            className="hidden"
-                                        />
-                                    </div>
-
-                                    {/* Frame Selection Slider */}
-                                    <div>
-                                        <Label className="text-sm font-medium">Select Frame from Video</Label>
-                                        <div className="mt-2 space-y-2">
-                                            <Slider
-                                                value={thumbnailSliderValue}
-                                                onValueChange={setThumbnailSliderValue}
-                                                max={video.duration || 100}
-                                                step={1}
-                                                className="w-full"
-                                            />
-                                            <p className="text-xs text-muted-foreground">
-                                                Frame at {thumbnailSliderValue[0]}s
-                                            </p>
-                                        </div>
-                                    </div>
                                 </div>
-
-                                {/* Thumbnail Rating */}
+                                
                                 {selectedThumbnail && (
-                                    <div className="mt-6 p-4 bg-gray-50 rounded-lg dark:bg-gray-800">
-                                        <h4 className="font-medium mb-3">Thumbnail Analysis</h4>
-                                        <div className="grid grid-cols-2 gap-3 text-sm">
-                                            <div className="flex justify-between">
-                                                <span>Contrast:</span>
-                                                <span className="font-medium text-green-600">{mockThumbnailRating.contrast}/10</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Face Visibility:</span>
-                                                <span className="font-medium text-green-600">{mockThumbnailRating.faceVisibility}/10</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Text Readability:</span>
-                                                <span className="font-medium text-orange-500">{mockThumbnailRating.textReadability}/10</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Emotional Appeal:</span>
-                                                <span className="font-medium text-green-600">{mockThumbnailRating.emotionalAppeal}/10</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Visual Hierarchy:</span>
-                                                <span className="font-medium text-orange-500">{mockThumbnailRating.visualHierarchy}/10</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Brand Consistency:</span>
-                                                <span className="font-medium text-green-600">{mockThumbnailRating.brandConsistency}/10</span>
-                                            </div>
-                                        </div>
-                                        <div className="mt-3 pt-3 border-t">
-                                            <div className="flex justify-between items-center">
-                                                <span className="font-medium">Predicted CTR:</span>
-                                                <span className="font-bold text-lg text-blue-600">{mockThumbnailRating.predictedCTR}%</span>
-                                            </div>
-                                        </div>
+                                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <p className="text-sm text-green-700">
+                                            ✓ Thumbnail has been set for this video
+                                        </p>
                                     </div>
                                 )}
                             </CardContent>
                         </Card>
 
-                        {/* 11. AI Suggestions Section */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Zap className="w-5 h-5" />
-                                    AI Suggestions
-                                </CardTitle>
-                                <CardDescription>
-                                    Most important optimization recommendations
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-3">
-                                    <div className="flex items-start gap-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded dark:bg-blue-950">
-                                        <Star className="w-5 h-5 text-blue-600 mt-0.5" />
-                                        <div>
-                                            <p className="font-medium text-blue-900 dark:text-blue-100">Optimize Title</p>
-                                            <p className="text-sm text-blue-700 dark:text-blue-200">
-                                                Consider adding trending keywords like "2024" or "Ultimate Guide" to increase discoverability.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 p-3 bg-green-50 border-l-4 border-green-500 rounded dark:bg-green-950">
-                                        <TrendingUp className="w-5 h-5 text-green-600 mt-0.5" />
-                                        <div>
-                                            <p className="font-medium text-green-900 dark:text-green-100">Perfect Upload Time</p>
-                                            <p className="text-sm text-green-700 dark:text-green-200">
-                                                Your audience is most active between 7-9 PM. Consider scheduling posts during this window.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 p-3 bg-orange-50 border-l-4 border-orange-500 rounded dark:bg-orange-950">
-                                        <Image className="w-5 h-5 text-orange-600 mt-0.5" />
-                                        <div>
-                                            <p className="font-medium text-orange-900 dark:text-orange-100">Thumbnail Enhancement</p>
-                                            <p className="text-sm text-orange-700 dark:text-orange-200">
-                                                Adding bright colors and clear text could improve your CTR by up to 15%.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+
                     </TabsContent>
 
                     {/* Performance Tab */}
@@ -894,6 +1043,19 @@ export default function VideoEdit({ video }: VideoEditProps) {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                {/* Thumbnail Optimizer Popup */}
+                <ThumbnailOptimizerPopup
+                    isOpen={showThumbnailOptimizer}
+                    onClose={() => setShowThumbnailOptimizer(false)}
+                    videoId={video.id}
+                    videoPath={video.video_path || video.file_path || ''}
+                    title={data.title}
+                    onThumbnailSet={() => {
+                        setSelectedThumbnail('optimized');
+                        setShowThumbnailOptimizer(false);
+                    }}
+                />
             </div>
         </AppLayout>
     );

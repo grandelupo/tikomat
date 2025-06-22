@@ -9,6 +9,7 @@ use App\Services\VideoProcessingService;
 use App\Services\VideoUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Inertia\Inertia;
@@ -494,5 +495,115 @@ class VideoController extends Controller
             'Content-Type' => $mimeType,
             'Cache-Control' => 'private, max-age=3600',
         ]);
+    }
+
+    /**
+     * Update video metadata on all connected platforms.
+     */
+    public function updateAllPlatforms(Request $request, Video $video): JsonResponse
+    {
+        $this->authorize('update', $video);
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:50',
+        ]);
+
+        try {
+            // Check if any metadata has changed
+            $titleChanged = $video->title !== $request->title;
+            $descriptionChanged = $video->description !== $request->description;
+            $tagsChanged = json_encode($video->tags ?? []) !== json_encode($request->tags ?? []);
+            
+            if (!$titleChanged && !$descriptionChanged && !$tagsChanged) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No changes detected',
+                ]);
+            }
+
+            // Update the video record
+            $video->update([
+                'title' => $request->title,
+                'description' => $request->description,
+                'tags' => $request->tags ?? [],
+            ]);
+
+            Log::info('Video metadata updated, dispatching platform updates', [
+                'video_id' => $video->id,
+                'title_changed' => $titleChanged,
+                'description_changed' => $descriptionChanged,
+                'tags_changed' => $tagsChanged,
+            ]);
+
+            // Get all successful targets and dispatch update jobs
+            $successfulTargets = $video->targets()->where('status', 'success')->get();
+            $updatedPlatforms = [];
+            $failedPlatforms = [];
+            
+            foreach ($successfulTargets as $target) {
+                try {
+                    // Mark target as processing update
+                    $target->update([
+                        'status' => 'processing',
+                        'error_message' => null,
+                    ]);
+
+                    // Dispatch update job
+                    $this->uploadService->dispatchUpdateJob($target);
+                    $updatedPlatforms[] = ucfirst($target->platform);
+                    
+                    Log::info('Dispatched platform update job', [
+                        'target_id' => $target->id,
+                        'platform' => $target->platform,
+                    ]);
+                } catch (\Exception $e) {
+                    $failedPlatforms[] = ucfirst($target->platform);
+                    Log::error('Failed to dispatch platform update job', [
+                        'target_id' => $target->id,
+                        'platform' => $target->platform,
+                        'error' => $e->getMessage(),
+                    ]);
+                    
+                    $target->update([
+                        'status' => 'failed',
+                        'error_message' => 'Failed to update video metadata: ' . $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Prepare response message
+            $message = 'Video updated successfully!';
+            if (!empty($updatedPlatforms)) {
+                $message .= ' Updates dispatched to: ' . implode(', ', $updatedPlatforms);
+            }
+            if (!empty($failedPlatforms)) {
+                $message .= ' Failed to update: ' . implode(', ', $failedPlatforms);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => [
+                    'updated_platforms' => $updatedPlatforms,
+                    'failed_platforms' => $failedPlatforms,
+                    'total_platforms' => count($successfulTargets),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update video on all platforms', [
+                'video_id' => $video->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update video on platforms: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }

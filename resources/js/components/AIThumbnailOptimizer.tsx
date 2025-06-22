@@ -74,13 +74,15 @@ interface AIThumbnailOptimizerProps {
     videoPath?: string;
     title?: string;
     className?: string;
+    onThumbnailSet?: () => void;
 }
 
 export default function AIThumbnailOptimizer({
     videoId,
     videoPath,
     title,
-    className
+    className,
+    onThumbnailSet
 }: AIThumbnailOptimizerProps) {
     const [analysis, setAnalysis] = useState<ThumbnailAnalysis | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -168,6 +170,11 @@ export default function AIThumbnailOptimizer({
                     title: "Thumbnail Set Successfully! 🎯",
                     description: "This thumbnail has been set for all platforms.",
                 });
+                
+                // Call the callback if provided
+                if (onThumbnailSet) {
+                    onThumbnailSet();
+                }
             } else {
                 throw new Error(data.message || 'Failed to set thumbnail');
             }

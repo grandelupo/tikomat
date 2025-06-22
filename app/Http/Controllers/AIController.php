@@ -3133,7 +3133,7 @@ class AIController extends Controller
     public function generateSubtitles(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'video_path' => 'required|string',
+            'video_id' => 'required|integer|exists:videos,id',
             'language' => 'nullable|string',
             'style' => 'nullable|string|in:simple,modern,neon,typewriter,bounce,confetti,glass',
             'position' => 'nullable|string|in:bottom_center,bottom_left,bottom_right,top_center,top_left,top_right,center,center_left,center_right',
@@ -3148,16 +3148,37 @@ class AIController extends Controller
         }
 
         try {
-            $videoPath = Storage::path($request->video_path);
+            // Get the video record first
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Ensure user owns this video
+            if ($video->user_id !== $request->user()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+            
+            // Check if video has a file path
+            if (!$video->original_file_path) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file path not available. Please ensure the video is properly uploaded.',
+                ], 404);
+            }
+
+            // Convert storage path to absolute path
+            $videoPath = Storage::path($video->original_file_path);
             
             if (!file_exists($videoPath)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Video file not found',
+                    'message' => 'Video file not found on disk. The file may have been moved or deleted.',
                 ], 404);
             }
 
             $options = [
+                'video_id' => $request->video_id,
                 'language' => $request->language ?? 'en',
                 'style' => $request->style ?? 'simple',
                 'position' => $request->position ?? 'bottom_center',
@@ -3167,7 +3188,8 @@ class AIController extends Controller
 
             Log::info('Subtitle generation started', [
                 'user_id' => $request->user()->id ?? null,
-                'video_path' => $request->video_path,
+                'video_id' => $video->id,
+                'video_file_path' => $video->original_file_path,
                 'generation_id' => $generation['generation_id'] ?? 'unknown',
                 'language' => $options['language'],
             ]);
@@ -3182,12 +3204,75 @@ class AIController extends Controller
             Log::error('Subtitle generation failed', [
                 'user_id' => $request->user()->id ?? null,
                 'error' => $e->getMessage(),
-                'video_path' => $request->video_path ?? 'unknown',
+                'video_id' => $request->video_id ?? 'unknown',
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to start subtitle generation. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Check if subtitles exist for a video
+     */
+    public function checkSubtitles(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Ensure user owns this video
+            if ($video->user_id !== $request->user()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+            
+            if ($video->hasSubtitles()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'generation_id' => $video->subtitle_generation_id,
+                        'processing_status' => 'completed',
+                        'subtitles' => $video->subtitle_data['subtitles'] ?? [],
+                        'language' => $video->subtitle_language,
+                        'srt_file' => $video->subtitle_file_path,
+                        'created_at' => $video->subtitles_generated_at,
+                    ],
+                    'message' => 'Existing subtitles found',
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => null,
+                'message' => 'No existing subtitles found',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Subtitle check failed', [
+                'video_id' => $request->video_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check existing subtitles.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
@@ -3351,6 +3436,12 @@ class AIController extends Controller
                 $request->format ?? 'srt'
             );
 
+            // Update the file URL to use our direct download route
+            $export['file_url'] = route('subtitle-download', [
+                'generation_id' => $request->generation_id,
+                'format' => $request->format ?? 'srt'
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $export,
@@ -3370,6 +3461,56 @@ class AIController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Download subtitle file
+     */
+    public function downloadSubtitleFile(Request $request, string $generationId, string $format = 'srt')
+    {
+        try {
+            $export = $this->subtitleGeneratorService->exportSubtitles($generationId, $format);
+            
+            if (!isset($export['file_path']) || !file_exists($export['file_path'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Subtitle file not found.',
+                ], 404);
+            }
+
+            $fileName = "subtitles_{$generationId}.{$format}";
+            
+            return response()->download($export['file_path'], $fileName, [
+                'Content-Type' => $this->getSubtitleMimeType($format),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Subtitle download failed', [
+                'generation_id' => $generationId,
+                'format' => $format,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to download subtitle file.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get MIME type for subtitle formats
+     */
+    private function getSubtitleMimeType(string $format): string
+    {
+        return match($format) {
+            'srt' => 'application/x-subrip',
+            'vtt' => 'text/vtt',
+            'ass' => 'text/x-ssa',
+            'sub' => 'text/plain',
+            default => 'text/plain',
+        };
     }
 
     /**
@@ -3890,7 +4031,7 @@ class AIController extends Controller
             }
 
             $subtitleService = new \App\Services\AISubtitleGeneratorService();
-            $result = $subtitleService->renderVideoWithSubtitles($request->generation_id, $request->video_id);
+            $result = $subtitleService->renderVideoWithSubtitles($request->generation_id, $video);
 
             return response()->json([
                 'success' => true,
@@ -3980,5 +4121,591 @@ class AIController extends Controller
                 'message' => 'Failed to set thumbnail: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Analyze video and generate tags using AI
+     */
+    public function analyzeVideoTags(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+            'title' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Verify the user owns this video
+            if ($video->user_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+
+            // Get video file path
+            if (!$video->original_file_path) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file path not available',
+                ], 404);
+            }
+
+            $videoPath = Storage::path($video->original_file_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            $startTime = microtime(true);
+
+            // Perform actual video analysis with error handling
+            try {
+                $videoAnalysis = $this->performDeepVideoAnalysis($videoPath);
+            } catch (\Exception $e) {
+                Log::error('Video analysis failed, using minimal analysis', [
+                    'video_id' => $request->video_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            Log::info('Video analysis', [
+                'video_id' => $request->video_id,
+                'video_analysis' => $videoAnalysis,
+            ]);
+
+            $tags = $videoAnalysis['suggested_tags'];
+            
+            // Ensure we have at least some basic tags if analysis didn't return any
+            if (empty($tags)) {
+                Log::warning('Video analsis failed, no tags generated', [
+                    'video_id' => $request->video_id,
+                ]);
+            }
+            
+            // Clean and limit tags
+            $tags = array_filter(array_unique($tags), function($tag) {
+                return !empty($tag) && strlen(trim($tag)) > 1;
+            });
+            $tags = array_slice(array_values($tags), 0, 12); // Limit to 12 tags
+
+            $processingTime = round(microtime(true) - $startTime, 2);
+
+            Log::info('Video tags analyzed successfully', [
+                'video_id' => $request->video_id,
+                'generated_tags_count' => count($tags),
+                'processing_time' => $processingTime,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'optimized_content' => $videoAnalysis['optimized_content'] ?? [],
+                    'analysis' => [
+                        'confidence' => $videoAnalysis['confidence'] ?? 0.88,
+                        'processing_time' => $processingTime . 's',
+                        'method' => 'AI Video Content Analysis + Content Optimization',
+                        'video_properties' => $videoAnalysis['properties'] ?? [],
+                        'detected_features' => $videoAnalysis['features'] ?? [],
+                        'content_type' => $videoAnalysis['content_type'] ?? 'general',
+                        'mood' => $videoAnalysis['mood'] ?? 'general',
+                        'target_audience' => $videoAnalysis['target_audience'] ?? 'general',
+                        'content_description' => $videoAnalysis['content_description'] ?? '',
+                        'themes' => $videoAnalysis['themes'] ?? [],
+                        'visual_elements' => $videoAnalysis['visual_elements'] ?? [],
+                        'tags' => $tags,
+                    ]
+                ],
+                'message' => 'Video analysis completed with optimized content generation',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to analyze video tags', [
+                'video_id' => $request->video_id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to analyze video tags. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Perform deep video analysis using FFmpeg and AI
+     */
+    private function performDeepVideoAnalysis(string $videoPath): array
+    {
+        try {
+            // Extract video metadata using FFmpeg
+            $ffmpegCommand = "ffprobe -v quiet -print_format json -show_format -show_streams " . escapeshellarg($videoPath);
+            $output = shell_exec($ffmpegCommand);
+            $videoData = json_decode($output, true);
+
+            // Extract video frames for analysis (3 frames at different intervals)
+            $tempDir = storage_path('app/temp');
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $frameFiles = [];
+            $duration = floatval($videoData['format']['duration'] ?? 30);
+            $intervals = [0.1, 0.5, 0.9]; // 10%, 50%, 90% through video
+
+            foreach ($intervals as $i => $interval) {
+                $timestamp = $duration * $interval;
+                $frameFile = $tempDir . '/frame_' . uniqid() . '.jpg';
+                $frameCommand = "ffmpeg -i " . escapeshellarg($videoPath) . " -ss {$timestamp} -vframes 1 -y " . escapeshellarg($frameFile) . " 2>/dev/null";
+                shell_exec($frameCommand);
+                
+                if (file_exists($frameFile)) {
+                    $frameFiles[] = $frameFile;
+                }
+            }
+
+            // Analyze video properties
+            $videoStream = null;
+            $audioStream = null;
+            
+            foreach ($videoData['streams'] ?? [] as $stream) {
+                if ($stream['codec_type'] === 'video' && !$videoStream) {
+                    $videoStream = $stream;
+                } elseif ($stream['codec_type'] === 'audio' && !$audioStream) {
+                    $audioStream = $stream;
+                }
+            }
+
+            // Generate AI description based on video analysis
+            $aiAnalysis = $this->analyzeVideoContentWithOpenAI($frameFiles, $videoData);
+
+            // Clean up temporary files
+            foreach ($frameFiles as $frameFile) {
+                if (file_exists($frameFile)) {
+                    unlink($frameFile);
+                }
+            }
+
+            return $aiAnalysis;
+
+        } catch (\Exception $e) {
+            Log::error('Video analysis failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Analyze video content using OpenAI Vision API and generate optimized content
+     */
+    private function analyzeVideoContentWithOpenAI(array $frameFiles, array $videoData): array
+    {
+        try {
+            if (empty($frameFiles)) {
+                return [
+                    'error' => 'No frame files provided',
+                ];
+            }
+
+            // Convert first frame to base64 for OpenAI analysis
+            $firstFrame = $frameFiles[0];
+            $imageData = base64_encode(file_get_contents($firstFrame));
+            
+            $openaiKey = config('openai.api_key');
+            if (!$openaiKey) {
+                throw new \Exception('OpenAI API key not configured');
+            }
+
+            // Determine if this is a short-form video (under 60 seconds)
+            $duration = floatval($videoData['format']['duration'] ?? 0);
+            $isShortForm = $duration < 60;
+            
+            // Enhanced prompt for comprehensive analysis including content optimization
+            $descriptionLength = $isShortForm ? 'short and punchy (1-2 sentences)' : 'detailed and comprehensive (2-4 sentences)';
+            $prompt = "Analyze this video frame and generate comprehensive content optimization data. " . 
+                     ($isShortForm ? "This is a short-form video (under 60 seconds), so descriptions should be brief and impactful. " : "This is a longer-form video, so descriptions can be more detailed. ") .
+                     "Provide a JSON response with the following structure:
+            {
+                \"content_type\": \"tutorial|gaming|music|comedy|tech|food|travel|fitness|beauty|diy|educational|entertainment|business|lifestyle|sports|news|general\",
+                \"features\": [\"list of detected features like 'person', 'text_overlay', 'graphics', 'product', 'landscape', etc.\"],
+                \"themes\": [\"list of thematic elements like 'professional', 'casual', 'colorful', 'minimal', 'dark', 'bright', etc.\"],
+                \"visual_elements\": [\"list of visual elements like 'close_up', 'wide_shot', 'animation', 'real_person', 'logo', 'charts', etc.\"],
+                \"mood\": \"energetic|calm|professional|fun|serious|inspiring|educational|entertaining\",
+                \"target_audience\": \"kids|teens|adults|professionals|seniors|general\",
+                \"content_description\": \"A detailed description of what's happening in the video based on the frame\",
+                \"optimized_titles\": {
+                    \"youtube\": \"Engaging YouTube title (under 60 chars)\",
+                    \"tiktok\": \"Catchy TikTok caption (under 150 chars)\",
+                    \"instagram\": \"Instagram story-style caption\",
+                    \"general\": \"Universal engaging title\"
+                },
+                \"optimized_descriptions\": {
+                    \"youtube\": \"SEO-optimized YouTube description with keywords and structure - {$descriptionLength}\",
+                    \"tiktok\": \"Fun TikTok description with trending language - {$descriptionLength}\",
+                    \"instagram\": \"Instagram description that builds community - {$descriptionLength}\",
+                    \"general\": \"Universal description suitable for all platforms - {$descriptionLength}\"
+                },
+                \"suggested_tags\": [\"list of 8-12 hashtags for best discoverability accross all social media platforms\"]
+            }
+            
+            Only respond with valid JSON, no additional text.";
+
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => 'Bearer ' . $openaiKey,
+                'Content-Type' => 'application/json',
+            ])->timeout(45)->post('https://api.openai.com/v1/chat/completions', [
+                'model' => 'gpt-4o',
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => 'You are an expert social media content optimizer and video analyst. Analyze video content and generate platform-specific optimized titles, descriptions, and hashtags that maximize engagement and discoverability.'
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => [
+                            [
+                                'type' => 'text',
+                                'text' => $prompt
+                            ],
+                            [
+                                'type' => 'image_url',
+                                'image_url' => [
+                                    'url' => 'data:image/jpeg;base64,' . $imageData
+                                ]
+                            ]
+                        ]
+                    ]
+                ],
+                'max_tokens' => 1500,
+                'temperature' => 0.7,
+            ]);
+
+            if ($response->successful()) {
+                $result = $response->json();
+                $content = $result['choices'][0]['message']['content'] ?? '{}';
+                
+                // Clean up the response and parse JSON
+                $content = trim($content);
+                $content = preg_replace('/```json\s*/', '', $content);
+                $content = preg_replace('/\s*```/', '', $content);
+                
+                $analysis = json_decode($content, true);
+                
+                // Debug logging for OpenAI response
+                Log::info('OpenAI video analysis response', [
+                    'raw_content' => $content,
+                    'parsed_analysis' => $analysis,
+                    'json_error' => json_last_error_msg(),
+                    'has_suggested_tags' => isset($analysis['suggested_tags']),
+                    'suggested_tags_count' => isset($analysis['suggested_tags']) ? count($analysis['suggested_tags']) : 0,
+                ]);
+                
+                if (json_last_error() === JSON_ERROR_NONE && is_array($analysis)) {
+                    // Process the analysis with AIContentOptimizationService
+                    $optimizedContent = $this->processVideoAnalysisWithOptimizationService($analysis, $videoData);
+                    $analysis['optimized_content'] = $optimizedContent;
+                    
+                    return $analysis;
+                }
+            }
+
+            Log::error('OpenAI video analysis failed', [
+                'error' => $response->body(),
+            ]);
+
+            return [
+                'error' => 'Analysis failed #2',
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('OpenAI video analysis failed: ' . $e->getMessage());
+            
+            return [
+                'error' => 'Analysis failed #3',
+            ];
+        }
+    }
+
+    /**
+     * Generate tags from actual video analysis
+     */
+    private function generateTagsFromVideoAnalysis(array $videoInfo): array
+    {
+        $tags = [];
+        $analysis = $videoInfo['analysis'] ?? [];
+        
+        // Add content type as primary tag
+        $contentType = $analysis['content_type'] ?? 'general';
+        if ($contentType !== 'general') {
+            $tags[] = $contentType;
+        }
+
+        // Add feature-based tags
+        $features = $analysis['features'] ?? [];
+        foreach ($features as $feature) {
+            if (strlen($feature) > 2 && !in_array($feature, $tags)) {
+                $tags[] = strtolower($feature);
+            }
+        }
+
+        // Add theme-based tags
+        $themes = $analysis['themes'] ?? [];
+        foreach ($themes as $theme) {
+            if (strlen($theme) > 2 && !in_array($theme, $tags)) {
+                $tags[] = strtolower($theme);
+            }
+        }
+
+        // Add duration-based tags
+        $duration = $videoInfo['duration'] ?? 0;
+        if ($duration > 0) {
+            if ($duration < 60) {
+                $tags[] = 'shorts';
+            } elseif ($duration > 600) {
+                $tags[] = 'longform';
+            }
+        }
+
+        // Add metadata-based tags
+        $text = strtolower(($videoInfo['title'] ?? '') . ' ' . ($videoInfo['description'] ?? ''));
+        
+        // Enhanced keyword detection
+        $keywordCategories = [
+            'tutorial' => ['tutorial', 'howto', 'guide', 'learn', 'explain', 'teach'],
+            'gaming' => ['game', 'gaming', 'play', 'gamer', 'gameplay', 'stream'],
+            'music' => ['music', 'song', 'beat', 'audio', 'sound', 'track'],
+            'comedy' => ['funny', 'laugh', 'joke', 'humor', 'comedy', 'meme'],
+            'tech' => ['tech', 'technology', 'software', 'app', 'digital', 'code'],
+            'food' => ['food', 'recipe', 'cooking', 'eat', 'chef', 'kitchen'],
+            'travel' => ['travel', 'trip', 'vacation', 'explore', 'journey', 'adventure'],
+            'fitness' => ['workout', 'fitness', 'exercise', 'health', 'gym', 'training'],
+            'beauty' => ['beauty', 'makeup', 'skincare', 'style', 'fashion', 'cosmetic'],
+            'diy' => ['diy', 'craft', 'handmade', 'creative', 'build', 'make'],
+        ];
+
+        foreach ($keywordCategories as $category => $keywords) {
+            foreach ($keywords as $keyword) {
+                if (str_contains($text, $keyword) && !in_array($category, $tags)) {
+                    $tags[] = $category;
+                    break;
+                }
+            }
+        }
+
+        // Add quality and engagement tags based on video properties
+        $properties = $analysis['properties'] ?? [];
+        if (isset($properties['resolution'])) {
+            $resolution = $properties['resolution'];
+            if (str_contains($resolution, '1920x1080') || str_contains($resolution, '1080')) {
+                $tags[] = 'hd';
+            } elseif (str_contains($resolution, '3840x2160') || str_contains($resolution, '4k')) {
+                $tags[] = 'uhd';
+            }
+        }
+
+        // Add trending and engagement tags with current year
+        $currentYear = date('Y');
+        $engagementTags = ['trending', 'viral', 'popular', $currentYear];
+        $tags = array_merge($tags, array_slice($engagementTags, 0, 2));
+
+        // Remove duplicates, empty values, and limit to 8 tags
+        $tags = array_filter(array_unique($tags), function($tag) {
+            return !empty($tag) && strlen($tag) > 1;
+        });
+
+        return array_slice($tags, 0, 8);
+    }
+
+    /**
+     * Get optimized content suggestions for a video
+     */
+    public function getOptimizedContentSuggestions(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+            'platforms' => 'nullable|array',
+            'platforms.*' => 'string|in:youtube,tiktok,instagram,facebook,twitter,snapchat,pinterest',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Verify the user owns this video
+            if ($video->user_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+
+            $platforms = $request->platforms ?? ['youtube', 'tiktok', 'instagram'];
+
+            // Use the content optimization service directly
+            $optimizations = $this->aiService->optimizeForPlatforms([
+                'title' => $video->title,
+                'description' => $video->description,
+                'platforms' => $platforms,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'optimizations' => $optimizations,
+                    'video_info' => [
+                        'title' => $video->title,
+                        'description' => $video->description,
+                        'duration' => $video->duration,
+                    ],
+                ],
+                'message' => 'Content optimization suggestions generated successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get optimized content suggestions', [
+                'video_id' => $request->video_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate content suggestions. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Process video analysis with AIContentOptimizationService
+     */
+    private function processVideoAnalysisWithOptimizationService(array $analysis, array $videoData): array
+    {
+        try {
+            // Prepare video analysis data for the optimization service
+            $videoAnalysisData = [
+                'content_type' => $analysis['content_type'] ?? 'general',
+                'mood' => $analysis['mood'] ?? 'general',
+                'themes' => $analysis['themes'] ?? [],
+                'features' => $analysis['features'] ?? [],
+                'visual_elements' => $analysis['visual_elements'] ?? [],
+                'target_audience' => $analysis['target_audience'] ?? 'general',
+                'content_description' => $analysis['content_description'] ?? '',
+                'duration' => floatval($videoData['format']['duration'] ?? 0),
+                'video_properties' => [
+                    'resolution' => $this->getVideoResolution($videoData),
+                    'has_audio' => $this->hasAudio($videoData),
+                    'file_size' => $videoData['format']['size'] ?? 0,
+                ],
+            ];
+
+            // Use the optimization service to enhance the generated content
+            $optimizedTitles = [];
+            $optimizedDescriptions = [];
+            $platformTags = [];
+
+            $platforms = ['youtube', 'tiktok', 'instagram', 'facebook', 'twitter'];
+            
+            foreach ($platforms as $platform) {
+                // Generate platform-specific optimized content using the service
+                $optimizedTitles[$platform] = $this->aiService->generateTitleFromVideoAnalysis($videoAnalysisData);
+                $optimizedDescriptions[$platform] = $this->aiService->generateDescriptionFromVideoAnalysis($videoAnalysisData);
+                
+                // Get platform-specific hashtags from analysis or generate new ones
+                if (isset($analysis['hashtags'][$platform])) {
+                    $platformTags[$platform] = $analysis['hashtags'][$platform];
+                } else {
+                    $platformTags[$platform] = $this->aiService->generateTrendingHashtags(
+                        $platform, 
+                        $analysis['content_description'] ?? 'video content', 
+                        $platform === 'instagram' ? 20 : 10
+                    );
+                }
+            }
+
+            // Merge with OpenAI generated content (prefer OpenAI if available)
+            return [
+                'titles' => array_merge($optimizedTitles, $analysis['optimized_titles'] ?? []),
+                'descriptions' => array_merge($optimizedDescriptions, $analysis['optimized_descriptions'] ?? []),
+                'tags' => [
+                    'suggested_tags' => $analysis['tags'] ?? [],
+                    'platform_hashtags' => array_merge($platformTags, $analysis['hashtags'] ?? []),
+                ],
+                'optimization_data' => [
+                    'content_type' => $analysis['content_type'] ?? 'general',
+                    'mood' => $analysis['mood'] ?? 'general',
+                    'target_audience' => $analysis['target_audience'] ?? 'general',
+                    'confidence' => 0.88,
+                    'processing_method' => 'AI Vision + Content Optimization Service',
+                ],
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Failed to process video analysis with optimization service: ' . $e->getMessage());
+            
+            // Return basic optimized content from OpenAI analysis
+            return [
+                'titles' => $analysis['optimized_titles'],
+                'descriptions' => $analysis['optimized_descriptions'],
+                'tags' => [
+                    'suggested_tags' => $analysis['suggested_tags'] ?? [],
+                    'platform_hashtags' => $analysis['hashtags'] ?? [],
+                ],
+                'optimization_data' => [
+                    'content_type' => $analysis['content_type'] ?? 'general',
+                    'mood' => 'general',
+                    'target_audience' => 'general',
+                    'confidence' => 0.5,
+                    'processing_method' => 'OpenAI Vision Only',
+                ],
+            ];
+        }
+    }
+
+    /**
+     * Get video resolution from video data
+     */
+    private function getVideoResolution(array $videoData): string
+    {
+        foreach ($videoData['streams'] ?? [] as $stream) {
+            if ($stream['codec_type'] === 'video') {
+                $width = $stream['width'] ?? 0;
+                $height = $stream['height'] ?? 0;
+                return "{$width}x{$height}";
+            }
+        }
+        return 'unknown';
+    }
+
+    /**
+     * Check if video has audio stream
+     */
+    private function hasAudio(array $videoData): bool
+    {
+        foreach ($videoData['streams'] ?? [] as $stream) {
+            if ($stream['codec_type'] === 'audio') {
+                return true;
+            }
+        }
+        return false;
     }
 }

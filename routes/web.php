@@ -64,6 +64,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('video-targets.retry');
     Route::delete('video-targets/{target}', [VideoController::class, 'deleteTarget'])
         ->name('video-targets.delete');
+    Route::post('videos/{video}/update-platforms', [VideoController::class, 'updateAllPlatforms'])
+        ->name('videos.update-platforms');
     
     // AI Content Optimization routes
     Route::prefix('ai')->name('ai.')->group(function () {
@@ -146,10 +148,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // AI Subtitle Generator
     Route::post('subtitle-generate', [AIController::class, 'generateSubtitles'])->name('subtitle-generate');
+    Route::post('subtitle-check', [AIController::class, 'checkSubtitles'])->name('subtitle-check');
     Route::post('subtitle-progress', [AIController::class, 'getSubtitleProgress'])->name('subtitle-progress');
     Route::post('subtitle-style', [AIController::class, 'updateSubtitleStyle'])->name('subtitle-style');
     Route::post('subtitle-position', [AIController::class, 'updateSubtitlePosition'])->name('subtitle-position');
     Route::post('subtitle-export', [AIController::class, 'exportSubtitles'])->name('subtitle-export');
+    Route::get('subtitle-download/{generation_id}/{format?}', [AIController::class, 'downloadSubtitleFile'])->name('subtitle-download');
     Route::post('subtitle-quality', [AIController::class, 'analyzeSubtitleQuality'])->name('subtitle-quality');
     Route::post('subtitle-apply', [AIController::class, 'applySubtitlesToVideo'])->name('subtitle-apply');
     Route::get('subtitle-languages', [AIController::class, 'getSubtitleLanguages'])->name('subtitle-languages');
@@ -161,6 +165,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('subtitle-update-position', [AIController::class, 'updateIndividualSubtitlePosition'])->name('subtitle-update-position');
     Route::post('subtitle-render-video', [AIController::class, 'renderVideoWithSubtitles'])->name('subtitle-render-video');
     Route::post('set-video-thumbnail-from-frame', [AIController::class, 'setVideoThumbnailFromFrame'])->name('set-video-thumbnail-from-frame');
+    
+    // AI Tags Generation
+    Route::post('analyze-video-tags', [AIController::class, 'analyzeVideoTags'])->name('analyze-video-tags');
+    
+    // AI Content Optimization
+    Route::post('get-optimized-content-suggestions', [AIController::class, 'getOptimizedContentSuggestions'])->name('get-optimized-content-suggestions');
     });
     
     // Workflow routes

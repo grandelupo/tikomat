@@ -19,11 +19,25 @@ class Video extends Model
         'duration',
         'video_width',
         'video_height',
+        'subtitle_generation_id',
+        'subtitle_status',
+        'subtitle_language',
+        'subtitle_file_path',
+        'subtitle_data',
+        'subtitles_generated_at',
     ];
 
     protected $appends = [
         'formatted_duration',
         'video_path',
+    ];
+
+    protected $casts = [
+        'subtitle_data' => 'array',
+        'subtitles_generated_at' => 'datetime',
+        'duration' => 'integer',
+        'video_width' => 'integer',
+        'video_height' => 'integer',
     ];
 
     /**
@@ -96,4 +110,14 @@ class Video extends Model
     {
         return $this->duration <= 60;
     }
+
+    /**
+     * Check if subtitles have been generated for this video.
+     */
+    public function hasSubtitles(): bool
+    {
+        return $this->subtitle_status === 'completed' && !empty($this->subtitle_data);
+    }
+
+
 }

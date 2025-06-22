@@ -101,4 +101,15 @@ return [
         'redirect' => rtrim(env('APP_URL'), '/') . '/auth/dropbox/callback',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | AI Services
+    |--------------------------------------------------------------------------
+    */
+
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'organization' => env('OPENAI_ORGANIZATION'),
+    ],
+
 ];

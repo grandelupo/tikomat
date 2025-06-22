@@ -137,6 +137,27 @@ class AISubtitleGeneratorService
     public function generateSubtitles(string $videoPath, array $options = [])
     {
         try {
+            $videoId = $options['video_id'] ?? null;
+            $video = null;
+            
+            // If video ID is provided, check if subtitles already exist
+            if ($videoId) {
+                $video = \App\Models\Video::find($videoId);
+                if ($video && $video->hasSubtitles()) {
+                    Log::info('Returning existing subtitles for video: ' . $videoId);
+                    // Return existing subtitle data
+                    return [
+                        'generation_id' => $video->subtitle_generation_id,
+                        'processing_status' => 'completed',
+                        'subtitles' => $video->subtitle_data['subtitles'] ?? [],
+                        'language' => $video->subtitle_language,
+                        'srt_file' => $video->subtitle_file_path,
+                        'created_at' => $video->subtitles_generated_at,
+                        'video_path' => $videoPath,
+                    ];
+                }
+            }
+
             $generationId = uniqid('sub_gen_');
             Log::info('Starting real subtitle generation: ' . $generationId, ['video_path' => $videoPath]);
 
@@ -145,10 +166,20 @@ class AISubtitleGeneratorService
                 throw new \Exception('Video file not found at path: ' . $videoPath);
             }
 
+            // Update video status if video ID provided
+            if ($video) {
+                $video->update([
+                    'subtitle_generation_id' => $generationId,
+                    'subtitle_status' => 'processing',
+                    'subtitle_language' => $options['language'] ?? 'en',
+                ]);
+            }
+
             // Initialize generation state
             $generation = [
                 'generation_id' => $generationId,
                 'video_path' => $videoPath,
+                'video_id' => $videoId,
                 'processing_status' => 'processing',
                 'language' => $options['language'] ?? 'en',
                 'style' => $options['style'] ?? 'simple',
@@ -161,7 +192,6 @@ class AISubtitleGeneratorService
                     'total_duration' => $this->getVideoDuration($videoPath)
                 ],
                 'subtitles' => [],
-                'quality_metrics' => null,
                 'audio_file' => null,
                 'srt_file' => null,
                 'processed_video' => null
@@ -209,9 +239,27 @@ class AISubtitleGeneratorService
             $generation['subtitles'] = $subtitles;
             $generation['audio_file'] = $audioPath;
             $generation['srt_file'] = $srtPath;
-            $generation['quality_metrics'] = $this->analyzeTranscriptionQuality($subtitles);
             $generation['style_config'] = $this->subtitleStyles[$options['style'] ?? 'simple'];
             $generation['position_config'] = $this->positionPresets[$options['position'] ?? 'bottom_center'];
+            
+            // Save to database if video ID provided
+            if (isset($generation['video_id']) && $generation['video_id']) {
+                $video = \App\Models\Video::find($generation['video_id']);
+                if ($video) {
+                    $video->update([
+                        'subtitle_status' => 'completed',
+                        'subtitle_file_path' => $srtPath,
+                        'subtitle_data' => [
+                            'generation_id' => $generationId,
+                            'subtitles' => $subtitles,
+                            'language' => $generation['language'],
+                            'style' => $generation['style'],
+                            'position' => $generation['position'],
+                        ],
+                        'subtitles_generated_at' => now(),
+                    ]);
+                }
+            }
             
             Cache::put("subtitle_generation_{$generationId}", $generation, 7200);
             
@@ -267,23 +315,49 @@ class AISubtitleGeneratorService
         }
 
         try {
-            // Use OpenAI Whisper API for transcription
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $apiKey,
-            ])
-            ->attach('file', file_get_contents($audioPath), basename($audioPath))
-            ->post('https://api.openai.com/v1/audio/transcriptions', [
-                'model' => 'whisper-1',
-                'language' => $language,
-                'response_format' => 'verbose_json',
-                'timestamp_granularities' => ['word', 'segment']
+            // Use cURL for the OpenAI Whisper API transcription
+            $curl = curl_init();
+            
+            curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://api.openai.com/v1/audio/transcriptions',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $apiKey,
+                ],
+                CURLOPT_POSTFIELDS => [
+                    'file' => new \CURLFile($audioPath, 'audio/wav', basename($audioPath)),
+                    'model' => 'whisper-1',
+                    'language' => $language,
+                    'response_format' => 'verbose_json',
+                    'timestamp_granularities[]' => 'word',
+                    'timestamp_granularities[]' => 'segment'
+                ],
+                CURLOPT_TIMEOUT => 300, // 5 minutes timeout
             ]);
-
-            if (!$response->successful()) {
-                throw new \Exception('OpenAI API error: ' . $response->body());
+            
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $error = curl_error($curl);
+            curl_close($curl);
+            
+            if ($error) {
+                throw new \Exception('cURL error: ' . $error);
+            }
+            
+            if ($httpCode !== 200) {
+                Log::error('OpenAI API error', [
+                    'status' => $httpCode,
+                    'body' => $response
+                ]);
+                throw new \Exception('OpenAI API error (HTTP ' . $httpCode . '): ' . $response);
             }
 
-            $transcription = $response->json();
+            $transcription = json_decode($response, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \Exception('Invalid JSON response from OpenAI API: ' . json_last_error_msg());
+            }
             
             // Clean up audio file
             if (file_exists($audioPath)) {
@@ -483,6 +557,13 @@ class AISubtitleGeneratorService
 
     private function generateDownloadUrl(string $filePath): string
     {
+        // Handle subtitle files in the subtitles directory
+        if (strpos($filePath, '/subtitles/') !== false) {
+            $relativePath = str_replace(storage_path('app/'), '', $filePath);
+            return url('storage/' . $relativePath);
+        }
+        
+        // For other files, use the standard storage path
         $relativePath = str_replace(storage_path('app/'), '', $filePath);
         return url('storage/' . $relativePath);
     }
@@ -558,11 +639,31 @@ class AISubtitleGeneratorService
 
     public function getGenerationProgress(string $generationId)
     {
-        return Cache::get("subtitle_generation_{$generationId}", [
+        // First check cache
+        $cached = Cache::get("subtitle_generation_{$generationId}");
+        if ($cached) {
+            return $cached;
+        }
+
+        // Then check database for completed subtitles
+        $video = \App\Models\Video::where('subtitle_generation_id', $generationId)->first();
+        if ($video && $video->hasSubtitles()) {
+            return [
+                'generation_id' => $generationId,
+                'processing_status' => 'completed',
+                'subtitles' => $video->subtitle_data['subtitles'] ?? [],
+                'language' => $video->subtitle_language,
+                'srt_file' => $video->subtitle_file_path,
+                'created_at' => $video->subtitles_generated_at,
+                'video_id' => $video->id,
+            ];
+        }
+
+        return [
             'generation_id' => $generationId,
             'processing_status' => 'not_found',
             'error' => 'Generation process not found'
-        ]);
+        ];
     }
 
     public function updateSubtitleStyle(string $generationId, string $style, array $customProperties = [])
