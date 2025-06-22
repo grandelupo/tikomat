@@ -116,7 +116,32 @@ class Video extends Model
      */
     public function hasSubtitles(): bool
     {
-        return $this->subtitle_status === 'completed' && !empty($this->subtitle_data);
+        if ($this->subtitle_status !== 'completed') {
+            return false;
+        }
+        
+        $subtitleData = $this->subtitle_data;
+        if (!$subtitleData) {
+            return false;
+        }
+        
+        // Handle if subtitle_data is still stored as JSON string
+        if (is_string($subtitleData)) {
+            $subtitleData = json_decode($subtitleData, true);
+        }
+        
+        if (!is_array($subtitleData) || !isset($subtitleData['subtitles'])) {
+            return false;
+        }
+        
+        $subtitles = $subtitleData['subtitles'];
+        
+        // Handle if subtitles within subtitle_data is still a JSON string
+        if (is_string($subtitles)) {
+            $subtitles = json_decode($subtitles, true);
+        }
+        
+        return is_array($subtitles) && !empty($subtitles);
     }
 
 

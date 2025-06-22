@@ -359,6 +359,16 @@ class AISubtitleGeneratorService
                 throw new \Exception('Invalid JSON response from OpenAI API: ' . json_last_error_msg());
             }
             
+            // Debug: Log the complete OpenAI response to understand word timing data
+            Log::info('OpenAI Whisper API Response', [
+                'duration' => $transcription['duration'] ?? 'unknown',
+                'language' => $transcription['language'] ?? 'unknown',
+                'segments_count' => count($transcription['segments'] ?? []),
+                'has_words' => isset($transcription['words']),
+                'first_segment_has_words' => isset($transcription['segments'][0]['words']) ? count($transcription['segments'][0]['words']) : 0,
+                'sample_segment' => $transcription['segments'][0] ?? null,
+            ]);
+            
             // Clean up audio file
             if (file_exists($audioPath)) {
                 unlink($audioPath);
@@ -400,7 +410,7 @@ class AISubtitleGeneratorService
                 }
             }
 
-            $subtitles[] = [
+            $subtitle = [
                 'id' => uniqid('sub_'),
                 'index' => $index + 1,
                 'start_time' => $segment['start'] ?? 0,
@@ -410,8 +420,20 @@ class AISubtitleGeneratorService
                 'words' => $words,
                 'confidence' => $segment['avg_logprob'] ?? 0.9,
                 'position' => ['x' => 50, 'y' => 85],
+                'style' => $this->getDefaultSubtitleStyle(),
                 'no_speech_prob' => $segment['no_speech_prob'] ?? 0
             ];
+            
+            // Debug: Log subtitle processing
+            Log::info('Processing subtitle segment', [
+                'index' => $index,
+                'text' => $subtitle['text'],
+                'words_count' => count($words),
+                'has_word_timing' => !empty($words),
+                'sample_words' => array_slice($words, 0, 3), // First 3 words
+            ]);
+            
+            $subtitles[] = $subtitle;
         }
 
         return $subtitles;
@@ -648,10 +670,21 @@ class AISubtitleGeneratorService
         // Then check database for completed subtitles
         $video = \App\Models\Video::where('subtitle_generation_id', $generationId)->first();
         if ($video && $video->hasSubtitles()) {
+            $subtitleData = $video->subtitle_data;
+            // Handle if subtitle_data is still stored as JSON string
+            if (is_string($subtitleData)) {
+                $subtitleData = json_decode($subtitleData, true);
+            }
+            
+            // Handle if subtitles within subtitle_data is still a JSON string
+            if (isset($subtitleData['subtitles']) && is_string($subtitleData['subtitles'])) {
+                $subtitleData['subtitles'] = json_decode($subtitleData['subtitles'], true);
+            }
+            
             return [
                 'generation_id' => $generationId,
                 'processing_status' => 'completed',
-                'subtitles' => $video->subtitle_data['subtitles'] ?? [],
+                'subtitles' => $subtitleData['subtitles'] ?? [],
                 'language' => $video->subtitle_language,
                 'srt_file' => $video->subtitle_file_path,
                 'created_at' => $video->subtitles_generated_at,
@@ -1248,5 +1281,42 @@ class AISubtitleGeneratorService
         }
         
         return $srtPath;
+    }
+
+    public function applyStyleToAllSubtitles(string $generationId, array $style)
+    {
+        $generation = Cache::get("subtitle_generation_{$generationId}");
+        
+        if (!$generation || $generation['processing_status'] !== 'completed') {
+            throw new \Exception('Subtitle generation not found or not completed');
+        }
+
+        $subtitles = $generation['subtitles'];
+        foreach ($subtitles as &$subtitle) {
+            $subtitle['style'] = array_merge($subtitle['style'] ?? [], $style);
+        }
+
+        $generation['subtitles'] = $subtitles;
+        Cache::put("subtitle_generation_{$generationId}", $generation, 7200);
+
+        // Also update in database if video_id is available
+        if (isset($generation['video_id'])) {
+            $video = \App\Models\Video::find($generation['video_id']);
+            if ($video) {
+                $video->subtitle_data = [
+                    'generation_id' => $generationId,
+                    'subtitles' => $subtitles,
+                    'language' => $generation['language'] ?? 'en',
+                    'style' => $generation['style'] ?? 'simple',
+                    'position' => $generation['position'] ?? 'bottom_center',
+                ];
+                $video->save();
+            }
+        }
+
+        return [
+            'success' => true,
+            'subtitles' => $subtitles
+        ];
     }
 } 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Download, Languages, Mic, Film, Upload, Type, Bold, Italic, Underline, AlignCenter, AlignLeft, AlignRight, Palette, RotateCcw, RotateCw, Move, Settings, Camera, Maximize, Minimize } from 'lucide-react';
+import { Play, Pause, Download, Languages, Mic, Film, Upload, Type, Bold, Italic, Underline, AlignCenter, AlignLeft, AlignRight, Palette, RotateCcw, RotateCw, Move, Settings, Camera, Maximize, Minimize, Wand2 } from 'lucide-react';
+import AdvancedSubtitleRenderer from './AdvancedSubtitleRenderer';
 
 interface Subtitle {
   id: string;
@@ -16,8 +17,8 @@ interface Subtitle {
 
 interface WordTiming {
   word: string;
-  start: number;
-  end: number;
+  start_time: number;
+  end_time: number;
   confidence: number;
 }
 
@@ -147,7 +148,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
         underline: false,
         borderRadius: 8,
         padding: 12,
-        textShadow: '0 0 10px #00FFFF, 0 0 20px #00FFFF, 0 0 30px #00FFFF',
+        textShadow: '0 0 10px #00FFFF, 0 0 20px #00FFFF',
         preset: 'neon'
       }
     },
@@ -157,15 +158,15 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
         fontFamily: 'Comic Sans MS, cursive',
         fontSize: 30,
         fontWeight: 'bold',
-        color: '#FF1493',
-        backgroundColor: 'linear-gradient(45deg, #FFD700, #FF69B4, #00CED1)',
+        color: '#FFFFFF',
+        backgroundColor: 'transparent',
         textAlign: 'center' as const,
         bold: true,
         italic: false,
         underline: false,
-        borderRadius: 12,
-        padding: 10,
-        textShadow: '2px 2px 0px #FFFFFF, 4px 4px 0px #FF1493',
+        borderRadius: 0,
+        padding: 4,
+        textShadow: '2px 2px 0px #000000, -2px -2px 0px #000000, 2px -2px 0px #000000, -2px 2px 0px #000000',
         preset: 'confetti'
       }
     },
@@ -173,17 +174,17 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
       name: 'Bubbles',
       style: {
         fontFamily: 'Trebuchet MS, sans-serif',
-        fontSize: 26,
+        fontSize: 28,
         fontWeight: 'bold',
-        color: '#4169E1',
-        backgroundColor: 'rgba(173, 216, 230, 0.9)',
+        color: '#FFFFFF',
+        backgroundColor: 'transparent',
         textAlign: 'center' as const,
         bold: true,
         italic: false,
         underline: false,
-        borderRadius: 20,
-        padding: 12,
-        textShadow: '1px 1px 2px rgba(255, 255, 255, 0.8)',
+        borderRadius: 0,
+        padding: 4,
+        textShadow: '3px 3px 6px rgba(0, 0, 0, 0.8)',
         preset: 'bubbles'
       }
     }
@@ -194,7 +195,6 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
 
   useEffect(() => {
     loadAvailableLanguages();
-    checkExistingSubtitles();
     return () => {
       if (pollingInterval) {
         clearInterval(pollingInterval);
@@ -202,9 +202,21 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     };
   }, []);
 
-  const checkExistingSubtitles = async () => {
-    if (!videoId) return;
+  // Separate useEffect for checking existing subtitles when videoId becomes available
+  useEffect(() => {
+    if (videoId) {
+      console.log('Checking existing subtitles for video ID:', videoId);
+      checkExistingSubtitles();
+    }
+  }, [videoId]);
 
+  const checkExistingSubtitles = async () => {
+    if (!videoId) {
+      console.log('No video ID available, skipping subtitle check');
+      return;
+    }
+
+    console.log('Checking for existing subtitles for video:', videoId);
     try {
       // Check if subtitles already exist for this video
       const response = await fetch('/ai/subtitle-check', {
@@ -219,11 +231,27 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
       });
 
       const result = await response.json();
+      console.log('Subtitle check response:', result);
+      
       if (result.success && result.data && result.data.processing_status === 'completed') {
+        console.log('Found existing subtitles, loading them:', result.data);
+        
+        // Ensure all subtitles have proper style objects
+        const subtitlesWithStyles = result.data.subtitles?.map((subtitle: any) => ({
+          ...subtitle,
+          style: subtitle.style || defaultStyle,
+          position: subtitle.position || { x: 50, y: 85 }
+        })) || [];
+        
         setGenerationData({
           ...result.data,
-          original_video_path: videoPath
+          original_video_path: videoPath,
+          subtitles: subtitlesWithStyles
         });
+        
+        console.log('Loaded subtitles with styles:', subtitlesWithStyles);
+      } else {
+        console.log('No existing subtitles found for this video');
       }
     } catch (error) {
       console.error('Error checking existing subtitles:', error);
@@ -560,6 +588,45 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     }
   };
 
+  const applyStyleToAllSubtitles = async (presetKey: string) => {
+    if (!generationData) return;
+
+    const preset = subtitleStylePresets[presetKey as keyof typeof subtitleStylePresets];
+    if (!preset) return;
+
+    try {
+      const response = await fetch('/ai/apply-style-to-all-subtitles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        },
+        body: JSON.stringify({
+          generation_id: generationData.generation_id,
+          style: preset.style
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state
+        setGenerationData(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            subtitles: prev.subtitles.map(sub => ({
+              ...sub,
+              style: { ...preset.style }
+            }))
+          };
+        });
+        setSelectedStylePreset(presetKey);
+      }
+    } catch (error) {
+      console.error('Failed to apply style to all subtitles:', error);
+    }
+  };
+
   // Drag and drop handlers
   const handleSubtitleMouseDown = (e: React.MouseEvent, subtitleId: string) => {
     e.preventDefault();
@@ -835,6 +902,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
+                style={{ position: 'relative' }}
               >
                 <video
                   ref={videoRef}
@@ -845,64 +913,39 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   onPause={() => setIsPlaying(false)}
                 />
                 
-                {/* Subtitle Overlay */}
-                {currentSubtitle && (
-                  <div
-                    className={`absolute cursor-move select-none ${
-                      currentSubtitle.style?.preset === 'confetti' ? 'animate-pulse' : ''
-                    } ${
-                      currentSubtitle.style?.preset === 'neon' ? 'animate-pulse' : ''
-                    }`}
-                    style={{
-                      left: `${currentSubtitle.position.x}%`,
-                      top: `${currentSubtitle.position.y}%`,
-                      transform: 'translate(-50%, -50%)',
-                      fontFamily: currentSubtitle.style?.fontFamily || defaultStyle.fontFamily,
-                      fontSize: `${currentSubtitle.style?.fontSize || defaultStyle.fontSize}px`,
-                      fontWeight: currentSubtitle.style?.fontWeight || defaultStyle.fontWeight,
-                      color: currentSubtitle.style?.color || defaultStyle.color,
-                      background: currentSubtitle.style?.backgroundColor?.includes('gradient') 
-                        ? currentSubtitle.style.backgroundColor 
-                        : undefined,
-                      backgroundColor: !currentSubtitle.style?.backgroundColor?.includes('gradient') 
-                        ? (currentSubtitle.style?.backgroundColor || defaultStyle.backgroundColor)
-                        : undefined,
-                      textAlign: currentSubtitle.style?.textAlign || defaultStyle.textAlign,
-                      borderRadius: `${currentSubtitle.style?.borderRadius || defaultStyle.borderRadius}px`,
-                      padding: `${currentSubtitle.style?.padding || defaultStyle.padding}px`,
-                      textShadow: currentSubtitle.style?.textShadow || defaultStyle.textShadow,
-                      fontStyle: currentSubtitle.style?.italic ? 'italic' : 'normal',
-                      textDecoration: currentSubtitle.style?.underline ? 'underline' : 'none',
-                      border: currentSubtitle.style?.preset === 'bubbles' ? '2px solid rgba(65, 105, 225, 0.3)' : undefined,
-                      boxShadow: currentSubtitle.style?.preset === 'bubbles' ? '0 4px 12px rgba(65, 105, 225, 0.2)' : 
-                                currentSubtitle.style?.preset === 'neon' ? '0 0 20px rgba(0, 255, 255, 0.5)' : undefined,
-                    }}
-                    onMouseDown={(e) => handleSubtitleMouseDown(e, currentSubtitle.id)}
-                    onDoubleClick={() => startEditingSubtitle(currentSubtitle.id)}
-                  >
-                    {editingSubtitle === currentSubtitle.id ? (
-                      <input
-                        type="text"
-                        value={subtitleText}
-                        onChange={(e) => setSubtitleText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            saveSubtitleEdit();
-                          } else if (e.key === 'Escape') {
-                            setEditingSubtitle(null);
-                            setSubtitleText('');
-                          }
+                {/* Subtitle Overlay Container - positioned absolutely over video */}
+                <div 
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ 
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 10
+                  }}
+                >
+                  {/* Subtitle Overlay with Advanced Renderer */}
+                  {currentSubtitle && (
+                    <div style={{ pointerEvents: 'auto' }}>
+                      <AdvancedSubtitleRenderer
+                        subtitle={currentSubtitle}
+                        currentTime={currentTime}
+                        position={currentSubtitle.position}
+                        onMouseDown={(e) => handleSubtitleMouseDown(e, currentSubtitle.id)}
+                        onDoubleClick={() => startEditingSubtitle(currentSubtitle.id)}
+                        editingSubtitle={editingSubtitle === currentSubtitle.id}
+                        editingText={subtitleText}
+                        onTextChange={setSubtitleText}
+                        onSaveEdit={saveSubtitleEdit}
+                        onCancelEdit={() => {
+                          setEditingSubtitle(null);
+                          setSubtitleText('');
                         }}
-                        onBlur={saveSubtitleEdit}
-                        className="bg-transparent border-none outline-none text-center"
-                        style={{ color: 'inherit', fontSize: 'inherit', fontFamily: 'inherit' }}
-                        autoFocus
                       />
-                    ) : (
-                      currentSubtitle.text
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Video Controls */}
@@ -1058,16 +1101,10 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   </div>
                   <div className="mt-3 flex justify-end">
                     <button
-                      onClick={() => {
-                        if (generationData?.subtitles) {
-                          const selectedPreset = subtitleStylePresets[selectedStylePreset as keyof typeof subtitleStylePresets];
-                          generationData.subtitles.forEach(subtitle => {
-                            updateSubtitleStyle(subtitle.id, { ...selectedPreset.style });
-                          });
-                        }
-                      }}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                      onClick={() => applyStyleToAllSubtitles(selectedStylePreset)}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
                     >
+                      <Wand2 className="w-4 h-4" />
                       Apply to All Subtitles
                     </button>
                   </div>
@@ -1099,7 +1136,14 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                     <label className="block text-sm font-medium text-gray-700 mb-2">Background</label>
                     <input
                       type="color"
-                      value={generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.backgroundColor?.replace('rgba(0, 0, 0, 0.7)', '#000000') || '#000000'}
+                      value={(() => {
+                        const bgColor = generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.backgroundColor || '#000000';
+                        // Convert RGBA values to hex for color input
+                        if (bgColor.startsWith('rgba(0, 0, 0, 0.7)')) return '#000000';
+                        if (bgColor.startsWith('rgba(0, 20, 40, 0.8)')) return '#001428';
+                        if (bgColor === 'transparent') return '#000000';
+                        return bgColor.startsWith('#') ? bgColor : '#000000';
+                      })()}
                       onChange={(e) => updateSubtitleStyle(selectedSubtitle, { backgroundColor: e.target.value })}
                       className="w-full h-8 rounded border"
                     />

@@ -154,6 +154,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('subtitle-position', [AIController::class, 'updateSubtitlePosition'])->name('subtitle-position');
     Route::post('subtitle-export', [AIController::class, 'exportSubtitles'])->name('subtitle-export');
     Route::get('subtitle-download/{generation_id}/{format?}', [AIController::class, 'downloadSubtitleFile'])->name('subtitle-download');
+    Route::post('apply-style-to-all-subtitles', [AIController::class, 'applyStyleToAllSubtitles'])->name('apply-style-to-all-subtitles');
     Route::post('subtitle-quality', [AIController::class, 'analyzeSubtitleQuality'])->name('subtitle-quality');
     Route::post('subtitle-apply', [AIController::class, 'applySubtitlesToVideo'])->name('subtitle-apply');
     Route::get('subtitle-languages', [AIController::class, 'getSubtitleLanguages'])->name('subtitle-languages');

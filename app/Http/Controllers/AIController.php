@@ -3243,21 +3243,50 @@ class AIController extends Controller
                 ], 403);
             }
             
+            Log::info('Checking subtitles for video', [
+                'video_id' => $video->id,
+                'has_subtitles' => $video->hasSubtitles(),
+                'subtitle_generation_id' => $video->subtitle_generation_id,
+                'subtitle_status' => $video->subtitle_status,
+                'subtitle_data_count' => $video->subtitle_data ? count($video->subtitle_data['subtitles'] ?? []) : 0,
+            ]);
+            
             if ($video->hasSubtitles()) {
+                $videoSubtitleData = $video->subtitle_data;
+                // Handle if subtitle_data is still stored as JSON string
+                if (is_string($videoSubtitleData)) {
+                    $videoSubtitleData = json_decode($videoSubtitleData, true);
+                }
+                
+                // Handle if subtitles within subtitle_data is still a JSON string
+                if (isset($videoSubtitleData['subtitles']) && is_string($videoSubtitleData['subtitles'])) {
+                    $videoSubtitleData['subtitles'] = json_decode($videoSubtitleData['subtitles'], true);
+                }
+                
+                $subtitleData = [
+                    'generation_id' => $video->subtitle_generation_id,
+                    'processing_status' => 'completed',
+                    'subtitles' => $videoSubtitleData['subtitles'] ?? [],
+                    'language' => $video->subtitle_language,
+                    'srt_file' => $video->subtitle_file_path,
+                    'created_at' => $video->subtitles_generated_at,
+                ];
+                
+                Log::info('Returning existing subtitles', [
+                    'video_id' => $video->id,
+                    'subtitle_count' => count($subtitleData['subtitles']),
+                    'generation_id' => $subtitleData['generation_id'],
+                ]);
+                
                 return response()->json([
                     'success' => true,
-                    'data' => [
-                        'generation_id' => $video->subtitle_generation_id,
-                        'processing_status' => 'completed',
-                        'subtitles' => $video->subtitle_data['subtitles'] ?? [],
-                        'language' => $video->subtitle_language,
-                        'srt_file' => $video->subtitle_file_path,
-                        'created_at' => $video->subtitles_generated_at,
-                    ],
+                    'data' => $subtitleData,
                     'message' => 'Existing subtitles found',
                 ]);
             }
 
+            Log::info('No existing subtitles found', ['video_id' => $video->id]);
+            
             return response()->json([
                 'success' => true,
                 'data' => null,
@@ -3511,6 +3540,50 @@ class AIController extends Controller
             'sub' => 'text/plain',
             default => 'text/plain',
         };
+    }
+
+    /**
+     * Apply style to all subtitles
+     */
+    public function applyStyleToAllSubtitles(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'generation_id' => 'required|string',
+            'style' => 'required|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $result = $this->subtitleGeneratorService->applyStyleToAllSubtitles(
+                $request->input('generation_id'),
+                $request->input('style')
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $result,
+                'message' => 'Style applied to all subtitles successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Apply style to all subtitles failed', [
+                'generation_id' => $request->input('generation_id'),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to apply style to all subtitles. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
     /**

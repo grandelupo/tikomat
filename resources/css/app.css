@@ -157,3 +157,81 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Advanced Subtitle Effects */
+@keyframes confetti-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) rotate(-10deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1) rotate(5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.subtitle-container.confetti .subtitle-content span {
+  animation: confetti-pop 0.3s ease-out;
+}
+
+.subtitle-container.neon {
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+.subtitle-container.neon .subtitle-content {
+  text-shadow: 0 0 10px #00FFFF, 0 0 20px #00FFFF;
+}
+
+@keyframes bubble-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.subtitle-container.bubbles .subtitle-content span {
+  transition: all 0.3s ease-out;
+}
+
+.subtitle-container {
+  pointer-events: auto;
+  z-index: 10;
+  white-space: nowrap;
+  max-width: 80vw;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.subtitle-content {
+  display: inline-block;
+}
+
+.subtitle-editor {
+  background: transparent !important;
+  border: 2px dashed rgba(255, 255, 255, 0.5) !important;
+  outline: none !important;
+  text-align: center;
+  color: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  width: 100%;
+  min-width: 100px;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.subtitle-editor:focus {
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(0, 0, 0, 0.3) !important;
+}
