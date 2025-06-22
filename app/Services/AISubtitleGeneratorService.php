@@ -230,7 +230,11 @@ class AISubtitleGeneratorService
             $this->updateProgress($generationId, 'file_generation', 80);
             $srtPath = $this->generateSRTFile($subtitles, $generationId);
             
-            // Step 5: Complete processing
+            // Step 5: Generate word timing file
+            $this->updateProgress($generationId, 'word_timing_generation', 90);
+            $wordTimingPath = $this->generateWordTimingFile($subtitles, $generationId);
+            
+            // Step 6: Complete processing
             $this->updateProgress($generationId, 'completed', 100);
             
             // Update final result
@@ -239,6 +243,7 @@ class AISubtitleGeneratorService
             $generation['subtitles'] = $subtitles;
             $generation['audio_file'] = $audioPath;
             $generation['srt_file'] = $srtPath;
+            $generation['word_timing_file'] = $wordTimingPath;
             $generation['style_config'] = $this->subtitleStyles[$options['style'] ?? 'simple'];
             $generation['position_config'] = $this->positionPresets[$options['position'] ?? 'bottom_center'];
             
@@ -255,6 +260,7 @@ class AISubtitleGeneratorService
                             'language' => $generation['language'],
                             'style' => $generation['style'],
                             'position' => $generation['position'],
+                            'word_timing_file' => $wordTimingPath,
                         ],
                         'subtitles_generated_at' => now(),
                     ]);
@@ -365,8 +371,10 @@ class AISubtitleGeneratorService
                 'language' => $transcription['language'] ?? 'unknown',
                 'segments_count' => count($transcription['segments'] ?? []),
                 'has_words' => isset($transcription['words']),
+                'words_count' => isset($transcription['words']) ? count($transcription['words']) : 0,
                 'first_segment_has_words' => isset($transcription['segments'][0]['words']) ? count($transcription['segments'][0]['words']) : 0,
                 'sample_segment' => $transcription['segments'][0] ?? null,
+                'sample_words' => isset($transcription['words']) ? array_slice($transcription['words'], 0, 5) : 'none',
             ]);
             
             // Clean up audio file
@@ -394,12 +402,25 @@ class AISubtitleGeneratorService
     {
         $subtitles = [];
         $segments = $transcription['segments'] ?? [];
+        $globalWords = $transcription['words'] ?? [];
+
+        // Create a map of global words by start time for easier lookup
+        $wordMap = [];
+        foreach ($globalWords as $wordData) {
+            $startTime = $wordData['start'] ?? 0;
+            $wordMap[$startTime] = [
+                'word' => $wordData['word'] ?? '',
+                'start_time' => $wordData['start'] ?? 0,
+                'end_time' => $wordData['end'] ?? 0,
+                'confidence' => $wordData['probability'] ?? 0.9
+            ];
+        }
 
         foreach ($segments as $index => $segment) {
             $words = [];
             
-            // Process word-level timings if available
-            if (isset($segment['words'])) {
+            // First try to get words from segment
+            if (isset($segment['words']) && !empty($segment['words'])) {
                 foreach ($segment['words'] as $wordData) {
                     $words[] = [
                         'word' => $wordData['word'] ?? '',
@@ -407,6 +428,25 @@ class AISubtitleGeneratorService
                         'end_time' => $wordData['end'] ?? 0,
                         'confidence' => $wordData['probability'] ?? 0.9
                     ];
+                }
+            } else {
+                // Fallback: extract words from global words array that fall within this segment's time range
+                $segmentStart = $segment['start'] ?? 0;
+                $segmentEnd = $segment['end'] ?? 0;
+                
+                foreach ($globalWords as $wordData) {
+                    $wordStart = $wordData['start'] ?? 0;
+                    $wordEnd = $wordData['end'] ?? 0;
+                    
+                    // Check if word falls within this segment
+                    if ($wordStart >= $segmentStart && $wordEnd <= $segmentEnd) {
+                        $words[] = [
+                            'word' => $wordData['word'] ?? '',
+                            'start_time' => $wordData['start'] ?? 0,
+                            'end_time' => $wordData['end'] ?? 0,
+                            'confidence' => $wordData['probability'] ?? 0.9
+                        ];
+                    }
                 }
             }
 
@@ -463,6 +503,53 @@ class AISubtitleGeneratorService
         
         Log::info('SRT file generated', ['srt_path' => $srtPath]);
         return $srtPath;
+    }
+
+    private function generateWordTimingFile(array $subtitles, string $generationId): string
+    {
+        $wordTimingPath = storage_path('app/subtitles/words_' . $generationId . '.json');
+        
+        // Create subtitles directory if it doesn't exist
+        if (!is_dir(dirname($wordTimingPath))) {
+            mkdir(dirname($wordTimingPath), 0755, true);
+        }
+        
+        $allWords = [];
+        
+        foreach ($subtitles as $subtitle) {
+            $subtitleId = $subtitle['id'];
+            $words = $subtitle['words'] ?? [];
+            
+            foreach ($words as $wordData) {
+                $allWords[] = [
+                    'subtitle_id' => $subtitleId,
+                    'word' => $wordData['word'],
+                    'start_time' => $wordData['start_time'],
+                    'end_time' => $wordData['end_time'],
+                    'confidence' => $wordData['confidence'],
+                    'subtitle_text' => $subtitle['text'],
+                    'subtitle_start' => $subtitle['start_time'],
+                    'subtitle_end' => $subtitle['end_time'],
+                ];
+            }
+        }
+        
+        // Save as JSON for easy frontend consumption
+        $wordTimingData = [
+            'generation_id' => $generationId,
+            'created_at' => now()->toISOString(),
+            'total_words' => count($allWords),
+            'words' => $allWords
+        ];
+        
+        file_put_contents($wordTimingPath, json_encode($wordTimingData, JSON_PRETTY_PRINT));
+        
+        Log::info('Word timing file generated', [
+            'word_timing_path' => $wordTimingPath,
+            'total_words' => count($allWords)
+        ]);
+        
+        return $wordTimingPath;
     }
 
     public function applySubtitlesToVideo(string $generationId): array
@@ -998,10 +1085,33 @@ class AISubtitleGeneratorService
                 'original_file_path' => $video->original_file_path,
             ]);
 
-            // Get original video path
-            $originalVideoPath = storage_path('app/' . $video->original_file_path);
+            // Get original video path using Laravel Storage helper
+            if (!$video->original_file_path) {
+                Log::error('Video has no original file path', [
+                    'video_id' => $video->id,
+                    'generation_id' => $generationId,
+                ]);
+                throw new \Exception('Original video file path not available. Please ensure the video is properly uploaded.');
+            }
+
+            $originalVideoPath = \Illuminate\Support\Facades\Storage::path($video->original_file_path);
+            
+            Log::info('Checking video file existence', [
+                'generation_id' => $generationId,
+                'video_id' => $video->id,
+                'resolved_path' => $originalVideoPath,
+                'file_exists' => file_exists($originalVideoPath),
+            ]);
+
             if (!file_exists($originalVideoPath)) {
-                throw new \Exception('Original video file not found');
+                Log::error('Original video file not found at resolved path', [
+                    'video_id' => $video->id,
+                    'generation_id' => $generationId,
+                    'original_file_path' => $video->original_file_path,
+                    'resolved_path' => $originalVideoPath,
+                    'file_exists' => file_exists($originalVideoPath),
+                ]);
+                throw new \Exception('Original video file not found at path: ' . $originalVideoPath);
             }
 
             // Create rendered video with all subtitle customizations
@@ -1041,10 +1151,14 @@ class AISubtitleGeneratorService
                 $uploadService->dispatchUploadJob($newTarget);
             }
 
+            // Generate proper download URL using the video serving route
+            $renderedVideoFilename = basename($renderedVideoRelativePath);
+            $renderedVideoUrl = route('video.serve', ['filename' => $renderedVideoFilename]);
+
             $result = [
                 'rendered_video_id' => $renderedVideo->id,
                 'rendered_video_path' => $renderedVideoRelativePath,
-                'rendered_video_url' => \Illuminate\Support\Facades\Storage::url($renderedVideoRelativePath),
+                'rendered_video_url' => $renderedVideoUrl,
                 'original_video_preserved' => true,
                 'platforms_queued' => $originalTargets->pluck('platform')->toArray(),
                 'upload_targets_created' => $originalTargets->count(),
@@ -1069,15 +1183,18 @@ class AISubtitleGeneratorService
     }
 
     /**
-     * Render video with custom subtitles using FFmpeg
+     * Render video with custom subtitles using FFmpeg with advanced effects
      */
     private function renderVideoWithCustomSubtitles(string $generationId, string $videoPath): string
     {
         $generation = $this->getGenerationProgress($generationId);
         $subtitles = $generation['subtitles'] ?? [];
 
-        // Create a temporary ASS file with all subtitle customizations
-        $assFilePath = $this->generateAdvancedSubtitleFile($subtitles, $generationId);
+        // Create a temporary directory for rendering assets
+        $tempDir = storage_path('app/temp/render_' . $generationId);
+        if (!file_exists($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
         
         // Output path for rendered video
         $outputPath = storage_path('app/temp/rendered_' . uniqid() . '.mp4');
@@ -1087,21 +1204,721 @@ class AISubtitleGeneratorService
             mkdir(dirname($outputPath), 0755, true);
         }
 
-        // Build FFmpeg command to burn subtitles
+        // Check if we have advanced effects that need frame-by-frame rendering
+        $hasAdvancedEffects = $this->hasAdvancedEffects($subtitles);
+
+        if ($hasAdvancedEffects) {
+            // Use advanced rendering with overlay effects
+            $renderedVideoPath = $this->renderVideoWithAdvancedEffects($videoPath, $subtitles, $generationId, $tempDir);
+        } else {
+            // Use standard ASS/SSA subtitle rendering
+            $assFilePath = $this->generateAdvancedSubtitleFile($subtitles, $generationId);
+            $renderedVideoPath = $this->renderVideoWithASSSubtitles($videoPath, $assFilePath, $outputPath);
+        }
+
+        // Clean up temporary directory
+        $this->cleanupTempDirectory($tempDir);
+
+        return $renderedVideoPath;
+    }
+
+    /**
+     * Check if subtitles contain advanced effects that need special rendering
+     */
+    private function hasAdvancedEffects(array $subtitles): bool
+    {
+        foreach ($subtitles as $subtitle) {
+            $preset = $subtitle['style']['preset'] ?? '';
+            if (in_array($preset, ['bubbles', 'confetti', 'typewriter', 'bounce'])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Render video with advanced effects using frame-by-frame processing
+     */
+    private function renderVideoWithAdvancedEffects(string $videoPath, array $subtitles, string $generationId, string $tempDir): string
+    {
+        // Get video properties
+        $videoInfo = $this->getVideoInfo($videoPath);
+        $fps = $videoInfo['fps'] ?? 30;
+        $duration = $videoInfo['duration'] ?? 0;
+        $width = $videoInfo['width'] ?? 1920;
+        $height = $videoInfo['height'] ?? 1080;
+
+        // Create overlay images for each frame that has subtitles
+        $overlayFrames = $this->generateOverlayFrames($subtitles, $fps, $duration, $width, $height, $tempDir);
+
+        // Render final video with overlays
+        $outputPath = storage_path('app/temp/rendered_advanced_' . uniqid() . '.mp4');
+        $this->renderVideoWithOverlays($videoPath, $overlayFrames, $outputPath, $fps);
+
+        return $outputPath;
+    }
+
+    /**
+     * Generate overlay frames for advanced subtitle effects
+     */
+    private function generateOverlayFrames(array $subtitles, float $fps, float $duration, int $width, int $height, string $tempDir): array
+    {
+        $overlayFrames = [];
+        $totalFrames = (int)round($duration * $fps);
+
+        // Create a mapping of frame numbers to active subtitles
+        $frameSubtitles = [];
+        
+        foreach ($subtitles as $subtitle) {
+            $startFrame = (int)round($subtitle['start_time'] * $fps);
+            $endFrame = (int)round($subtitle['end_time'] * $fps);
+            
+            for ($frame = $startFrame; $frame <= $endFrame && $frame < $totalFrames; $frame++) {
+                if (!isset($frameSubtitles[$frame])) {
+                    $frameSubtitles[$frame] = [];
+                }
+                $frameSubtitles[$frame][] = $subtitle;
+            }
+        }
+
+        // Generate overlay images for frames with subtitles
+        foreach ($frameSubtitles as $frameNumber => $frameSubtitleList) {
+            $currentTime = $frameNumber / $fps;
+            $overlayPath = $tempDir . '/overlay_' . sprintf('%08d', $frameNumber) . '.png';
+            
+            $this->generateSubtitleOverlayImage($frameSubtitleList, $currentTime, $width, $height, $overlayPath);
+            $overlayFrames[$frameNumber] = $overlayPath;
+        }
+
+        return $overlayFrames;
+    }
+
+    /**
+     * Generate a single overlay image with all subtitle effects for a specific frame
+     */
+    private function generateSubtitleOverlayImage(array $subtitles, float $currentTime, int $width, int $height, string $outputPath): void
+    {
+        // Create transparent canvas
+        $canvas = imagecreatetruecolor($width, $height);
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefill($canvas, 0, 0, $transparent);
+        imagealphablending($canvas, true);
+
+        foreach ($subtitles as $subtitle) {
+            $this->renderSubtitleOnCanvas($canvas, $subtitle, $currentTime, $width, $height);
+        }
+
+        // Save as PNG with transparency
+        imagepng($canvas, $outputPath);
+        imagedestroy($canvas);
+    }
+
+    /**
+     * Render a single subtitle with effects on the canvas
+     */
+    private function renderSubtitleOnCanvas($canvas, array $subtitle, float $currentTime, int $width, int $height): void
+    {
+        $style = $subtitle['style'] ?? [];
+        $position = $subtitle['position'] ?? ['x' => 50, 'y' => 85];
+        $preset = $style['preset'] ?? 'standard';
+        $text = $subtitle['text'] ?? '';
+        $words = $subtitle['words'] ?? [];
+
+        // Calculate position on canvas
+        $x = (int)round(($position['x'] / 100) * $width);
+        $y = (int)round(($position['y'] / 100) * $height);
+
+        // Get colors
+        $textColor = $this->hexToRGB($style['color'] ?? '#FFFFFF');
+        $bgColor = $this->parseBackgroundColor($style['backgroundColor'] ?? 'transparent');
+        
+        // Handle different presets
+        switch ($preset) {
+            case 'bubbles':
+                $this->renderBubblesEffect($canvas, $subtitle, $currentTime, $x, $y, $width, $height, $textColor, $bgColor);
+                break;
+            case 'confetti':
+                $this->renderConfettiEffect($canvas, $subtitle, $currentTime, $x, $y, $width, $height, $textColor, $bgColor);
+                break;
+            case 'neon':
+                $this->renderNeonEffect($canvas, $subtitle, $currentTime, $x, $y, $width, $height, $textColor, $bgColor);
+                break;
+            case 'typewriter':
+                $this->renderTypewriterEffect($canvas, $subtitle, $currentTime, $x, $y, $width, $height, $textColor, $bgColor);
+                break;
+            case 'bounce':
+                $this->renderBounceEffect($canvas, $subtitle, $currentTime, $x, $y, $width, $height, $textColor, $bgColor);
+                break;
+            default:
+                $this->renderStandardSubtitle($canvas, $subtitle, $currentTime, $x, $y, $width, $height, $textColor, $bgColor);
+                break;
+        }
+    }
+
+    /**
+     * Render bubbles effect - words scale and glow as they're spoken
+     */
+    private function renderBubblesEffect($canvas, array $subtitle, float $currentTime, int $x, int $y, int $width, int $height, array $textColor, array $bgColor): void
+    {
+        $words = $subtitle['words'] ?? [];
+        $style = $subtitle['style'] ?? [];
+        $fontSize = (int)($style['fontSize'] ?? 36);
+        
+        // If no word timing, fall back to simple timing distribution
+        if (empty($words)) {
+            $words = $this->distributeWordsEvenly($subtitle['text'], $subtitle['start_time'], $subtitle['end_time']);
+        }
+
+        $fontPath = $this->getFontPath($style['fontFamily'] ?? 'Arial');
+        $activeColor = $this->hexToRGB('#FF1493'); // Deep pink for active words
+        
+        $currentX = $x - ($this->getTextWidth($subtitle['text'], $fontSize, $fontPath) / 2);
+        
+        foreach ($words as $wordData) {
+            $word = is_array($wordData) ? $wordData['word'] : $wordData;
+            $isActive = $this->isWordActive($wordData, $currentTime);
+            
+            // Scale effect for active words
+            $scale = $isActive ? 1.4 : 1.0;
+            $scaledFontSize = (int)round($fontSize * $scale);
+            
+            // Color effect
+            $color = $isActive ? $activeColor : $textColor;
+            $gdColor = imagecolorallocate($canvas, $color['r'], $color['g'], $color['b']);
+            
+            // Glow effect for active words
+            if ($isActive) {
+                $this->addGlowEffect($canvas, $word, $currentX, $y, $scaledFontSize, $fontPath, $color, 15);
+            }
+            
+            // Render word
+            $this->renderTextWithShadow($canvas, $word, $currentX, $y, $scaledFontSize, $fontPath, $gdColor, $bgColor);
+            
+            // Move to next word position
+            $wordWidth = $this->getTextWidth($word, $fontSize, $fontPath);
+            $currentX += $wordWidth + 10; // 10px spacing
+        }
+    }
+
+    /**
+     * Render confetti effect - words pop in with particles
+     */
+    private function renderConfettiEffect($canvas, array $subtitle, float $currentTime, int $x, int $y, int $width, int $height, array $textColor, array $bgColor): void
+    {
+        $words = $subtitle['words'] ?? [];
+        $style = $subtitle['style'] ?? [];
+        $fontSize = (int)($style['fontSize'] ?? 38);
+        
+        if (empty($words)) {
+            $words = $this->distributeWordsEvenly($subtitle['text'], $subtitle['start_time'], $subtitle['end_time']);
+        }
+
+        $fontPath = $this->getFontPath($style['fontFamily'] ?? 'Comic Sans MS');
+        
+        $currentX = $x - ($this->getTextWidth($subtitle['text'], $fontSize, $fontPath) / 2);
+        
+        foreach ($words as $wordData) {
+            $word = is_array($wordData) ? $wordData['word'] : $wordData;
+            $isActive = $this->isWordActive($wordData, $currentTime);
+            
+            // Only show active word in confetti effect
+            if (!$isActive) {
+                // Show faded version
+                $opacity = 0.4;
+                $fadeColor = imagecolorallocatealpha($canvas, $textColor['r'], $textColor['g'], $textColor['b'], (int)round(127 * (1 - $opacity)));
+                $this->renderTextWithShadow($canvas, $word, $currentX, $y, $fontSize, $fontPath, $fadeColor, $bgColor);
+            } else {
+                // Active word with confetti particles
+                $scale = 1.3;
+                $scaledFontSize = (int)round($fontSize * $scale);
+                
+                // Golden glow for active word
+                $glowColor = $this->hexToRGB('#FFD700');
+                $this->addGlowEffect($canvas, $word, $currentX, $y, $scaledFontSize, $fontPath, $glowColor, 25);
+                
+                // Render word
+                $gdColor = imagecolorallocate($canvas, 255, 255, 255); // White text
+                $this->renderTextWithShadow($canvas, $word, $currentX, $y, $scaledFontSize, $fontPath, $gdColor, $bgColor);
+                
+                // Add confetti particles around the word
+                $this->addConfettiParticles($canvas, $currentX, $y, $fontSize);
+            }
+            
+            $wordWidth = $this->getTextWidth($word, $fontSize, $fontPath);
+            $currentX += $wordWidth + 10;
+        }
+    }
+
+    /**
+     * Render neon effect - glowing cyan text
+     */
+    private function renderNeonEffect($canvas, array $subtitle, float $currentTime, int $x, int $y, int $width, int $height, array $textColor, array $bgColor): void
+    {
+        $style = $subtitle['style'] ?? [];
+        $fontSize = (int)($style['fontSize'] ?? 40);
+        $fontPath = $this->getFontPath($style['fontFamily'] ?? 'Impact');
+        
+        $neonColor = $this->hexToRGB('#00FFFF'); // Cyan
+        $gdColor = imagecolorallocate($canvas, $neonColor['r'], $neonColor['g'], $neonColor['b']);
+        
+        // Multiple glow layers for neon effect
+        $this->addGlowEffect($canvas, $subtitle['text'], $x, $y, $fontSize, $fontPath, $neonColor, 30);
+        $this->addGlowEffect($canvas, $subtitle['text'], $x, $y, $fontSize, $fontPath, $neonColor, 20);
+        $this->addGlowEffect($canvas, $subtitle['text'], $x, $y, $fontSize, $fontPath, $neonColor, 10);
+        
+        // Render main text
+        $this->renderTextWithShadow($canvas, $subtitle['text'], $x, $y, $fontSize, $fontPath, $gdColor, $bgColor);
+    }
+
+    /**
+     * Helper method to check if a word is currently active
+     */
+    private function isWordActive($wordData, float $currentTime): bool
+    {
+        if (is_array($wordData) && isset($wordData['start_time'], $wordData['end_time'])) {
+            return $currentTime >= $wordData['start_time'] && $currentTime <= $wordData['end_time'];
+        }
+        return false;
+    }
+
+    /**
+     * Distribute words evenly across subtitle duration (fallback when no word timing)
+     */
+    private function distributeWordsEvenly(string $text, float $startTime, float $endTime): array
+    {
+        $words = explode(' ', $text);
+        $duration = $endTime - $startTime;
+        $wordsPerSecond = count($words) / $duration;
+        
+        $distributedWords = [];
+        foreach ($words as $index => $word) {
+            $wordStartTime = $startTime + ($index / $wordsPerSecond);
+            $wordEndTime = $startTime + (($index + 1) / $wordsPerSecond);
+            
+            $distributedWords[] = [
+                'word' => $word,
+                'start_time' => $wordStartTime,
+                'end_time' => $wordEndTime
+            ];
+        }
+        
+        return $distributedWords;
+    }
+
+    /**
+     * Add glow effect around text
+     */
+    private function addGlowEffect($canvas, string $text, int $x, int $y, int $fontSize, string $fontPath, array $color, int $blur): void
+    {
+        // Create glow by rendering text multiple times with slight offsets
+        $glowColor = imagecolorallocatealpha($canvas, $color['r'], $color['g'], $color['b'], 100);
+        
+        if (empty($fontPath) || !file_exists($fontPath)) {
+            // Use built-in font for glow effect
+            $builtinSize = max(1, min(5, (int)round($fontSize / 8)));
+            for ($i = 1; $i <= $blur; $i++) {
+                $offset = $i * 2;
+                for ($dx = -$offset; $dx <= $offset; $dx += 2) {
+                    for ($dy = -$offset; $dy <= $offset; $dy += 2) {
+                        if ($dx !== 0 || $dy !== 0) {
+                            imagestring($canvas, $builtinSize, $x + $dx, $y + $dy, $text, $glowColor);
+                        }
+                    }
+                }
+            }
+            return;
+        }
+        
+        try {
+            for ($i = 1; $i <= $blur; $i++) {
+                $offset = $i * 2;
+                for ($dx = -$offset; $dx <= $offset; $dx += 2) {
+                    for ($dy = -$offset; $dy <= $offset; $dy += 2) {
+                        if ($dx !== 0 || $dy !== 0) {
+                            imagettftext($canvas, $fontSize, 0, $x + $dx, $y + $dy, $glowColor, $fontPath, $text);
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to add glow effect with TTF font, using fallback', ['error' => $e->getMessage()]);
+            // Fallback to built-in fonts
+            $builtinSize = max(1, min(5, (int)round($fontSize / 8)));
+            for ($i = 1; $i <= $blur; $i++) {
+                $offset = $i * 2;
+                for ($dx = -$offset; $dx <= $offset; $dx += 2) {
+                    for ($dy = -$offset; $dy <= $offset; $dy += 2) {
+                        if ($dx !== 0 || $dy !== 0) {
+                            imagestring($canvas, $builtinSize, $x + $dx, $y + $dy, $text, $glowColor);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Add confetti particles around text
+     */
+    private function addConfettiParticles($canvas, int $x, int $y, int $fontSize): void
+    {
+        $colors = [
+            ['r' => 255, 'g' => 215, 'b' => 0],   // Gold
+            ['r' => 255, 'g' => 105, 'b' => 180], // Hot Pink
+            ['r' => 0, 'g' => 206, 'b' => 209],   // Dark Turquoise
+            ['r' => 255, 'g' => 69, 'b' => 0],    // Orange Red
+            ['r' => 147, 'g' => 112, 'b' => 219]  // Medium Slate Blue
+        ];
+        
+        // Generate random particles around the text
+        for ($i = 0; $i < 15; $i++) {
+            $color = $colors[array_rand($colors)];
+            $gdColor = imagecolorallocate($canvas, $color['r'], $color['g'], $color['b']);
+            
+            $particleX = $x + rand(-$fontSize, $fontSize);
+            $particleY = $y + rand(-$fontSize/2, $fontSize/2);
+            $size = rand(3, 8);
+            
+            // Draw particle (small rectangle)
+            imagefilledrectangle($canvas, $particleX, $particleY, $particleX + $size, $particleY + $size, $gdColor);
+        }
+    }
+
+    /**
+     * Render standard subtitle with background and shadow
+     */
+    private function renderStandardSubtitle($canvas, array $subtitle, float $currentTime, int $x, int $y, int $width, int $height, array $textColor, array $bgColor): void
+    {
+        $style = $subtitle['style'] ?? [];
+        $fontSize = (int)($style['fontSize'] ?? 32);
+        $fontPath = $this->getFontPath($style['fontFamily'] ?? 'Arial');
+        
+        $gdColor = imagecolorallocate($canvas, $textColor['r'], $textColor['g'], $textColor['b']);
+        
+        // Render with background if specified
+        if ($bgColor['a'] < 127) { // Not fully transparent
+            $this->renderTextBackground($canvas, $subtitle['text'], $x, $y, $fontSize, $fontPath, $bgColor, $style);
+        }
+        
+        $this->renderTextWithShadow($canvas, $subtitle['text'], $x, $y, $fontSize, $fontPath, $gdColor, $bgColor);
+    }
+
+
+
+    /**
+     * Get font path based on font family
+     */
+    private function getFontPath(string $fontFamily): string
+    {
+        // Map font families to actual font files
+        $fontMap = [
+            'Arial' => 'arial.ttf',
+            'Comic Sans MS' => 'comic.ttf', 
+            'Impact' => 'impact.ttf',
+            'Trebuchet MS' => 'trebuc.ttf',
+            'Times New Roman' => 'times.ttf',
+            'Courier New' => 'courier.ttf',
+        ];
+        
+        $fontFile = $fontMap[$fontFamily] ?? $fontMap['Arial'];
+        
+        // Try custom fonts directory first
+        $customFontPath = resource_path('fonts/' . $fontFile);
+        if (file_exists($customFontPath)) {
+            return $customFontPath;
+        }
+        
+        // Try storage fonts directory
+        $storageFontPath = storage_path('fonts/' . $fontFile);
+        if (file_exists($storageFontPath)) {
+            Log::info('Found font', ['path' => $storageFontPath, 'font' => $fontFamily]);
+            return $storageFontPath;
+        }
+        
+        // Log font not found for debugging
+        Log::warning('Font not found in storage', [
+            'requested_font' => $fontFamily,
+            'checked_path' => $storageFontPath,
+            'exists' => file_exists($storageFontPath)
+        ]);
+        
+        // Try system fonts (common paths)
+        $systemPaths = [
+            '/System/Library/Fonts/' . $fontFile,
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/TTF/' . $fontFile,
+            '/Windows/Fonts/' . $fontFile,
+        ];
+        
+        foreach ($systemPaths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+        
+        // Ultimate fallback - use built-in fonts or null for imagestring
+        Log::warning('Font not found, using built-in font fallback', [
+            'requested_font' => $fontFamily,
+            'font_file' => $fontFile
+        ]);
+        
+        return ''; // This will cause imagettftext to fail gracefully and we can use imagestring instead
+    }
+
+    /**
+     * Render text with shadow effect (with font fallback)
+     */
+    private function renderTextWithShadow($canvas, string $text, int $x, int $y, int $fontSize, string $fontPath, $textColor, array $bgColor): void
+    {
+        if (empty($fontPath) || !file_exists($fontPath)) {
+            // Fallback to built-in font
+            $this->renderTextWithBuiltinFont($canvas, $text, $x, $y, $fontSize, $textColor);
+            return;
+        }
+        
+        try {
+            // Draw shadow
+            $shadowColor = imagecolorallocatealpha($canvas, 0, 0, 0, 50);
+            imagettftext($canvas, $fontSize, 0, $x + 2, $y + 2, $shadowColor, $fontPath, $text);
+            
+            // Draw main text
+            imagettftext($canvas, $fontSize, 0, $x, $y, $textColor, $fontPath, $text);
+        } catch (\Exception $e) {
+            Log::warning('Failed to render text with TTF font, using fallback', [
+                'error' => $e->getMessage(),
+                'font' => $fontPath,
+                'text' => substr($text, 0, 20)
+            ]);
+            // Fallback to built-in font
+            $this->renderTextWithBuiltinFont($canvas, $text, $x, $y, $fontSize, $textColor);
+        }
+    }
+
+    /**
+     * Render text using built-in fonts when TTF fonts are not available
+     */
+    private function renderTextWithBuiltinFont($canvas, string $text, int $x, int $y, int $fontSize, $textColor): void
+    {
+        // Map font size to built-in font size (1-5)
+        $builtinSize = max(1, min(5, (int)round($fontSize / 8)));
+        
+        // Draw shadow
+        $shadowColor = imagecolorallocatealpha($canvas, 0, 0, 0, 50);
+        imagestring($canvas, $builtinSize, $x + 2, $y + 2, $text, $shadowColor);
+        
+        // Draw main text
+        imagestring($canvas, $builtinSize, $x, $y, $text, $textColor);
+    }
+
+    /**
+     * Get text width for positioning (with font fallback)
+     */
+    private function getTextWidth(string $text, int $fontSize, string $fontPath): int
+    {
+        if (empty($fontPath) || !file_exists($fontPath)) {
+            // Fallback calculation for built-in fonts
+            $builtinSize = max(1, min(5, (int)round($fontSize / 8)));
+            $charWidth = [10, 11, 13, 15, 16][$builtinSize - 1]; // Approximate character widths
+            return strlen($text) * $charWidth;
+        }
+        
+        try {
+            $bbox = imagettfbbox($fontSize, 0, $fontPath, $text);
+            if ($bbox === false) {
+                Log::warning('imagettfbbox failed, using fallback', ['font' => $fontPath, 'text' => substr($text, 0, 20)]);
+                $builtinSize = max(1, min(5, (int)round($fontSize / 8)));
+                $charWidth = [10, 11, 13, 15, 16][$builtinSize - 1];
+                return strlen($text) * $charWidth;
+            }
+            return $bbox[4] - $bbox[0];
+        } catch (\Exception $e) {
+            Log::error('Error getting text width', ['error' => $e->getMessage(), 'font' => $fontPath]);
+            $builtinSize = max(1, min(5, (int)round($fontSize / 8)));
+            $charWidth = [10, 11, 13, 15, 16][$builtinSize - 1];
+            return strlen($text) * $charWidth;
+        }
+    }
+
+    /**
+     * Check system requirements for advanced subtitle rendering
+     */
+    private function checkSystemRequirements(): array
+    {
+        $requirements = [
+            'gd_extension' => extension_loaded('gd'),
+            'imagettftext_function' => function_exists('imagettftext'),
+            'ffmpeg_available' => $this->checkFFmpegAvailability(),
+            'storage_writable' => is_writable(storage_path('app/temp')),
+        ];
+        
+        return $requirements;
+    }
+
+    /**
+     * Check if FFmpeg is available
+     */
+    private function checkFFmpegAvailability(): bool
+    {
+        $output = [];
+        $returnVar = 0;
+        exec('ffmpeg -version 2>&1', $output, $returnVar);
+        return $returnVar === 0;
+    }
+
+    /**
+     * Convert hex color to RGB array
+     */
+    private function hexToRGB(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+        }
+        
+        return [
+            'r' => hexdec(substr($hex, 0, 2)),
+            'g' => hexdec(substr($hex, 2, 2)),
+            'b' => hexdec(substr($hex, 4, 2))
+        ];
+    }
+
+    /**
+     * Parse background color including gradients and transparency
+     */
+    private function parseBackgroundColor(string $bgColor): array
+    {
+        if ($bgColor === 'transparent') {
+            return ['r' => 0, 'g' => 0, 'b' => 0, 'a' => 127];
+        }
+        
+        if (strpos($bgColor, 'rgba') !== false) {
+            preg_match('/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/', $bgColor, $matches);
+            if (count($matches) === 5) {
+                return [
+                    'r' => (int)$matches[1],
+                    'g' => (int)$matches[2],
+                    'b' => (int)$matches[3],
+                    'a' => (int)((1 - (float)$matches[4]) * 127)
+                ];
+            }
+        }
+        
+        $rgb = $this->hexToRGB($bgColor);
+        return array_merge($rgb, ['a' => 0]);
+    }
+
+    /**
+     * Get video information including FPS, dimensions, duration
+     */
+    private function getVideoInfo(string $videoPath): array
+    {
+        $command = sprintf(
+            'ffprobe -v quiet -print_format json -show_format -show_streams %s',
+            escapeshellarg($videoPath)
+        );
+        
+        $output = shell_exec($command);
+        $videoInfo = json_decode($output, true);
+        
+        $info = [
+            'duration' => 0,
+            'fps' => 30,
+            'width' => 1920,
+            'height' => 1080
+        ];
+        
+        if (isset($videoInfo['format']['duration'])) {
+            $info['duration'] = (float)$videoInfo['format']['duration'];
+        }
+        
+        if (isset($videoInfo['streams'])) {
+            foreach ($videoInfo['streams'] as $stream) {
+                if ($stream['codec_type'] === 'video') {
+                    if (isset($stream['r_frame_rate'])) {
+                        $frameRate = explode('/', $stream['r_frame_rate']);
+                        if (count($frameRate) === 2 && $frameRate[1] > 0) {
+                            $info['fps'] = $frameRate[0] / $frameRate[1];
+                        }
+                    }
+                    if (isset($stream['width'], $stream['height'])) {
+                        $info['width'] = $stream['width'];
+                        $info['height'] = $stream['height'];
+                    }
+                    break;
+                }
+            }
+        }
+        
+        return $info;
+    }
+
+    /**
+     * Render video with overlay frames using FFmpeg
+     */
+    private function renderVideoWithOverlays(string $videoPath, array $overlayFrames, string $outputPath, float $fps): void
+    {
+        // Create a temporary directory for overlay sequence
+        $overlayDir = dirname($outputPath) . '/overlays_' . uniqid();
+        mkdir($overlayDir, 0755, true);
+        
+        // Copy overlay frames to sequential naming for FFmpeg
+        $frameIndex = 0;
+        foreach ($overlayFrames as $frameNumber => $overlayPath) {
+            $sequentialPath = $overlayDir . '/' . sprintf('overlay_%08d.png', $frameIndex);
+            copy($overlayPath, $sequentialPath);
+            $frameIndex++;
+        }
+        
+        // Build FFmpeg command to overlay subtitle frames
+        $command = sprintf(
+            'ffmpeg -i %s -framerate %f -i %s/overlay_%%08d.png -filter_complex "[1:v]fps=%f[overlay];[0:v][overlay]overlay=0:0:enable=\'between(t,0,%f)\'" -c:a copy -c:v libx264 -preset medium -crf 23 %s 2>&1',
+            escapeshellarg($videoPath),
+            $fps,
+            escapeshellarg($overlayDir),
+            $fps,
+            $this->getVideoDuration($videoPath),
+            escapeshellarg($outputPath)
+        );
+        
+        Log::info('Executing advanced subtitle rendering command', [
+            'command' => $command,
+        ]);
+        
+        exec($command, $output, $returnVar);
+        
+        // Clean up overlay directory
+        $this->cleanupDirectory($overlayDir);
+        
+        if ($returnVar !== 0) {
+            Log::error('Advanced subtitle rendering failed', [
+                'command' => $command,
+                'output' => implode("\n", $output),
+                'return_var' => $returnVar,
+            ]);
+            throw new \Exception('Failed to render video with advanced subtitle effects: ' . implode("\n", $output));
+        }
+    }
+
+    /**
+     * Render video with ASS subtitles (for standard effects)
+     */
+    private function renderVideoWithASSSubtitles(string $videoPath, string $assFilePath, string $outputPath): string
+    {
         $command = "ffmpeg -i " . escapeshellarg($videoPath) . 
                    " -vf \"ass=" . escapeshellarg($assFilePath) . "\"" .
                    " -c:a copy -c:v libx264 -preset medium -crf 23" .
                    " " . escapeshellarg($outputPath) . " 2>&1";
 
-        Log::info('Executing FFmpeg command for subtitle rendering', [
+        Log::info('Executing standard subtitle rendering command', [
             'command' => $command,
-            'generation_id' => $generationId,
         ]);
 
         exec($command, $output, $returnVar);
 
         if ($returnVar !== 0) {
-            Log::error('FFmpeg subtitle rendering failed', [
+            Log::error('Standard subtitle rendering failed', [
                 'command' => $command,
                 'output' => implode("\n", $output),
                 'return_var' => $returnVar,
@@ -1109,12 +1926,164 @@ class AISubtitleGeneratorService
             throw new \Exception('Failed to render video with subtitles: ' . implode("\n", $output));
         }
 
-        // Clean up temporary ASS file
-        if (file_exists($assFilePath)) {
-            unlink($assFilePath);
+        return $outputPath;
+    }
+
+    /**
+     * Clean up temporary directory
+     */
+    private function cleanupTempDirectory(string $tempDir): void
+    {
+        if (is_dir($tempDir)) {
+            $this->cleanupDirectory($tempDir);
+        }
+    }
+    
+    /**
+     * Recursively clean up directory
+     */
+    private function cleanupDirectory(string $dir): void
+    {
+        if (!is_dir($dir)) return;
+        
+        $files = array_diff(scandir($dir), ['.', '..']);
+        foreach ($files as $file) {
+            $path = $dir . '/' . $file;
+            if (is_dir($path)) {
+                $this->cleanupDirectory($path);
+            } else {
+                unlink($path);
+            }
+        }
+        rmdir($dir);
+    }
+
+    /**
+     * Render typewriter effect - characters appear one by one
+     */
+    private function renderTypewriterEffect($canvas, array $subtitle, float $currentTime, int $x, int $y, int $width, int $height, array $textColor, array $bgColor): void
+    {
+        $style = $subtitle['style'] ?? [];
+        $fontSize = (int)($style['fontSize'] ?? 24);
+        $fontPath = $this->getFontPath($style['fontFamily'] ?? 'Courier New');
+        $gdColor = imagecolorallocate($canvas, $textColor['r'], $textColor['g'], $textColor['b']);
+        
+        $text = $subtitle['text'];
+        $startTime = $subtitle['start_time'];
+        $endTime = $subtitle['end_time'];
+        $duration = $endTime - $startTime;
+        
+        // Calculate how many characters should be visible
+        $progress = ($currentTime - $startTime) / $duration;
+        $visibleChars = (int)round($progress * strlen($text));
+        $visibleText = substr($text, 0, $visibleChars);
+        
+        // Add cursor effect
+        $showCursor = (int)round($currentTime * 2) % 2 === 0; // Blink every 0.5 seconds
+        if ($showCursor && $visibleChars < strlen($text)) {
+            $visibleText .= '|';
+        }
+        
+        // Render background
+        if ($bgColor['a'] < 127) {
+            $this->renderTextBackground($canvas, $visibleText, $x, $y, $fontSize, $fontPath, $bgColor, $style);
+        }
+        
+        $this->renderTextWithShadow($canvas, $visibleText, $x, $y, $fontSize, $fontPath, $gdColor, $bgColor);
+    }
+
+    /**
+     * Render bounce effect - words bounce in with elastic animation
+     */
+    private function renderBounceEffect($canvas, array $subtitle, float $currentTime, int $x, int $y, int $width, int $height, array $textColor, array $bgColor): void
+    {
+        $words = $subtitle['words'] ?? [];
+        $style = $subtitle['style'] ?? [];
+        $fontSize = (int)($style['fontSize'] ?? 30);
+        
+        if (empty($words)) {
+            $words = $this->distributeWordsEvenly($subtitle['text'], $subtitle['start_time'], $subtitle['end_time']);
         }
 
-        return $outputPath;
+        $fontPath = $this->getFontPath($style['fontFamily'] ?? 'Comic Sans MS');
+        $bounceColor = $this->hexToRGB('#FFD700'); // Gold color
+        
+        $currentX = $x - ($this->getTextWidth($subtitle['text'], $fontSize, $fontPath) / 2);
+        
+        foreach ($words as $wordData) {
+            $word = is_array($wordData) ? $wordData['word'] : $wordData;
+            $isActive = $this->isWordActive($wordData, $currentTime);
+            
+            if ($isActive) {
+                // Calculate bounce animation
+                $wordStartTime = is_array($wordData) ? $wordData['start_time'] : $subtitle['start_time'];
+                $timeInWord = $currentTime - $wordStartTime;
+                $bounceProgress = min(1.0, $timeInWord / 0.5); // 0.5 second bounce duration
+                
+                // Elastic bounce formula
+                $bounce = 1.0 - pow(2, -10 * $bounceProgress) * cos((20 * $bounceProgress - 1.5) * M_PI / 3);
+                $bounceOffset = (int)round(30 * (1 - $bounce)); // Bounce up to 30 pixels
+                
+                $scale = 1.0 + (0.5 * $bounce); // Scale from 1.0 to 1.5
+                $scaledFontSize = (int)round($fontSize * $scale);
+                
+                $gdColor = imagecolorallocate($canvas, $bounceColor['r'], $bounceColor['g'], $bounceColor['b']);
+                $this->renderTextWithShadow($canvas, $word, $currentX, $y - $bounceOffset, $scaledFontSize, $fontPath, $gdColor, $bgColor);
+            } else {
+                // Render normal word
+                $gdColor = imagecolorallocate($canvas, $textColor['r'], $textColor['g'], $textColor['b']);
+                $this->renderTextWithShadow($canvas, $word, $currentX, $y, $fontSize, $fontPath, $gdColor, $bgColor);
+            }
+            
+            $wordWidth = $this->getTextWidth($word, $fontSize, $fontPath);
+            $currentX += $wordWidth + 10;
+        }
+    }
+
+    /**
+     * Render text background
+     */
+    private function renderTextBackground($canvas, string $text, int $x, int $y, int $fontSize, string $fontPath, array $bgColor, array $style): void
+    {
+        // Get text dimensions
+        $bbox = imagettfbbox($fontSize, 0, $fontPath, $text);
+        $textWidth = $bbox[4] - $bbox[0];
+        $textHeight = $bbox[1] - $bbox[7];
+        
+        // Calculate background rectangle
+        $padding = (int)($style['padding'] ?? 8);
+        $borderRadius = (int)($style['borderRadius'] ?? 4);
+        
+        $bgX = $x - ($textWidth / 2) - $padding;
+        $bgY = $y - $textHeight - $padding;
+        $bgWidth = $textWidth + (2 * $padding);
+        $bgHeight = $textHeight + (2 * $padding);
+        
+        // Create background color
+        $gdBgColor = imagecolorallocatealpha($canvas, $bgColor['r'], $bgColor['g'], $bgColor['b'], $bgColor['a']);
+        
+        // Draw rounded rectangle background
+        if ($borderRadius > 0) {
+            $this->drawRoundedRectangle($canvas, (int)round($bgX), (int)round($bgY), (int)round($bgWidth), (int)round($bgHeight), $borderRadius, $gdBgColor);
+        } else {
+            imagefilledrectangle($canvas, (int)round($bgX), (int)round($bgY), (int)round($bgX + $bgWidth), (int)round($bgY + $bgHeight), $gdBgColor);
+        }
+    }
+
+    /**
+     * Draw rounded rectangle
+     */
+    private function drawRoundedRectangle($canvas, int $x, int $y, int $width, int $height, int $radius, $color): void
+    {
+        // Draw main rectangle
+        imagefilledrectangle($canvas, $x + $radius, $y, $x + $width - $radius, $y + $height, $color);
+        imagefilledrectangle($canvas, $x, $y + $radius, $x + $width, $y + $height - $radius, $color);
+        
+        // Draw rounded corners
+        imagefilledellipse($canvas, $x + $radius, $y + $radius, $radius * 2, $radius * 2, $color);
+        imagefilledellipse($canvas, $x + $width - $radius, $y + $radius, $radius * 2, $radius * 2, $color);
+        imagefilledellipse($canvas, $x + $radius, $y + $height - $radius, $radius * 2, $radius * 2, $color);
+        imagefilledellipse($canvas, $x + $width - $radius, $y + $height - $radius, $radius * 2, $radius * 2, $color);
     }
 
     /**

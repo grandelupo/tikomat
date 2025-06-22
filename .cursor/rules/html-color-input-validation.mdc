@@ -1,0 +1,113 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+---
+description: HTML Color Input Validation - Always use valid hex colors for input type="color"
+globs: resources/js/**/*.{tsx,ts,jsx,js}
+alwaysApply: true
+---
+
+# HTML Color Input Validation Rule
+
+This rule ensures that HTML `<input type="color">` elements always receive valid hexadecimal color values to prevent browser validation errors.
+
+## The Problem
+
+HTML color inputs only accept hexadecimal color values in the format `#rrggbb`. Using values like `transparent`, `rgba()`, `rgb()`, or named colors will cause browser validation errors:
+
+```
+The specified value "transparent" does not conform to the required format. The format is "#rrggbb" where rr, gg, bb are two-digit hexadecimal numbers.
+```
+
+## The Solution
+
+**ALWAYS** use the `convertToValidHex` utility function from `@/lib/colorUtils` when setting values for color inputs.
+
+### ✅ Correct Implementation
+
+```tsx
+import { convertToValidHex } from '@/lib/colorUtils';
+
+// Good: Convert any color format to valid hex
+<input
+  type="color"
+  value={convertToValidHex(backgroundColor)}
+  onChange={(e) => setBackgroundColor(e.target.value)}
+/>
+
+// Good: Handle complex color logic
+<input
+  type="color"
+  value={(() => {
+    const color = getColorFromSomewhere();
+    return convertToValidHex(color);
+  })()}
+  onChange={(e) => updateColor(e.target.value)}
+/>
+```
+
+### ❌ Incorrect Implementation
+
+```tsx
+// Bad: Direct use of potentially invalid color values
+<input
+  type="color"
+  value={backgroundColor} // Could be 'transparent', 'rgba()', etc.
+  onChange={(e) => setBackgroundColor(e.target.value)}
+/>
+
+// Bad: Manual conversion without proper handling
+<input
+  type="color"
+  value={backgroundColor === 'transparent' ? '#000000' : backgroundColor}
+  onChange={(e) => updateColor(e.target.value)}
+/>
+```
+
+## Required Actions
+
+1. **Import the utility**: Always import `convertToValidHex` from `@/lib/colorUtils`
+2. **Wrap all color values**: Use `convertToValidHex()` around any color value passed to `<input type="color">`
+3. **Handle edge cases**: The utility handles transparent, rgba(), rgb(), named colors, and invalid formats
+4. **Provide fallbacks**: Use "None" buttons or similar UI for transparent backgrounds
+
+## Utility Functions Available
+
+- `convertToValidHex(color: string): string` - Converts any color format to valid hex
+- `isValidHexColor(color: string): boolean` - Validates if a color is already valid hex
+- `hexToRgba(hex: string, alpha?: number): string` - Converts hex to rgba for CSS
+
+## Implementation Pattern
+
+```tsx
+import { convertToValidHex } from '@/lib/colorUtils';
+
+const ColorPicker = ({ color, onChange }) => (
+  <div className="flex gap-2">
+    <input
+      type="color"
+      value={convertToValidHex(color)}
+      onChange={(e) => onChange(e.target.value)}
+      className="flex-1 h-8 rounded border"
+    />
+    <button
+      onClick={() => onChange('transparent')}
+      className="px-3 py-1 text-xs border rounded hover:bg-gray-100"
+      title="Make transparent"
+    >
+      None
+    </button>
+  </div>
+);
+```
+
+## Why This Rule Exists
+
+- Prevents browser validation errors that break user experience
+- Ensures consistent color handling across the application
+- Provides a single source of truth for color conversion logic
+- Makes code more maintainable and predictable
+
+**Remember**: EVERY `<input type="color">` must use `convertToValidHex()` - no exceptions!

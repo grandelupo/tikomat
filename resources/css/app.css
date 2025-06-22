@@ -210,6 +210,8 @@
   max-width: 80vw;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  /* Ensure subtitle stays within video bounds */
+  box-sizing: border-box;
 }
 
 .subtitle-content {
@@ -234,4 +236,63 @@
 .subtitle-editor:focus {
   border-color: rgba(255, 255, 255, 0.8) !important;
   background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Video overlay positioning */
+.video-subtitle-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+/* Bounding box editor styles */
+.bounds-editor-overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.bounds-rectangle {
+  border: 2px dashed #8B5CF6;
+  background-color: rgba(139, 92, 246, 0.1);
+  position: absolute;
+  pointer-events: auto;
+  cursor: move;
+  transition: all 0.1s ease;
+}
+
+.bounds-rectangle:hover {
+  border-color: #7C3AED;
+  background-color: rgba(124, 58, 237, 0.15);
+}
+
+.bounds-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background-color: #8B5CF6;
+  border: 2px solid white;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: all 0.1s ease;
+}
+
+.bounds-handle:hover {
+  background-color: #7C3AED;
+  transform: scale(1.1);
+}
+
+.bounds-label {
+  position: absolute;
+  top: -28px;
+  left: 0;
+  background-color: #8B5CF6;
+  color: white;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }

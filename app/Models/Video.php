@@ -25,6 +25,8 @@ class Video extends Model
         'subtitle_file_path',
         'subtitle_data',
         'subtitles_generated_at',
+        'rendered_video_path',
+        'rendered_video_status',
     ];
 
     protected $appends = [

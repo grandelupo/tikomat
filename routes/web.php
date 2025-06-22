@@ -154,6 +154,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('subtitle-position', [AIController::class, 'updateSubtitlePosition'])->name('subtitle-position');
     Route::post('subtitle-export', [AIController::class, 'exportSubtitles'])->name('subtitle-export');
     Route::get('subtitle-download/{generation_id}/{format?}', [AIController::class, 'downloadSubtitleFile'])->name('subtitle-download');
+    Route::get('word-timing/{generation_id}', [AIController::class, 'getWordTimingFile'])->name('word-timing');
     Route::post('apply-style-to-all-subtitles', [AIController::class, 'applyStyleToAllSubtitles'])->name('apply-style-to-all-subtitles');
     Route::post('subtitle-quality', [AIController::class, 'analyzeSubtitleQuality'])->name('subtitle-quality');
     Route::post('subtitle-apply', [AIController::class, 'applySubtitlesToVideo'])->name('subtitle-apply');
@@ -288,3 +289,5 @@ Route::get('thumbnails/{path}', function ($path) {
         ->header('Content-Type', $mimeType)
         ->header('Cache-Control', 'public, max-age=31536000');
 })->where('path', '.*')->name('thumbnail.serve');
+
+Route::post('/ai/rendered-video-status', [\App\Http\Controllers\AIController::class, 'getRenderedVideoStatus'])->middleware(['auth']);

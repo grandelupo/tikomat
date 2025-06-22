@@ -3587,6 +3587,84 @@ class AIController extends Controller
     }
 
     /**
+     * Get word timing file for a generation
+     */
+    public function getWordTimingFile(Request $request, string $generationId): JsonResponse
+    {
+        try {
+            // Get the generation progress to find the word timing file
+            $generation = $this->subtitleGeneratorService->getGenerationProgress($generationId);
+            
+            if ($generation['processing_status'] !== 'completed') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Subtitle generation not completed',
+                ], 404);
+            }
+
+            // Check if word timing file exists in generation data
+            $wordTimingPath = null;
+            
+            // First check cache
+            $cached = \Illuminate\Support\Facades\Cache::get("subtitle_generation_{$generationId}");
+            if ($cached && isset($cached['word_timing_file'])) {
+                $wordTimingPath = $cached['word_timing_file'];
+            }
+            
+            // Then check database
+            if (!$wordTimingPath) {
+                $video = \App\Models\Video::where('subtitle_generation_id', $generationId)->first();
+                if ($video && $video->subtitle_data) {
+                    $subtitleData = $video->subtitle_data;
+                    if (is_string($subtitleData)) {
+                        $subtitleData = json_decode($subtitleData, true);
+                    }
+                    $wordTimingPath = $subtitleData['word_timing_file'] ?? null;
+                }
+            }
+            
+            // Fallback: construct expected path
+            if (!$wordTimingPath) {
+                $wordTimingPath = storage_path('app/subtitles/words_' . $generationId . '.json');
+            }
+
+            if (!file_exists($wordTimingPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Word timing file not found',
+                ], 404);
+            }
+
+            $wordTimingData = json_decode(file_get_contents($wordTimingPath), true);
+            
+            if (!$wordTimingData) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid word timing file format',
+                ], 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $wordTimingData,
+                'message' => 'Word timing data retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Word timing file retrieval failed', [
+                'generation_id' => $generationId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve word timing data.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Analyze subtitle quality
      */
     public function analyzeSubtitleQuality(Request $request): JsonResponse
@@ -4084,6 +4162,11 @@ class AIController extends Controller
             'video_id' => 'required|integer|exists:videos,id',
         ]);
 
+        Log::info('Render video with subtitles request', [
+            'generation_id' => $request->generation_id,
+            'video_id' => $request->video_id,
+        ]);
+
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -4094,7 +4177,7 @@ class AIController extends Controller
 
         try {
             $video = \App\Models\Video::findOrFail($request->video_id);
-            
+
             // Verify the user owns this video
             if ($video->user_id !== Auth::id()) {
                 return response()->json([
@@ -4103,22 +4186,62 @@ class AIController extends Controller
                 ], 403);
             }
 
-            $subtitleService = new \App\Services\AISubtitleGeneratorService();
-            $result = $subtitleService->renderVideoWithSubtitles($request->generation_id, $video);
+            Log::info('User owns video');
+
+            // Set status to processing
+            $video->rendered_video_status = 'processing';
+            $video->save();
+
+            Log::info('Video status set to processing');
+
+            // Dispatch the background job
+            \App\Jobs\RenderVideoWithSubtitlesJob::dispatch($request->generation_id, $video->id);
+
+            Log::info('Video rendering job dispatched');
 
             return response()->json([
                 'success' => true,
-                'data' => $result,
-                'message' => 'Video rendered successfully and uploaded to all platforms',
+                'message' => 'Video rendering started in background',
             ]);
-
         } catch (\Exception $e) {
-            Log::error('Error rendering video with subtitles: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to render video with subtitles: ' . $e->getMessage(),
+                'message' => 'Failed to start video rendering',
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Check the rendering status and get the rendered video link
+     */
+    public function getRenderedVideoStatus(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $video = \App\Models\Video::findOrFail($request->video_id);
+        if ($video->user_id !== Auth::id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to video',
+            ], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'status' => $video->rendered_video_status,
+            'rendered_video_path' => $video->rendered_video_path,
+        ]);
     }
 
     /**
@@ -4246,6 +4369,7 @@ class AIController extends Controller
             $startTime = microtime(true);
 
             // Perform actual video analysis with error handling
+            $videoAnalysis = [];
             try {
                 $videoAnalysis = $this->performDeepVideoAnalysis($videoPath);
             } catch (\Exception $e) {
@@ -4253,6 +4377,20 @@ class AIController extends Controller
                     'video_id' => $request->video_id,
                     'error' => $e->getMessage(),
                 ]);
+                // Provide minimal fallback analysis
+                $videoAnalysis = [
+                    'suggested_tags' => ['video', 'content', 'social'],
+                    'optimized_content' => [],
+                    'confidence' => 0.5,
+                    'properties' => [],
+                    'features' => [],
+                    'content_type' => 'general',
+                    'mood' => 'general',
+                    'target_audience' => 'general',
+                    'content_description' => 'Video content',
+                    'themes' => [],
+                    'visual_elements' => [],
+                ];
             }
 
             Log::info('Video analysis', [
@@ -4260,7 +4398,7 @@ class AIController extends Controller
                 'video_analysis' => $videoAnalysis,
             ]);
 
-            $tags = $videoAnalysis['suggested_tags'];
+            $tags = $videoAnalysis['suggested_tags'] ?? [];
             
             // Ensure we have at least some basic tags if analysis didn't return any
             if (empty($tags)) {
@@ -4378,6 +4516,19 @@ class AIController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Video analysis failed: ' . $e->getMessage());
+            return [
+                'suggested_tags' => ['video', 'content'],
+                'optimized_content' => [],
+                'confidence' => 0.3,
+                'properties' => [],
+                'features' => [],
+                'content_type' => 'general',
+                'mood' => 'general',
+                'target_audience' => 'general',
+                'content_description' => 'Video content analysis failed',
+                'themes' => [],
+                'visual_elements' => [],
+            ];
         }
     }
 
