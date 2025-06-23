@@ -270,6 +270,9 @@ class VideoProcessingService
             'extension' => $extension,
         ]);
         
+        // Try to extract video dimensions using alternative methods
+        $dimensions = $this->tryExtractDimensionsFallback($videoPath);
+        
         // Estimate duration based on file size and format
         $estimatedDuration = $this->estimateVideoDuration($fileSize, $extension);
         
@@ -277,15 +280,123 @@ class VideoProcessingService
             'file_size_mb' => round($fileSize / (1024 * 1024), 2),
             'estimated_duration' => $estimatedDuration,
             'estimation_method' => 'file_size_based',
+            'extracted_dimensions' => $dimensions,
         ]);
         
         return [
             'duration' => (float) $estimatedDuration,
-            'width' => 1920, // Assume HD video
-            'height' => 1080,
+            'width' => $dimensions['width'],
+            'height' => $dimensions['height'],
             'has_video' => $fileSize > 0,
             'format' => $extension,
         ];
+    }
+
+    /**
+     * Try to extract video dimensions using fallback methods.
+     */
+    private function tryExtractDimensionsFallback(string $videoPath): array
+    {
+        // Default dimensions (HD)
+        $defaultDimensions = ['width' => 1920, 'height' => 1080];
+        
+        try {
+            // Method 1: Try to use getimagesize for video files (works for some formats)
+            $imageSize = @getimagesize($videoPath);
+            if ($imageSize && isset($imageSize[0]) && isset($imageSize[1]) && $imageSize[0] > 0 && $imageSize[1] > 0) {
+                \Log::info('Extracted dimensions using getimagesize', [
+                    'width' => $imageSize[0],
+                    'height' => $imageSize[1]
+                ]);
+                return ['width' => (int) $imageSize[0], 'height' => (int) $imageSize[1]];
+            }
+        } catch (\Exception $e) {
+            \Log::debug('getimagesize failed: ' . $e->getMessage());
+        }
+
+        try {
+            // Method 2: Try basic file analysis for common video formats
+            $fileHandle = fopen($videoPath, 'rb');
+            if ($fileHandle) {
+                $header = fread($fileHandle, 1024); // Read first 1KB
+                fclose($fileHandle);
+                
+                // Look for video format signatures and try to extract dimensions
+                $extractedDimensions = $this->parseVideoHeader($header);
+                if ($extractedDimensions) {
+                    \Log::info('Extracted dimensions from video header', $extractedDimensions);
+                    return $extractedDimensions;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::debug('Header analysis failed: ' . $e->getMessage());
+        }
+
+        // Method 3: Try to guess based on common video formats and file size
+        $guessedDimensions = $this->guessDimensionsFromFileSize(filesize($videoPath));
+        if ($guessedDimensions) {
+            \Log::info('Guessed dimensions from file size', $guessedDimensions);
+            return $guessedDimensions;
+        }
+
+        \Log::info('Using default HD dimensions as fallback');
+        return $defaultDimensions;
+    }
+
+    /**
+     * Try to parse video header for dimension information.
+     */
+    private function parseVideoHeader(string $header): ?array
+    {
+        // This is a basic implementation for common video formats
+        // MP4 files often have dimension info in the first few bytes
+        
+        if (strpos($header, 'ftyp') !== false) {
+            // MP4 file detected, try to find moov atom with video dimensions
+            // This is a simplified parser - in production you'd want a more robust solution
+            
+            // Look for common resolution patterns in the header
+            if (preg_match('/\x00\x00(\x07\x80|\x05\x00|\x04\x38|\x02\xd0)/', $header)) {
+                // Common video widths: 1920 (0x0780), 1280 (0x0500), 1080 (0x0438), 720 (0x02d0)
+                if (strpos($header, "\x07\x80") !== false) { // 1920
+                    return ['width' => 1920, 'height' => 1080];
+                } elseif (strpos($header, "\x05\x00") !== false) { // 1280
+                    return ['width' => 1280, 'height' => 720];
+                } elseif (strpos($header, "\x04\x38") !== false) { // 1080 (height)
+                    return ['width' => 1920, 'height' => 1080];
+                } elseif (strpos($header, "\x02\xd0") !== false) { // 720 (height)
+                    return ['width' => 1280, 'height' => 720];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Guess video dimensions based on file size.
+     */
+    private function guessDimensionsFromFileSize(int $fileSize): ?array
+    {
+        $fileSizeMB = $fileSize / (1024 * 1024);
+        
+        // Rough estimates based on typical video compression and social media content
+        if ($fileSizeMB > 50) {
+            // Large file, likely 4K or high bitrate 1080p
+            return ['width' => 1920, 'height' => 1080];
+        } elseif ($fileSizeMB > 20) {
+            // Medium-large file, likely 1080p
+            return ['width' => 1920, 'height' => 1080];
+        } elseif ($fileSizeMB > 10) {
+            // Medium file, likely 720p
+            return ['width' => 1280, 'height' => 720];
+        } elseif ($fileSizeMB > 5) {
+            // Smaller file, could be 720p or mobile format
+            return ['width' => 1280, 'height' => 720];
+        } else {
+            // Very small file, likely mobile/lower resolution
+            return ['width' => 854, 'height' => 480];
+        }
     }
 
     /**

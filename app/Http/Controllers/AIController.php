@@ -1310,14 +1310,12 @@ class AIController extends Controller
     public function generateContentCalendar(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
+            'user_id' => 'nullable|integer|exists:users,id',
+            'platforms' => 'nullable|array',
+            'platforms.*' => 'string|in:youtube,instagram,tiktok,twitter,facebook,snapchat,pinterest',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after:start_date',
             'days' => 'nullable|integer|min:7|max:90',
-            'platforms' => 'nullable|array',
-            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter',
-            'audience_size' => 'nullable|string|in:small,medium,large',
-            'content_quality' => 'nullable|string|in:low,medium,high',
-            'resources' => 'nullable|string|in:low,medium,high',
         ]);
 
         if ($validator->fails()) {
@@ -1329,33 +1327,33 @@ class AIController extends Controller
         }
 
         try {
-            $options = [
-                'start_date' => $request->start_date ?? now()->toDateString(),
+            $userId = $request->user_id ?? $request->user()->id;
+            $options = array_filter([
+                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
+                'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
                 'days' => $request->days ?? 30,
-                'platforms' => $request->platforms ?? ['youtube', 'instagram', 'tiktok'],
-                'audience_size' => $request->audience_size ?? 'medium',
-                'content_quality' => $request->content_quality ?? 'medium',
-                'resources' => $request->resources ?? 'medium',
-            ];
+            ]);
 
-            $calendar = $this->contentCalendarService->generateContentCalendar($request->user()->id, $options);
+            $calendar = $this->contentCalendarService->generateContentCalendar($userId, $options);
 
             Log::info('Content calendar generated', [
-                'user_id' => $request->user()->id,
-                'period_days' => $calendar['period']['total_days'],
-                'calendar_score' => $calendar['calendar_score'],
+                'user_id' => $userId,
+                'has_data' => $calendar['has_data'] ?? false,
+                'calendar_score' => $calendar['calendar_score'] ?? 0,
             ]);
 
             return response()->json([
                 'success' => true,
                 'data' => $calendar,
-                'message' => 'Content calendar generated successfully',
+                'message' => $calendar['has_data'] 
+                    ? 'Content calendar generated successfully with personalized insights'
+                    : 'Basic content calendar generated - upload videos for personalized insights',
             ]);
 
         } catch (\Exception $e) {
             Log::error('Content calendar generation failed', [
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user_id ?? $request->user()->id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -4931,5 +4929,93 @@ class AIController extends Controller
             }
         }
         return false;
+    }
+
+    /**
+     * Upload custom thumbnail for video
+     */
+    public function uploadCustomThumbnail(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_id' => 'required|integer|exists:videos,id',
+            'thumbnail' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120', // 5MB max
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $video = \App\Models\Video::findOrFail($request->video_id);
+            
+            // Verify the user owns this video
+            if ($video->user_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to video',
+                ], 403);
+            }
+
+            $thumbnailFile = $request->file('thumbnail');
+            
+            // Generate a unique filename for the thumbnail
+            $filename = 'video_' . $video->id . '_custom_' . time() . '.' . $thumbnailFile->getClientOriginalExtension();
+            
+            // Store the thumbnail in the public disk
+            $storedPath = $thumbnailFile->storeAs('public/thumbnails', $filename);
+            
+            if (!$storedPath) {
+                throw new \Exception('Failed to store thumbnail file');
+            }
+
+            // The stored path is 'public/thumbnails/filename', but for Storage::url() we need 'thumbnails/filename'
+            $thumbnailPath = 'thumbnails/' . $filename;
+
+            // Update the video record with the new thumbnail
+            $video->update([
+                'thumbnail_path' => $thumbnailPath,
+                'updated_at' => now(),
+            ]);
+
+            // Generate the public URL using the custom thumbnail route
+            $filename = basename($thumbnailPath);
+            $thumbnailUrl = url('/thumbnails/' . $filename);
+
+            Log::info('Custom thumbnail uploaded successfully', [
+                'user_id' => Auth::id(),
+                'video_id' => $request->video_id,
+                'thumbnail_path' => $thumbnailPath,
+                'file_size' => $thumbnailFile->getSize(),
+                'file_type' => $thumbnailFile->getMimeType(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Thumbnail uploaded successfully',
+                'data' => [
+                    'video_id' => $video->id,
+                    'thumbnail_path' => $thumbnailPath,
+                    'thumbnail_url' => $thumbnailUrl,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to upload custom thumbnail', [
+                'video_id' => $request->video_id ?? null,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to upload thumbnail. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 }

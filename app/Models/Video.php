@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Video extends Model
 {
@@ -32,6 +33,9 @@ class Video extends Model
     protected $appends = [
         'formatted_duration',
         'video_path',
+        'width',
+        'height',
+        'thumbnail',
     ];
 
     protected $casts = [
@@ -106,6 +110,22 @@ class Video extends Model
     }
 
     /**
+     * Get the video width for frontend compatibility.
+     */
+    public function getWidthAttribute(): ?int
+    {
+        return $this->video_width;
+    }
+
+    /**
+     * Get the video height for frontend compatibility.
+     */
+    public function getHeightAttribute(): ?int
+    {
+        return $this->video_height;
+    }
+
+    /**
      * Check if video is within the 60-second limit.
      */
     public function isValidDuration(): bool
@@ -146,5 +166,23 @@ class Video extends Model
         return is_array($subtitles) && !empty($subtitles);
     }
 
-
+    /**
+     * Get the thumbnail URL for frontend.
+     */
+    public function getThumbnailAttribute(): ?string
+    {
+        if ($this->thumbnail_path) {
+            // Check if it's already a full URL
+            if (str_starts_with($this->thumbnail_path, 'http')) {
+                return $this->thumbnail_path;
+            }
+            
+            // Use the custom thumbnail serving route
+            // thumbnail_path is stored as 'thumbnails/filename'
+            $filename = basename($this->thumbnail_path);
+            return url('/thumbnails/' . $filename);
+        }
+        
+        return null;
+    }
 }

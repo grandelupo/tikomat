@@ -7,13 +7,13 @@ use App\Models\Video;
 use App\Models\VideoTarget;
 use App\Models\SocialAccount;
 use App\Models\User;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-
-class CheckSystemStatus extends Command
-{
-    protected $signature = 'system:status';
-    protected $description = 'Check the current system status and improvements';
+  use Illuminate\Support\Facades\Log;
+  use Illuminate\Support\Facades\Storage;
+  
+  class CheckSystemStatus extends Command
+  {
+      protected $signature = 'system:status';
+      protected $description = 'Check the current system status and improvements';
 
     public function handle()
     {
@@ -196,6 +196,6 @@ class CheckSystemStatus extends Command
         $this->line("    ✅ Enhanced duration detection methods");
         $this->line("    ✅ FFmpeg fallback to GD library");
         $this->line("    ✅ OAuth refresh token fixes");
-        $this->line("    ✅ Comprehensive error logging");
-    }
-} 
+                  $this->line("    ✅ Comprehensive error logging");
+      }
+  } 

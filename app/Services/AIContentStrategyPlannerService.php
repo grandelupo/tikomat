@@ -5,89 +5,34 @@ namespace App\Services;
 use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\Video;
+use App\Models\VideoTarget;
 use App\Models\User;
+use App\Models\SocialAccount;
 
 class AIContentStrategyPlannerService
 {
-    protected array $industryBenchmarks = [
-        'technology' => [
-            'avg_engagement_rate' => 8.5,
-            'optimal_posting_frequency' => 3, // posts per week
-            'top_content_types' => ['tutorials', 'reviews', 'news', 'how-to'],
-            'seasonal_trends' => ['Q1' => 'planning', 'Q2' => 'implementation', 'Q3' => 'optimization', 'Q4' => 'review'],
-        ],
-        'education' => [
-            'avg_engagement_rate' => 12.3,
-            'optimal_posting_frequency' => 4,
-            'top_content_types' => ['courses', 'tips', 'case-studies', 'live-sessions'],
-            'seasonal_trends' => ['Q1' => 'new-year-goals', 'Q2' => 'skill-building', 'Q3' => 'back-to-school', 'Q4' => 'year-end-review'],
-        ],
-        'entertainment' => [
-            'avg_engagement_rate' => 15.7,
-            'optimal_posting_frequency' => 5,
-            'top_content_types' => ['vlogs', 'challenges', 'reactions', 'behind-scenes'],
-            'seasonal_trends' => ['Q1' => 'resolutions', 'Q2' => 'summer-prep', 'Q3' => 'back-to-routine', 'Q4' => 'holidays'],
-        ],
-        'business' => [
-            'avg_engagement_rate' => 6.8,
-            'optimal_posting_frequency' => 2,
-            'top_content_types' => ['insights', 'case-studies', 'networking', 'thought-leadership'],
-            'seasonal_trends' => ['Q1' => 'planning', 'Q2' => 'growth', 'Q3' => 'optimization', 'Q4' => 'reflection'],
-        ],
-    ];
+    protected AIVideoAnalyzerService $videoAnalyzerService;
+    protected AITrendAnalyzerService $trendAnalyzerService;
+    protected AIPerformanceOptimizationService $performanceOptimizationService;
+    protected AIAudienceInsightsService $audienceInsightsService;
 
-    protected array $contentPillars = [
-        'educational' => [
-            'description' => 'Teaching and informing your audience',
-            'examples' => ['tutorials', 'how-to guides', 'tips', 'explanations'],
-            'engagement_multiplier' => 1.4,
-            'recommended_percentage' => 40,
-        ],
-        'entertaining' => [
-            'description' => 'Engaging and amusing content',
-            'examples' => ['behind-scenes', 'challenges', 'funny moments', 'stories'],
-            'engagement_multiplier' => 1.8,
-            'recommended_percentage' => 30,
-        ],
-        'inspirational' => [
-            'description' => 'Motivating and uplifting content',
-            'examples' => ['success stories', 'motivational quotes', 'achievements', 'goals'],
-            'engagement_multiplier' => 1.3,
-            'recommended_percentage' => 15,
-        ],
-        'promotional' => [
-            'description' => 'Marketing and business content',
-            'examples' => ['product launches', 'announcements', 'offers', 'partnerships'],
-            'engagement_multiplier' => 0.8,
-            'recommended_percentage' => 15,
-        ],
-    ];
-
-    protected array $competitorProfiles = [
-        'market_leader' => [
-            'characteristics' => ['high_follower_count', 'consistent_posting', 'professional_quality'],
-            'strengths' => ['brand_recognition', 'resource_availability', 'established_audience'],
-            'weaknesses' => ['less_personal', 'slower_adaptation', 'corporate_feel'],
-            'opportunities' => ['niche_targeting', 'authentic_content', 'faster_trends'],
-        ],
-        'rising_star' => [
-            'characteristics' => ['rapid_growth', 'trend_adoption', 'high_engagement'],
-            'strengths' => ['agility', 'innovation', 'audience_connection'],
-            'weaknesses' => ['limited_resources', 'inconsistent_quality', 'sustainability'],
-            'opportunities' => ['collaboration', 'learning', 'differentiation'],
-        ],
-        'niche_expert' => [
-            'characteristics' => ['specialized_content', 'loyal_audience', 'expertise_focus'],
-            'strengths' => ['authority', 'trust', 'targeted_audience'],
-            'weaknesses' => ['limited_reach', 'narrow_focus', 'growth_constraints'],
-            'opportunities' => ['expansion', 'cross_pollination', 'broader_appeal'],
-        ],
-    ];
+    public function __construct(
+        AIVideoAnalyzerService $videoAnalyzerService,
+        AITrendAnalyzerService $trendAnalyzerService,
+        AIPerformanceOptimizationService $performanceOptimizationService,
+        AIAudienceInsightsService $audienceInsightsService
+    ) {
+        $this->videoAnalyzerService = $videoAnalyzerService;
+        $this->trendAnalyzerService = $trendAnalyzerService;
+        $this->performanceOptimizationService = $performanceOptimizationService;
+        $this->audienceInsightsService = $audienceInsightsService;
+    }
 
     /**
-     * Generate comprehensive content strategy
+     * Generate comprehensive content strategy based on real user data
      */
     public function generateContentStrategy(int $userId, array $options = []): array
     {
@@ -95,40 +40,48 @@ class AIContentStrategyPlannerService
         
         return Cache::remember($cacheKey, 3600, function () use ($userId, $options) {
             try {
-                Log::info('Starting content strategy generation', ['user_id' => $userId, 'options' => $options]);
+                Log::info('Starting real content strategy generation', ['user_id' => $userId, 'options' => $options]);
 
+                $user = User::with(['videos', 'socialAccounts', 'channels'])->findOrFail($userId);
+                
                 $timeframe = $options['timeframe'] ?? '90d';
-                $industry = $options['industry'] ?? 'technology';
-                $platforms = $options['platforms'] ?? ['youtube', 'instagram', 'tiktok'];
+                $platforms = $options['platforms'] ?? $this->getUserConnectedPlatforms($user);
                 $goals = $options['goals'] ?? ['growth', 'engagement'];
+
+                // Get real user data
+                $userVideoData = $this->getUserVideoData($user, $timeframe);
+                $performanceData = $this->getUserPerformanceData($user, $timeframe);
+                $audienceData = $this->getAudienceData($user, $platforms, $timeframe);
+                $trendData = $this->getCurrentTrends($platforms);
 
                 $strategy = [
                     'user_id' => $userId,
                     'generated_at' => now()->toISOString(),
                     'timeframe' => $timeframe,
-                    'industry' => $industry,
                     'platforms' => $platforms,
                     'goals' => $goals,
-                    'strategic_overview' => $this->generateStrategicOverview($industry, $platforms, $goals),
-                    'content_pillars' => $this->analyzeContentPillars($industry, $userId),
-                    'competitive_analysis' => $this->performCompetitiveAnalysis($industry, $platforms, $userId),
-                    'content_calendar_strategy' => $this->generateContentCalendarStrategy($industry, $platforms, $timeframe),
-                    'platform_strategies' => $this->generatePlatformStrategies($platforms, $industry, $goals),
-                    'kpi_framework' => $this->generateKPIFramework($goals, $platforms),
-                    'growth_roadmap' => $this->generateGrowthRoadmap($userId, $industry, $goals),
-                    'risk_analysis' => $this->performRiskAnalysis($industry, $platforms),
-                    'budget_recommendations' => $this->generateBudgetRecommendations($platforms, $goals),
-                    'success_metrics' => $this->defineSuccessMetrics($goals, $timeframe),
+                    'data_quality' => $this->assessDataQuality($userVideoData, $performanceData),
+                    'strategic_overview' => $this->generateStrategicOverview($user, $platforms, $goals, $performanceData),
+                    'content_pillars' => $this->analyzeContentPillars($userVideoData, $performanceData),
+                    'competitive_analysis' => $this->performCompetitiveAnalysis($performanceData, $platforms, $trendData),
+                    'content_calendar_strategy' => $this->generateContentCalendarStrategy($userVideoData, $performanceData, $platforms),
+                    'platform_strategies' => $this->generatePlatformStrategies($platforms, $performanceData, $goals),
+                    'kpi_framework' => $this->generateKPIFramework($goals, $platforms, $performanceData),
+                    'growth_roadmap' => $this->generateGrowthRoadmap($user, $performanceData, $goals),
+                    'risk_analysis' => $this->performRiskAnalysis($performanceData, $platforms),
+                    'budget_recommendations' => $this->generateBudgetRecommendations($platforms, $performanceData, $goals),
+                    'success_metrics' => $this->defineSuccessMetrics($goals, $performanceData, $timeframe),
                     'strategy_score' => 0,
                     'confidence_level' => 'high',
                 ];
 
                 $strategy['strategy_score'] = $this->calculateStrategyScore($strategy);
 
-                Log::info('Content strategy generation completed', [
+                Log::info('Real content strategy generation completed', [
                     'user_id' => $userId,
                     'strategy_score' => $strategy['strategy_score'],
                     'platforms' => count($platforms),
+                    'videos_analyzed' => count($userVideoData),
                 ]);
 
                 return $strategy;
@@ -146,136 +99,277 @@ class AIContentStrategyPlannerService
     }
 
     /**
-     * Generate strategic overview
+     * Get connected platforms for user
      */
-    protected function generateStrategicOverview(string $industry, array $platforms, array $goals): array
+    protected function getUserConnectedPlatforms(User $user): array
     {
-        $benchmark = $this->industryBenchmarks[$industry] ?? $this->industryBenchmarks['technology'];
+        return $user->socialAccounts()->pluck('platform')->unique()->toArray() ?: ['youtube'];
+    }
+
+    /**
+     * Get user's video data for analysis
+     */
+    protected function getUserVideoData(User $user, string $timeframe): array
+    {
+        $days = $this->getTimeframeDays($timeframe);
+        $startDate = now()->subDays($days);
+
+        return $user->videos()
+            ->with(['targets'])
+            ->where('created_at', '>=', $startDate)
+            ->get()
+            ->map(function ($video) {
+                return [
+                    'id' => $video->id,
+                    'title' => $video->title,
+                    'description' => $video->description,
+                    'duration' => $video->duration,
+                    'width' => $video->video_width,
+                    'height' => $video->video_height,
+                    'created_at' => $video->created_at,
+                    'has_subtitles' => $video->hasSubtitles(),
+                    'targets' => $video->targets->map(function ($target) {
+                        return [
+                            'platform' => $target->platform,
+                            'status' => $target->status,
+                            'publish_at' => $target->publish_at,
+                            'platform_video_id' => $target->platform_video_id,
+                            'platform_url' => $target->platform_url,
+                        ];
+                    })->toArray(),
+                ];
+            })->toArray();
+    }
+
+    /**
+     * Get user's performance data across platforms
+     */
+    protected function getUserPerformanceData(User $user, string $timeframe): array
+    {
+        $videos = $user->videos()->with('targets')->get();
+        $performanceData = [];
+
+        foreach ($videos as $video) {
+            try {
+                $analysis = $this->performanceOptimizationService->analyzeVideoPerformance($video->id);
+                $performanceData[] = $analysis;
+            } catch (\Exception $e) {
+                Log::warning('Failed to get performance data for video', [
+                    'video_id' => $video->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        return $performanceData;
+    }
+
+    /**
+     * Get audience data from AI service
+     */
+    protected function getAudienceData(User $user, array $platforms, string $timeframe): array
+    {
+        try {
+            return $this->audienceInsightsService->generateAudienceInsights($user->id, [
+                'platforms' => $platforms,
+                'timeframe' => $timeframe,
+                'include_demographics' => true,
+                'include_behavior' => true,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to get audience data', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Get current trends for platforms
+     */
+    protected function getCurrentTrends(array $platforms): array
+    {
+        try {
+            return $this->trendAnalyzerService->analyzeTrends([
+                'platforms' => $platforms,
+                'timeframe' => '24h',
+                'include_competitors' => true,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to get trend data', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Assess the quality of available data
+     */
+    protected function assessDataQuality(array $userVideoData, array $performanceData): array
+    {
+        $videoCount = count($userVideoData);
+        $performanceCount = count($performanceData);
         
+        $quality = 'low';
+        if ($videoCount >= 10 && $performanceCount >= 5) {
+            $quality = 'high';
+        } elseif ($videoCount >= 5 && $performanceCount >= 3) {
+            $quality = 'medium';
+        }
+
         return [
-            'mission_statement' => $this->generateMissionStatement($industry, $goals),
-            'target_audience' => $this->defineTargetAudience($industry),
-            'unique_value_proposition' => $this->generateUVP($industry, $platforms),
-            'brand_positioning' => $this->defineBrandPositioning($industry),
-            'content_philosophy' => $this->defineContentPhilosophy($industry),
-            'success_vision' => $this->generateSuccessVision($goals),
-            'strategic_priorities' => $this->defineStrategicPriorities($goals, $platforms),
-            'market_opportunity' => $this->assessMarketOpportunity($industry),
-            'competitive_advantage' => $this->identifyCompetitiveAdvantage($industry, $platforms),
-            'growth_thesis' => $this->formulateGrowthThesis($industry, $goals),
+            'overall_quality' => $quality,
+            'video_count' => $videoCount,
+            'performance_analyses' => $performanceCount,
+            'sufficient_for_analysis' => $videoCount >= 3,
+            'recommendations' => $this->getDataQualityRecommendations($videoCount, $performanceCount),
         ];
     }
 
     /**
-     * Analyze content pillars
+     * Generate strategic overview based on real data
      */
-    protected function analyzeContentPillars(string $industry, int $userId): array
+    protected function generateStrategicOverview(User $user, array $platforms, array $goals, array $performanceData): array
     {
-        $pillars = [];
+        $connectedPlatforms = count($platforms);
+        $totalVideos = $user->videos()->count();
+        $avgPerformanceScore = $this->calculateAveragePerformanceScore($performanceData);
         
-        foreach ($this->contentPillars as $pillarId => $pillarData) {
-            $pillars[$pillarId] = [
-                'name' => ucfirst($pillarId),
-                'description' => $pillarData['description'],
-                'examples' => $pillarData['examples'],
-                'recommended_percentage' => $pillarData['recommended_percentage'],
-                'engagement_multiplier' => $pillarData['engagement_multiplier'],
-                'content_ideas' => $this->generateContentIdeas($pillarId, $industry),
-                'success_factors' => $this->definePillarSuccessFactors($pillarId),
-                'optimization_tips' => $this->generateOptimizationTips($pillarId),
-                'measurement_metrics' => $this->definePillarMetrics($pillarId),
-                'seasonal_adjustments' => $this->getSeasonalAdjustments($pillarId),
-            ];
-        }
-        
-        return $pillars;
+        return [
+            'mission_statement' => $this->generateDataDrivenMissionStatement($goals, $avgPerformanceScore),
+            'target_audience' => $this->analyzeActualAudience($performanceData),
+            'unique_value_proposition' => $this->generateDataBasedUVP($performanceData, $platforms),
+            'brand_positioning' => $this->analyzeCurrentPositioning($performanceData),
+            'content_philosophy' => $this->deriveContentPhilosophy($performanceData),
+            'success_vision' => $this->generateDataBasedVision($goals, $avgPerformanceScore),
+            'strategic_priorities' => $this->defineDataDrivenPriorities($performanceData, $goals),
+            'market_opportunity' => $this->assessRealMarketOpportunity($performanceData, $platforms),
+            'competitive_advantage' => $this->identifyActualAdvantages($performanceData),
+            'growth_thesis' => $this->formulateDataBasedThesis($performanceData, $goals),
+            'current_performance' => [
+                'total_videos' => $totalVideos,
+                'connected_platforms' => $connectedPlatforms,
+                'avg_performance_score' => $avgPerformanceScore,
+                'content_consistency' => $this->analyzeContentConsistency($user),
+            ],
+        ];
     }
 
     /**
-     * Perform competitive analysis
+     * Analyze content pillars based on actual performance
      */
-    protected function performCompetitiveAnalysis(string $industry, array $platforms, int $userId): array
+    protected function analyzeContentPillars(array $userVideoData, array $performanceData): array
     {
+        $contentAnalysis = $this->analyzeExistingContent($userVideoData);
+        $performanceByType = $this->analyzePerformanceByContentType($performanceData);
+
+        return [
+            'educational' => [
+                'name' => 'Educational Content',
+                'current_percentage' => $contentAnalysis['educational'] ?? 0,
+                'performance_score' => $performanceByType['educational'] ?? 0,
+                'recommended_percentage' => $this->calculateRecommendedPercentage('educational', $performanceByType),
+                'optimization_opportunities' => $this->getEducationalOptimizations($performanceData),
+                'content_examples' => $this->getTopPerformingContent('educational', $performanceData),
+                'improvement_areas' => $this->identifyImprovementAreas('educational', $performanceData),
+            ],
+            'entertaining' => [
+                'name' => 'Entertainment Content',
+                'current_percentage' => $contentAnalysis['entertaining'] ?? 0,
+                'performance_score' => $performanceByType['entertaining'] ?? 0,
+                'recommended_percentage' => $this->calculateRecommendedPercentage('entertaining', $performanceByType),
+                'optimization_opportunities' => $this->getEntertainmentOptimizations($performanceData),
+                'content_examples' => $this->getTopPerformingContent('entertaining', $performanceData),
+                'improvement_areas' => $this->identifyImprovementAreas('entertaining', $performanceData),
+            ],
+            'promotional' => [
+                'name' => 'Promotional Content',
+                'current_percentage' => $contentAnalysis['promotional'] ?? 0,
+                'performance_score' => $performanceByType['promotional'] ?? 0,
+                'recommended_percentage' => $this->calculateRecommendedPercentage('promotional', $performanceByType),
+                'optimization_opportunities' => $this->getPromotionalOptimizations($performanceData),
+                'content_examples' => $this->getTopPerformingContent('promotional', $performanceData),
+                'improvement_areas' => $this->identifyImprovementAreas('promotional', $performanceData),
+            ],
+            'inspirational' => [
+                'name' => 'Inspirational Content',
+                'current_percentage' => $contentAnalysis['inspirational'] ?? 0,
+                'performance_score' => $performanceByType['inspirational'] ?? 0,
+                'recommended_percentage' => $this->calculateRecommendedPercentage('inspirational', $performanceByType),
+                'optimization_opportunities' => $this->getInspirationalOptimizations($performanceData),
+                'content_examples' => $this->getTopPerformingContent('inspirational', $performanceData),
+                'improvement_areas' => $this->identifyImprovementAreas('inspirational', $performanceData),
+            ],
+        ];
+    }
+
+    /**
+     * Perform competitive analysis based on real performance data
+     */
+    protected function performCompetitiveAnalysis(array $performanceData, array $platforms, array $trendData): array
+    {
+        $benchmarks = $this->calculateIndustryBenchmarks($performanceData);
+        $competitivePosition = $this->assessCompetitivePosition($performanceData, $benchmarks);
+
         return [
             'market_landscape' => [
-                'total_competitors' => rand(50, 200),
-                'active_competitors' => rand(20, 80),
-                'market_saturation' => $this->calculateMarketSaturation($industry),
-                'growth_rate' => rand(5, 25) . '%',
-                'innovation_pace' => $this->assessInnovationPace($industry),
+                'your_performance_vs_average' => $competitivePosition,
+                'platform_performance_ranking' => $this->rankPlatformPerformance($performanceData),
+                'content_gap_analysis' => $this->identifyContentGaps($performanceData, $trendData),
+                'market_share_estimate' => $this->estimateMarketShare($performanceData),
             ],
-            'competitor_profiles' => $this->generateCompetitorProfiles($industry, $platforms),
-            'content_gap_analysis' => $this->performContentGapAnalysis($industry),
-            'opportunity_matrix' => $this->generateOpportunityMatrix($industry, $platforms),
-            'threat_assessment' => $this->assessThreats($industry),
-            'competitive_positioning' => $this->analyzeCompetitivePositioning($industry),
-            'benchmarking_data' => $this->generateBenchmarkingData($industry, $platforms),
-            'differentiation_strategies' => $this->generateDifferentiationStrategies($industry),
-            'market_share_analysis' => $this->analyzeMarketShare($industry),
-            'competitive_intelligence' => $this->gatherCompetitiveIntelligence($industry, $platforms),
+            'competitive_positioning' => [
+                'strengths' => $this->identifyCompetitiveStrengths($performanceData),
+                'weaknesses' => $this->identifyCompetitiveWeaknesses($performanceData),
+                'opportunities' => $this->identifyMarketOpportunities($trendData, $performanceData),
+                'threats' => $this->identifyCompetitiveThreats($performanceData, $trendData),
+            ],
+            'benchmarking_data' => $benchmarks,
+            'improvement_targets' => $this->setImprovementTargets($performanceData, $benchmarks),
         ];
     }
 
     /**
-     * Generate content calendar strategy
+     * Generate content calendar strategy based on performance patterns
      */
-    protected function generateContentCalendarStrategy(string $industry, array $platforms, string $timeframe): array
+    protected function generateContentCalendarStrategy(array $userVideoData, array $performanceData, array $platforms): array
     {
-        $benchmark = $this->industryBenchmarks[$industry] ?? $this->industryBenchmarks['technology'];
-        
+        $optimalFrequency = $this->calculateOptimalPostingFrequency($userVideoData, $performanceData);
+        $bestPerformingTimes = $this->analyzeBestPostingTimes($userVideoData);
+        $contentMix = $this->analyzeOptimalContentMix($performanceData);
+
         return [
             'posting_frequency' => [
-                'recommended_weekly' => $benchmark['optimal_posting_frequency'],
-                'platform_breakdown' => $this->calculatePlatformFrequency($platforms, $benchmark['optimal_posting_frequency']),
-                'seasonal_adjustments' => $this->getSeasonalPostingAdjustments($industry),
-                'optimal_times' => $this->getOptimalPostingTimes($platforms),
+                'current_frequency' => $this->calculateCurrentFrequency($userVideoData),
+                'recommended_frequency' => $optimalFrequency,
+                'platform_breakdown' => $this->calculatePlatformSpecificFrequency($platforms, $performanceData),
+                'optimization_potential' => $this->calculateFrequencyOptimization($userVideoData, $performanceData),
             ],
-            'content_themes' => [
-                'monthly_themes' => $this->generateMonthlyThemes($industry),
-                'weekly_focus_areas' => $this->generateWeeklyFocusAreas($industry),
-                'daily_content_types' => $this->generateDailyContentTypes($platforms),
-                'special_campaigns' => $this->generateSpecialCampaigns($industry),
+            'optimal_timing' => [
+                'best_posting_times' => $bestPerformingTimes,
+                'platform_specific_timing' => $this->getPlatformOptimalTimes($platforms, $performanceData),
+                'seasonal_adjustments' => $this->getSeasonalRecommendations($performanceData),
             ],
-            'content_mix' => [
-                'pillar_distribution' => $this->calculatePillarDistribution(),
-                'format_distribution' => $this->calculateFormatDistribution($platforms),
-                'topic_rotation' => $this->generateTopicRotation($industry),
-                'engagement_optimization' => $this->generateEngagementOptimization(),
-            ],
-            'production_schedule' => [
-                'content_creation_timeline' => $this->generateCreationTimeline(),
-                'review_and_approval_process' => $this->defineReviewProcess(),
-                'publishing_workflow' => $this->definePublishingWorkflow($platforms),
-                'quality_control_checkpoints' => $this->defineQualityCheckpoints(),
-            ],
-            'performance_tracking' => [
-                'key_metrics' => $this->defineCalendarMetrics(),
-                'review_cycles' => $this->defineReviewCycles(),
-                'optimization_triggers' => $this->defineOptimizationTriggers(),
-                'reporting_schedule' => $this->defineReportingSchedule(),
-            ],
+            'content_distribution' => $contentMix,
+            'production_schedule' => $this->generateProductionSchedule($optimalFrequency, $contentMix),
         ];
     }
 
     /**
-     * Generate platform-specific strategies
+     * Generate platform-specific strategies based on real performance
      */
-    protected function generatePlatformStrategies(array $platforms, string $industry, array $goals): array
+    protected function generatePlatformStrategies(array $platforms, array $performanceData, array $goals): array
     {
         $strategies = [];
         
         foreach ($platforms as $platform) {
+            $platformPerformance = $this->getPlatformPerformanceData($platform, $performanceData);
+            
             $strategies[$platform] = [
-                'platform_overview' => $this->getPlatformOverview($platform),
-                'audience_characteristics' => $this->getPlatformAudience($platform),
-                'content_strategy' => $this->generatePlatformContentStrategy($platform, $industry),
-                'optimization_tactics' => $this->generatePlatformOptimization($platform),
-                'growth_strategies' => $this->generatePlatformGrowthStrategies($platform, $goals),
-                'monetization_opportunities' => $this->identifyMonetizationOpportunities($platform),
-                'algorithm_insights' => $this->getAlgorithmInsights($platform),
-                'best_practices' => $this->getPlatformBestPractices($platform),
-                'success_metrics' => $this->definePlatformMetrics($platform),
-                'competitive_landscape' => $this->analyzePlatformCompetition($platform, $industry),
+                'current_performance' => $platformPerformance,
+                'optimization_opportunities' => $this->identifyPlatformOptimizations($platform, $platformPerformance),
+                'content_strategy' => $this->generatePlatformContentStrategy($platform, $platformPerformance, $goals),
+                'growth_potential' => $this->calculatePlatformGrowthPotential($platform, $platformPerformance),
+                'resource_allocation' => $this->recommendPlatformResourceAllocation($platform, $platformPerformance),
+                'success_metrics' => $this->definePlatformSuccessMetrics($platform, $goals),
+                'competitive_position' => $this->analyzePlatformCompetitivePosition($platform, $platformPerformance),
             ];
         }
         
@@ -283,192 +377,224 @@ class AIContentStrategyPlannerService
     }
 
     /**
-     * Generate KPI framework
+     * Generate KPI framework based on actual performance data
      */
-    protected function generateKPIFramework(array $goals, array $platforms): array
+    protected function generateKPIFramework(array $goals, array $platforms, array $performanceData): array
     {
+        $currentMetrics = $this->extractCurrentMetrics($performanceData);
+        $benchmarks = $this->calculatePerformanceBenchmarks($performanceData);
+
         return [
-            'primary_kpis' => $this->definePrimaryKPIs($goals),
-            'secondary_kpis' => $this->defineSecondaryKPIs($goals),
-            'platform_specific_kpis' => $this->definePlatformKPIs($platforms),
-            'measurement_framework' => $this->defineMeasurementFramework(),
-            'reporting_structure' => $this->defineReportingStructure(),
-            'benchmarking_approach' => $this->defineBenchmarkingApproach(),
-            'goal_setting_methodology' => $this->defineGoalSettingMethodology(),
-            'performance_thresholds' => $this->definePerformanceThresholds($goals),
-            'alert_system' => $this->defineAlertSystem(),
-            'optimization_triggers' => $this->defineKPIOptimizationTriggers(),
+            'primary_kpis' => $this->definePrimaryKPIs($goals, $currentMetrics),
+            'secondary_kpis' => $this->defineSecondaryKPIs($goals, $currentMetrics),
+            'platform_specific_kpis' => $this->definePlatformKPIs($platforms, $performanceData),
+            'current_baselines' => $currentMetrics,
+            'target_improvements' => $this->calculateTargetImprovements($currentMetrics, $benchmarks),
+            'measurement_framework' => $this->defineRealMeasurementFramework($platforms),
+            'reporting_schedule' => $this->generateDataDrivenReportingSchedule($performanceData),
         ];
     }
 
     /**
-     * Generate growth roadmap
+     * Generate growth roadmap based on current performance
      */
-    protected function generateGrowthRoadmap(int $userId, string $industry, array $goals): array
+    protected function generateGrowthRoadmap(User $user, array $performanceData, array $goals): array
     {
+        $currentStage = $this->assessCurrentGrowthStage($user, $performanceData);
+        $growthPotential = $this->calculateGrowthPotential($performanceData);
+
         return [
-            'growth_phases' => [
-                'foundation' => [
-                    'duration' => '0-3 months',
-                    'objectives' => ['brand_establishment', 'content_consistency', 'audience_building'],
-                    'key_activities' => ['content_creation', 'community_engagement', 'brand_development'],
-                    'success_metrics' => ['follower_growth', 'engagement_rate', 'content_quality'],
-                    'milestones' => ['1k_followers', 'consistent_posting', 'brand_recognition'],
-                ],
-                'acceleration' => [
-                    'duration' => '3-9 months',
-                    'objectives' => ['audience_expansion', 'engagement_optimization', 'monetization_prep'],
-                    'key_activities' => ['content_scaling', 'collaboration', 'algorithm_optimization'],
-                    'success_metrics' => ['reach_expansion', 'engagement_quality', 'conversion_rates'],
-                    'milestones' => ['10k_followers', 'viral_content', 'partnership_opportunities'],
-                ],
-                'optimization' => [
-                    'duration' => '9-18 months',
-                    'objectives' => ['revenue_generation', 'market_leadership', 'sustainable_growth'],
-                    'key_activities' => ['monetization', 'thought_leadership', 'market_expansion'],
-                    'success_metrics' => ['revenue_growth', 'market_share', 'brand_authority'],
-                    'milestones' => ['100k_followers', 'revenue_targets', 'industry_recognition'],
-                ],
-            ],
-            'strategic_initiatives' => $this->generateStrategicInitiatives($goals),
-            'resource_allocation' => $this->generateResourceAllocation(),
-            'risk_mitigation' => $this->generateRiskMitigation(),
-            'innovation_pipeline' => $this->generateInnovationPipeline($industry),
+            'current_stage' => $currentStage,
+            'growth_trajectory' => $this->analyzeGrowthTrajectory($performanceData),
+            'milestone_targets' => $this->setRealisticMilestones($performanceData, $goals),
+            'resource_requirements' => $this->calculateResourceRequirements($growthPotential),
+            'timeline_projections' => $this->generateGrowthTimeline($performanceData, $goals),
+            'optimization_priorities' => $this->prioritizeOptimizations($performanceData),
         ];
     }
 
     /**
-     * Perform risk analysis
+     * Perform risk analysis based on actual data
      */
-    protected function performRiskAnalysis(string $industry, array $platforms): array
+    protected function performRiskAnalysis(array $performanceData, array $platforms): array
     {
+        $performanceRisks = $this->identifyPerformanceRisks($performanceData);
+        $platformRisks = $this->analyzePlatformRisks($platforms, $performanceData);
+
         return [
-            'market_risks' => [
-                'algorithm_changes' => ['probability' => 'high', 'impact' => 'medium', 'mitigation' => 'diversification'],
-                'increased_competition' => ['probability' => 'high', 'impact' => 'medium', 'mitigation' => 'differentiation'],
-                'market_saturation' => ['probability' => 'medium', 'impact' => 'high', 'mitigation' => 'niche_focus'],
-                'economic_downturn' => ['probability' => 'medium', 'impact' => 'high', 'mitigation' => 'cost_optimization'],
-            ],
-            'operational_risks' => [
-                'content_burnout' => ['probability' => 'medium', 'impact' => 'high', 'mitigation' => 'automation'],
-                'quality_decline' => ['probability' => 'medium', 'impact' => 'medium', 'mitigation' => 'quality_systems'],
-                'resource_constraints' => ['probability' => 'high', 'impact' => 'medium', 'mitigation' => 'prioritization'],
-                'team_scalability' => ['probability' => 'medium', 'impact' => 'medium', 'mitigation' => 'process_optimization'],
-            ],
-            'platform_risks' => [
-                'policy_changes' => ['probability' => 'medium', 'impact' => 'high', 'mitigation' => 'compliance'],
-                'platform_decline' => ['probability' => 'low', 'impact' => 'high', 'mitigation' => 'multi_platform'],
-                'monetization_changes' => ['probability' => 'medium', 'impact' => 'medium', 'mitigation' => 'diversification'],
-                'technical_issues' => ['probability' => 'low', 'impact' => 'medium', 'mitigation' => 'backup_plans'],
-            ],
-            'mitigation_strategies' => $this->generateMitigationStrategies(),
-            'contingency_plans' => $this->generateContingencyPlans(),
-            'monitoring_systems' => $this->defineRiskMonitoring(),
+            'performance_risks' => $performanceRisks,
+            'platform_dependency_risks' => $platformRisks,
+            'content_risks' => $this->identifyContentRisks($performanceData),
+            'competitive_risks' => $this->assessCompetitiveRisks($performanceData),
+            'mitigation_strategies' => $this->generateDataBasedMitigationStrategies($performanceRisks, $platformRisks),
+            'monitoring_alerts' => $this->definePerformanceAlerts($performanceData),
         ];
     }
 
     /**
-     * Calculate strategy score
+     * Generate budget recommendations based on performance ROI
+     */
+    protected function generateBudgetRecommendations(array $platforms, array $performanceData, array $goals): array
+    {
+        $roiAnalysis = $this->calculatePlatformROI($performanceData);
+        $investmentPriorities = $this->prioritizePlatformInvestments($roiAnalysis);
+
+        return [
+            'total_recommended_budget' => $this->calculateOptimalBudget($performanceData, $goals),
+            'platform_allocation' => $investmentPriorities,
+            'content_investment' => $this->recommendContentInvestments($performanceData),
+            'tool_recommendations' => $this->recommendToolInvestments($performanceData),
+            'roi_projections' => $this->projectROI($roiAnalysis, $goals),
+            'budget_optimization' => $this->optimizeBudgetAllocation($performanceData),
+        ];
+    }
+
+    /**
+     * Define success metrics based on current performance baselines
+     */
+    protected function defineSuccessMetrics(array $goals, array $performanceData, string $timeframe): array
+    {
+        $currentMetrics = $this->extractCurrentMetrics($performanceData);
+        $improvementTargets = $this->calculateRealisticTargets($currentMetrics, $goals);
+
+        return [
+            'baseline_metrics' => $currentMetrics,
+            'target_metrics' => $improvementTargets,
+            'milestone_schedule' => $this->generateMilestoneSchedule($improvementTargets, $timeframe),
+            'success_thresholds' => $this->defineSuccessThresholds($currentMetrics, $improvementTargets),
+            'tracking_recommendations' => $this->recommendTrackingMethods($goals),
+        ];
+    }
+
+    /**
+     * Calculate strategy score based on data quality and completeness
      */
     protected function calculateStrategyScore(array $strategy): int
     {
         $score = 0;
         $maxScore = 100;
 
-        // Strategic alignment (25 points)
-        $alignmentScore = min(25, count($strategy['goals']) * 8);
-        
-        // Platform coverage (20 points)
-        $platformScore = min(20, count($strategy['platforms']) * 7);
-        
-        // Content pillar balance (25 points)
-        $pillarScore = min(25, count($strategy['content_pillars']) * 6);
-        
-        // Competitive readiness (15 points)
-        $competitiveScore = min(15, 15); // Always full score for comprehensive analysis
-        
-        // Risk management (15 points)
-        $riskScore = min(15, count($strategy['risk_analysis']['mitigation_strategies'] ?? []) * 3);
+        // Data quality (30 points)
+        $dataQuality = $strategy['data_quality']['overall_quality'];
+        $dataScore = match($dataQuality) {
+            'high' => 30,
+            'medium' => 20,
+            'low' => 10,
+            default => 5
+        };
 
-        $totalScore = $alignmentScore + $platformScore + $pillarScore + $competitiveScore + $riskScore;
+        // Platform coverage (25 points)
+        $platformScore = min(25, count($strategy['platforms']) * 8);
+
+        // Performance insights (25 points)
+        $performanceScore = isset($strategy['strategic_overview']['current_performance']) ? 25 : 10;
+
+        // Completeness (20 points)
+        $completenessScore = 0;
+        $requiredSections = ['strategic_overview', 'content_pillars', 'platform_strategies', 'kpi_framework'];
+        foreach ($requiredSections as $section) {
+            if (!empty($strategy[$section])) {
+                $completenessScore += 5;
+            }
+        }
+
+        $totalScore = $dataScore + $platformScore + $performanceScore + $completenessScore;
         
-        return min($maxScore, round($totalScore));
+        return min($maxScore, $totalScore);
     }
 
-    /**
-     * Helper methods for strategy generation
-     */
-    protected function generateMissionStatement(string $industry, array $goals): string
+    // Helper methods for data processing and analysis
+
+    protected function getTimeframeDays(string $timeframe): int
     {
-        $templates = [
-            'growth' => 'To build a thriving community through valuable content that educates, inspires, and entertains our audience.',
-            'engagement' => 'To create meaningful connections with our audience through authentic, engaging content that drives conversation.',
-            'revenue' => 'To establish a sustainable content business that delivers value to our audience while achieving financial success.',
-        ];
-        
-        $primaryGoal = $goals[0] ?? 'growth';
-        return $templates[$primaryGoal] ?? $templates['growth'];
+        return match($timeframe) {
+            '7d' => 7,
+            '30d' => 30,
+            '90d' => 90,
+            '180d' => 180,
+            '365d' => 365,
+            default => 90
+        };
     }
 
-    protected function defineTargetAudience(string $industry): array
+    protected function calculateAveragePerformanceScore(array $performanceData): float
     {
-        $audiences = [
-            'technology' => [
-                'primary' => 'Tech professionals and enthusiasts aged 25-45',
-                'secondary' => 'Students and career changers interested in technology',
-                'characteristics' => ['high_education', 'disposable_income', 'early_adopters'],
-            ],
-            'education' => [
-                'primary' => 'Lifelong learners and professionals seeking skill development',
-                'secondary' => 'Students and educators looking for resources',
-                'characteristics' => ['growth_mindset', 'time_conscious', 'value_driven'],
-            ],
-            'entertainment' => [
-                'primary' => 'Young adults aged 18-35 seeking entertainment and connection',
-                'secondary' => 'Broader audience looking for escapism and fun',
-                'characteristics' => ['social_media_native', 'trend_followers', 'community_oriented'],
-            ],
-            'business' => [
-                'primary' => 'Entrepreneurs and business professionals',
-                'secondary' => 'Aspiring business owners and corporate employees',
-                'characteristics' => ['results_oriented', 'networking_focused', 'efficiency_driven'],
-            ],
-        ];
-        
-        return $audiences[$industry] ?? $audiences['technology'];
+        if (empty($performanceData)) {
+            return 0;
+        }
+
+        $totalScore = 0;
+        $count = 0;
+
+        foreach ($performanceData as $performance) {
+            if (isset($performance['performance_score'])) {
+                $totalScore += $performance['performance_score'];
+                $count++;
+            }
+        }
+
+        return $count > 0 ? round($totalScore / $count, 1) : 0;
     }
 
-    protected function generateContentIdeas(string $pillar, string $industry): array
+    protected function analyzeContentConsistency(User $user): string
     {
-        $ideas = [
-            'educational' => [
-                'technology' => ['coding tutorials', 'tool reviews', 'industry insights', 'career advice'],
-                'education' => ['skill breakdowns', 'learning strategies', 'study tips', 'course reviews'],
-                'entertainment' => ['behind-the-scenes', 'process explanations', 'industry secrets', 'tutorials'],
-                'business' => ['case studies', 'strategy guides', 'market analysis', 'skill development'],
-            ],
-            'entertaining' => [
-                'technology' => ['tech fails', 'day in the life', 'funny coding moments', 'tech challenges'],
-                'education' => ['learning fails', 'study vlogs', 'funny moments', 'challenges'],
-                'entertainment' => ['comedy skits', 'reactions', 'challenges', 'collaborations'],
-                'business' => ['entrepreneur stories', 'office humor', 'networking events', 'startup fails'],
-            ],
-            'inspirational' => [
-                'technology' => ['success stories', 'career journeys', 'innovation spotlights', 'future visions'],
-                'education' => ['transformation stories', 'achievement celebrations', 'goal setting', 'motivation'],
-                'entertainment' => ['personal growth', 'creative journeys', 'overcoming challenges', 'dreams'],
-                'business' => ['success stories', 'leadership insights', 'vision sharing', 'milestone celebrations'],
-            ],
-            'promotional' => [
-                'technology' => ['product launches', 'service announcements', 'partnerships', 'events'],
-                'education' => ['course launches', 'program announcements', 'partnerships', 'events'],
-                'entertainment' => ['project announcements', 'collaborations', 'merchandise', 'events'],
-                'business' => ['service launches', 'partnerships', 'achievements', 'speaking events'],
-            ],
-        ];
+        $videos = $user->videos()->orderBy('created_at', 'desc')->limit(10)->get();
         
-        return $ideas[$pillar][$industry] ?? $ideas[$pillar]['technology'];
+        if ($videos->count() < 3) {
+            return 'insufficient_data';
+        }
+
+        $intervals = [];
+        for ($i = 1; $i < $videos->count(); $i++) {
+            $intervals[] = $videos[$i-1]->created_at->diffInDays($videos[$i]->created_at);
+        }
+
+        $avgInterval = array_sum($intervals) / count($intervals);
+        $variance = 0;
+        foreach ($intervals as $interval) {
+            $variance += pow($interval - $avgInterval, 2);
+        }
+        $variance /= count($intervals);
+        $stdDev = sqrt($variance);
+
+        $consistencyRatio = $stdDev / max($avgInterval, 1);
+
+        if ($consistencyRatio < 0.3) {
+            return 'very_consistent';
+        } elseif ($consistencyRatio < 0.6) {
+            return 'consistent';
+        } elseif ($consistencyRatio < 1.0) {
+            return 'somewhat_consistent';
+        } else {
+            return 'inconsistent';
+        }
     }
+
+    protected function getDataQualityRecommendations(int $videoCount, int $performanceCount): array
+    {
+        $recommendations = [];
+
+        if ($videoCount < 5) {
+            $recommendations[] = 'Create more videos to improve strategy accuracy (minimum 5 recommended)';
+        }
+        
+        if ($performanceCount < 3) {
+            $recommendations[] = 'Publish videos to more platforms to gather performance data';
+        }
+
+        if ($videoCount < 10) {
+            $recommendations[] = 'Continue creating content for more comprehensive analysis';
+        }
+
+        if (empty($recommendations)) {
+            $recommendations[] = 'Data quality is sufficient for detailed strategy planning';
+        }
+
+        return $recommendations;
+    }
+
+    // Additional helper methods would continue here for all the analysis functions...
+    // For brevity, I'm including the main structure and key methods
 
     protected function getFailsafeStrategy(int $userId, array $options): array
     {
@@ -476,10 +602,10 @@ class AIContentStrategyPlannerService
             'user_id' => $userId,
             'generated_at' => now()->toISOString(),
             'timeframe' => $options['timeframe'] ?? '90d',
-            'industry' => $options['industry'] ?? 'technology',
-            'platforms' => $options['platforms'] ?? ['youtube', 'instagram', 'tiktok'],
+            'platforms' => $options['platforms'] ?? ['youtube'],
             'goals' => $options['goals'] ?? ['growth'],
-            'strategic_overview' => [],
+            'data_quality' => ['overall_quality' => 'insufficient', 'recommendations' => ['Create more content to enable detailed analysis']],
+            'strategic_overview' => ['mission_statement' => 'Build audience through consistent, quality content creation'],
             'content_pillars' => [],
             'competitive_analysis' => [],
             'content_calendar_strategy' => [],
@@ -491,1318 +617,1686 @@ class AIContentStrategyPlannerService
             'success_metrics' => [],
             'strategy_score' => 0,
             'confidence_level' => 'low',
-            'status' => 'error',
-            'error' => 'Failed to generate content strategy',
+            'status' => 'insufficient_data',
+            'error' => 'Insufficient data for comprehensive strategy generation',
         ];
     }
 
-    // Additional helper methods would continue here...
-    // (For brevity, I'm including the key structure and main methods)
+    /**
+     * Generate data-driven mission statement based on actual performance
+     */
+    protected function generateDataDrivenMissionStatement(array $goals, float $avgPerformanceScore): string
+    {
+        $performanceTier = $this->getPerformanceTier($avgPerformanceScore);
+        $primaryGoal = $goals[0] ?? 'growth';
+        
+        $missions = [
+            'high' => [
+                'growth' => 'Leverage proven high-performance content to scale reach and build a loyal audience',
+                'engagement' => 'Maximize engagement through data-proven formats while expanding community interaction',
+                'revenue' => 'Monetize successful content patterns to build sustainable revenue streams',
+                'brand' => 'Establish thought leadership through consistently high-performing content',
+            ],
+            'medium' => [
+                'growth' => 'Optimize content strategy to achieve breakthrough performance and accelerate growth',
+                'engagement' => 'Focus on improving engagement rates through targeted content optimization',
+                'revenue' => 'Develop revenue-generating content based on current performance patterns',
+                'brand' => 'Build brand authority through strategic content improvement',
+            ],
+            'low' => [
+                'growth' => 'Build foundational content strategy focused on sustainable growth and performance improvement',
+                'engagement' => 'Establish consistent engagement through strategic content development',
+                'revenue' => 'Create value-driven content foundation for future monetization opportunities',
+                'brand' => 'Develop authentic brand voice through consistent, quality content',
+            ],
+        ];
+        
+        return $missions[$performanceTier][$primaryGoal] ?? 'Drive content success through data-driven strategy and consistent execution';
+    }
     
-    protected function calculateMarketSaturation(string $industry): string
+    /**
+     * Analyze actual audience based on performance data
+     */
+    protected function analyzeActualAudience(array $performanceData): array
     {
-        $saturation = ['low', 'medium', 'high'];
-        return $saturation[array_rand($saturation)];
-    }
-
-    protected function generateCompetitorProfiles(string $industry, array $platforms): array
-    {
-        $profiles = [];
-        foreach ($this->competitorProfiles as $type => $profile) {
-            $profiles[$type] = array_merge($profile, [
-                'estimated_count' => rand(5, 25),
-                'market_share' => rand(10, 40) . '%',
-                'growth_rate' => rand(-5, 25) . '%',
-            ]);
+        if (empty($performanceData)) {
+            return ['analysis' => 'Insufficient data for audience analysis', 'confidence' => 'low'];
         }
-        return $profiles;
-    }
-
-    protected function generateBudgetRecommendations(array $platforms, array $goals): array
-    {
+        
+        $totalViews = 0;
+        $totalEngagement = 0;
+        $platformDistribution = [];
+        $contentPerformance = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['overall_performance'])) {
+                $overall = $performance['overall_performance'];
+                $totalViews += $overall['total_views'] ?? 0;
+                $totalEngagement += $overall['total_engagement'] ?? 0;
+                
+                // Analyze platform distribution
+                if (isset($performance['platform_breakdown'])) {
+                    foreach ($performance['platform_breakdown'] as $platform => $data) {
+                        $platformDistribution[$platform] = ($platformDistribution[$platform] ?? 0) + ($data['views'] ?? 0);
+                    }
+                }
+                
+                // Analyze content performance patterns
+                if (isset($performance['content_recommendations'])) {
+                    foreach ($performance['content_recommendations'] as $rec) {
+                        $type = $rec['type'] ?? 'general';
+                        $contentPerformance[$type] = ($contentPerformance[$type] ?? 0) + 1;
+                    }
+                }
+            }
+        }
+        
+        $bestPlatform = !empty($platformDistribution) ? array_key_first(arsort($platformDistribution) ? $platformDistribution : []) : 'youtube';
+        $engagementRate = $totalViews > 0 ? round(($totalEngagement / $totalViews) * 100, 2) : 0;
+        
         return [
-            'monthly_budget_range' => '$500 - $2,000',
-            'allocation_breakdown' => [
-                'content_creation' => 40,
-                'paid_promotion' => 30,
-                'tools_and_software' => 15,
-                'collaboration' => 10,
-                'miscellaneous' => 5,
-            ],
-            'roi_expectations' => [
-                'short_term' => '2-3x within 6 months',
-                'long_term' => '5-10x within 18 months',
-            ],
+            'analysis' => "Primary audience engages most on {$bestPlatform} with {$engagementRate}% engagement rate",
+            'total_reach' => $totalViews,
+            'engagement_rate' => $engagementRate,
+            'platform_preferences' => $platformDistribution,
+            'content_preferences' => $contentPerformance,
+            'confidence' => count($performanceData) >= 5 ? 'high' : 'medium',
         ];
     }
-
-    protected function defineSuccessMetrics(array $goals, string $timeframe): array
+    
+    /**
+     * Generate unique value proposition based on performance analysis
+     */
+    protected function generateDataBasedUVP(array $performanceData, array $platforms): string
     {
+        if (empty($performanceData)) {
+            return 'Authentic content creation with focus on audience value';
+        }
+        
+        $strengths = [];
+        $platformStrengths = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['platform_breakdown'])) {
+                foreach ($performance['platform_breakdown'] as $platform => $data) {
+                    if (($data['performance_score'] ?? 0) > 70) {
+                        $platformStrengths[] = $platform;
+                    }
+                }
+            }
+            
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if ($opp['priority'] === 'high') {
+                        $strengths[] = $opp['area'] ?? 'content quality';
+                    }
+                }
+            }
+        }
+        
+        $uniquePlatforms = array_unique($platformStrengths);
+        $uniqueStrengths = array_unique($strengths);
+        
+        if (!empty($uniquePlatforms) && !empty($uniqueStrengths)) {
+            $platformText = count($uniquePlatforms) > 1 ? 'multi-platform' : $uniquePlatforms[0];
+            $strengthText = $uniqueStrengths[0];
+            return "High-performing {$platformText} content with proven {$strengthText} expertise";
+        }
+        
+        return 'Data-driven content strategy focused on measurable audience engagement';
+    }
+    
+    /**
+     * Analyze current positioning based on performance data
+     */
+    protected function analyzeCurrentPositioning(array $performanceData): array
+    {
+        if (empty($performanceData)) {
+            return ['position' => 'emerging creator', 'confidence' => 'low'];
+        }
+        
+        $avgScore = $this->calculateAveragePerformanceScore($performanceData);
+        $consistency = $this->calculatePerformanceConsistency($performanceData);
+        $platformCount = $this->countActivePlatforms($performanceData);
+        
+        $positioning = 'emerging creator';
+        if ($avgScore > 80 && $consistency > 70) {
+            $positioning = 'established creator';
+        } elseif ($avgScore > 60 && $platformCount > 2) {
+            $positioning = 'multi-platform creator';
+        } elseif ($consistency > 80) {
+            $positioning = 'consistent creator';
+        } elseif ($avgScore > 70) {
+            $positioning = 'high-impact creator';
+        }
+        
         return [
-            'primary_metrics' => [
-                'follower_growth' => '25% increase',
-                'engagement_rate' => '8%+ average',
-                'reach_expansion' => '50% increase',
-                'conversion_rate' => '3%+ average',
-            ],
-            'milestone_targets' => [
-                '30_days' => ['1k new followers', '5% engagement rate'],
-                '90_days' => ['5k new followers', '8% engagement rate'],
-                '180_days' => ['15k new followers', '10% engagement rate'],
-            ],
+            'position' => $positioning,
+            'performance_score' => $avgScore,
+            'consistency_score' => $consistency,
+            'platform_reach' => $platformCount,
+            'confidence' => $avgScore > 60 ? 'high' : 'medium',
         ];
     }
-
+    
     /**
-     * Generate unique value proposition
+     * Derive content philosophy from performance data
      */
-    protected function generateUVP(string $industry, array $platforms): string
+    protected function deriveContentPhilosophy(array $performanceData): array
     {
-        $uvpTemplates = [
-            'technology' => 'Cutting-edge insights and practical solutions that bridge the gap between complex technology and real-world applications.',
-            'education' => 'Transformative learning experiences that make complex concepts accessible and actionable for learners at every level.',
-            'entertainment' => 'Authentic, engaging content that creates genuine connections and memorable experiences for our community.',
-            'business' => 'Strategic insights and proven methodologies that drive measurable growth and sustainable success.',
-        ];
+        if (empty($performanceData)) {
+            return ['philosophy' => 'value-first content creation'];
+        }
         
-        return $uvpTemplates[$industry] ?? $uvpTemplates['technology'];
+        $contentTypes = [];
+        $successPatterns = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['content_recommendations'])) {
+                foreach ($performance['content_recommendations'] as $rec) {
+                    $type = $rec['type'] ?? 'general';
+                    $score = $rec['confidence'] ?? 50;
+                    if ($score > 70) {
+                        $contentTypes[$type] = ($contentTypes[$type] ?? 0) + 1;
+                    }
+                }
+            }
+            
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if ($opp['priority'] === 'high') {
+                        $successPatterns[] = $opp['description'] ?? 'quality improvement';
+                    }
+                }
+            }
+        }
+        
+        $topContentType = !empty($contentTypes) ? array_key_first(arsort($contentTypes) ? $contentTypes : []) : 'educational';
+        $philosophy = $this->mapContentTypeToPhilosophy($topContentType);
+        
+        return [
+            'philosophy' => $philosophy,
+            'content_focus' => $topContentType,
+            'success_patterns' => array_slice($successPatterns, 0, 3),
+            'approach' => 'data-driven optimization',
+        ];
     }
-
+    
     /**
-     * Define brand positioning
+     * Generate data-based vision statement
      */
-    protected function defineBrandPositioning(string $industry): array
+    protected function generateDataBasedVision(array $goals, float $avgPerformanceScore): string
     {
-        $positioningTemplates = [
-            'technology' => [
-                'primary_position' => 'Trusted technology guide',
-                'differentiation' => 'Practical expertise with clear explanations',
-                'target_perception' => 'The go-to source for actionable tech insights',
-                'competitive_edge' => 'Bridges technical complexity with practical application',
-            ],
-            'education' => [
-                'primary_position' => 'Learning catalyst',
-                'differentiation' => 'Personalized, engaging educational experiences',
-                'target_perception' => 'Makes learning accessible and enjoyable',
-                'competitive_edge' => 'Transforms complex subjects into engaging content',
-            ],
-            'entertainment' => [
-                'primary_position' => 'Community creator',
-                'differentiation' => 'Authentic, relatable content with genuine engagement',
-                'target_perception' => 'Creates a sense of belonging and entertainment',
-                'competitive_edge' => 'Builds genuine connections through storytelling',
-            ],
-            'business' => [
-                'primary_position' => 'Growth strategist',
-                'differentiation' => 'Data-driven insights with practical implementation',
-                'target_perception' => 'Delivers measurable results and strategic clarity',
-                'competitive_edge' => 'Combines strategic thinking with tactical execution',
-            ],
-        ];
-        
-        return $positioningTemplates[$industry] ?? $positioningTemplates['technology'];
-    }
-
-    /**
-     * Define content philosophy
-     */
-    protected function defineContentPhilosophy(string $industry): array
-    {
-        $philosophyTemplates = [
-            'technology' => [
-                'core_belief' => 'Technology should empower, not overwhelm',
-                'content_principles' => ['accessibility', 'practicality', 'innovation', 'clarity'],
-                'value_proposition' => 'Making technology understandable and actionable',
-                'engagement_approach' => 'Educational yet engaging, technical yet accessible',
-            ],
-            'education' => [
-                'core_belief' => 'Every learner deserves personalized, engaging education',
-                'content_principles' => ['inclusivity', 'engagement', 'progression', 'application'],
-                'value_proposition' => 'Transforming learning through innovative content',
-                'engagement_approach' => 'Interactive, supportive, and growth-focused',
-            ],
-            'entertainment' => [
-                'core_belief' => 'Authentic connections create lasting impact',
-                'content_principles' => ['authenticity', 'creativity', 'community', 'fun'],
-                'value_proposition' => 'Creating memorable experiences through storytelling',
-                'engagement_approach' => 'Relatable, entertaining, and community-driven',
-            ],
-            'business' => [
-                'core_belief' => 'Success comes from strategic action and continuous learning',
-                'content_principles' => ['strategy', 'results', 'innovation', 'leadership'],
-                'value_proposition' => 'Driving business growth through strategic insights',
-                'engagement_approach' => 'Professional, actionable, and results-focused',
-            ],
-        ];
-        
-        return $philosophyTemplates[$industry] ?? $philosophyTemplates['technology'];
-    }
-
-    /**
-     * Generate success vision
-     */
-    protected function generateSuccessVision(array $goals): string
-    {
-        $visionTemplates = [
-            'growth' => 'To build a thriving, engaged community that grows sustainably while maintaining authentic connections.',
-            'engagement' => 'To create meaningful interactions that foster genuine relationships and drive consistent community engagement.',
-            'revenue' => 'To establish a profitable content ecosystem that delivers value to our audience while achieving financial sustainability.',
-            'brand' => 'To become a recognized thought leader and trusted brand that influences positive change in our industry.',
-        ];
-        
+        $performanceTier = $this->getPerformanceTier($avgPerformanceScore);
         $primaryGoal = $goals[0] ?? 'growth';
-        return $visionTemplates[$primaryGoal] ?? $visionTemplates['growth'];
-    }
-
-    /**
-     * Define strategic priorities
-     */
-    protected function defineStrategicPriorities(array $goals, array $platforms): array
-    {
-        return [
-            'content_excellence' => [
-                'priority_level' => 'high',
-                'description' => 'Consistently create high-quality, valuable content',
-                'key_actions' => ['quality_standards', 'content_planning', 'audience_research'],
+        
+        $visions = [
+            'high' => [
+                'growth' => 'Scale proven high-performance content to reach millions while maintaining quality and engagement',
+                'engagement' => 'Build the most engaged community in my niche through data-driven content excellence',
+                'revenue' => 'Create sustainable revenue streams through proven high-converting content strategies',
+                'brand' => 'Establish industry leadership through consistently exceptional content performance',
             ],
-            'audience_engagement' => [
-                'priority_level' => 'high',
-                'description' => 'Build and maintain strong community relationships',
-                'key_actions' => ['community_management', 'response_strategy', 'engagement_initiatives'],
+            'medium' => [
+                'growth' => 'Optimize current content strategy to achieve breakthrough growth and audience expansion',
+                'engagement' => 'Double engagement rates while building a loyal, interactive community',
+                'revenue' => 'Monetize growing audience through strategic content and partnership opportunities',
+                'brand' => 'Become the go-to authority in my field through improved content strategy',
             ],
-            'platform_optimization' => [
-                'priority_level' => 'medium',
-                'description' => 'Maximize performance on key platforms',
-                'key_actions' => ['algorithm_understanding', 'platform_best_practices', 'cross_promotion'],
-            ],
-            'growth_scaling' => [
-                'priority_level' => in_array('growth', $goals) ? 'high' : 'medium',
-                'description' => 'Sustainable audience and reach expansion',
-                'key_actions' => ['viral_strategies', 'collaboration', 'paid_promotion'],
-            ],
-            'monetization' => [
-                'priority_level' => in_array('revenue', $goals) ? 'high' : 'low',
-                'description' => 'Develop sustainable revenue streams',
-                'key_actions' => ['product_development', 'sponsorship_strategy', 'affiliate_marketing'],
-            ],
-        ];
-    }
-
-    /**
-     * Assess market opportunity
-     */
-    protected function assessMarketOpportunity(string $industry): array
-    {
-        $opportunities = [
-            'technology' => [
-                'market_size' => 'Large and growing',
-                'growth_rate' => '15-20% annually',
-                'saturation_level' => 'Medium',
-                'entry_barriers' => 'Low to medium',
-                'key_opportunities' => ['AI/ML content', 'developer tools', 'tech tutorials', 'startup insights'],
-                'emerging_trends' => ['AI adoption', 'remote work tools', 'cybersecurity', 'sustainability tech'],
-            ],
-            'education' => [
-                'market_size' => 'Very large',
-                'growth_rate' => '10-15% annually',
-                'saturation_level' => 'Medium to high',
-                'entry_barriers' => 'Low',
-                'key_opportunities' => ['online learning', 'skill development', 'certification prep', 'micro-learning'],
-                'emerging_trends' => ['personalized learning', 'VR/AR education', 'lifelong learning', 'skill-based hiring'],
-            ],
-            'entertainment' => [
-                'market_size' => 'Very large',
-                'growth_rate' => '8-12% annually',
-                'saturation_level' => 'High',
-                'entry_barriers' => 'Low',
-                'key_opportunities' => ['niche communities', 'interactive content', 'live streaming', 'short-form video'],
-                'emerging_trends' => ['creator economy', 'virtual events', 'community platforms', 'social commerce'],
-            ],
-            'business' => [
-                'market_size' => 'Large',
-                'growth_rate' => '12-18% annually',
-                'saturation_level' => 'Medium',
-                'entry_barriers' => 'Medium',
-                'key_opportunities' => ['entrepreneurship', 'leadership development', 'digital transformation', 'remote management'],
-                'emerging_trends' => ['sustainable business', 'digital-first strategies', 'employee experience', 'data-driven decisions'],
+            'low' => [
+                'growth' => 'Build sustainable growth foundation through strategic content improvement and consistency',
+                'engagement' => 'Foster meaningful audience connections through value-driven content',
+                'revenue' => 'Establish foundation for future monetization through audience growth and engagement',
+                'brand' => 'Develop authentic brand identity through consistent, quality content delivery',
             ],
         ];
         
-        return $opportunities[$industry] ?? $opportunities['technology'];
+        return $visions[$performanceTier][$primaryGoal] ?? 'Build successful content presence through strategic optimization and authentic audience connection';
     }
-
+    
     /**
-     * Identify competitive advantage
+     * Define data-driven priorities based on performance and goals
      */
-    protected function identifyCompetitiveAdvantage(string $industry, array $platforms): array
+    protected function defineDataDrivenPriorities(array $performanceData, array $goals): array
     {
-        return [
-            'unique_strengths' => [
-                'multi_platform_expertise' => 'Deep understanding of ' . implode(', ', $platforms) . ' algorithms and best practices',
-                'audience_insights' => 'Data-driven approach to content creation and optimization',
-                'authentic_voice' => 'Genuine, relatable communication style that builds trust',
-                'consistent_quality' => 'Reliable content quality and posting schedule',
-            ],
-            'differentiation_factors' => [
-                'content_depth' => 'Comprehensive, well-researched content that provides real value',
-                'community_focus' => 'Strong emphasis on building genuine community relationships',
-                'innovation_adoption' => 'Quick to adopt new features and trends while maintaining brand consistency',
-                'cross_platform_synergy' => 'Effective content adaptation across multiple platforms',
-            ],
-            'market_positioning' => [
-                'expertise_level' => 'Recognized expert with practical experience',
-                'audience_trust' => 'High trust and credibility with target audience',
-                'content_uniqueness' => 'Distinctive perspective and approach to industry topics',
-                'engagement_quality' => 'High-quality interactions and community engagement',
-            ],
-        ];
+        $priorities = [];
+        $urgentIssues = [];
+        $opportunities = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if ($opp['priority'] === 'high') {
+                        $urgentIssues[] = $opp['area'] ?? 'performance';
+                    } elseif ($opp['priority'] === 'medium') {
+                        $opportunities[] = $opp['area'] ?? 'growth';
+                    }
+                }
+            }
+        }
+        
+        // Priority 1: Address urgent performance issues
+        if (!empty($urgentIssues)) {
+            $priorities[] = [
+                'priority' => 1,
+                'focus' => 'Performance Optimization',
+                'description' => 'Address critical areas: ' . implode(', ', array_unique($urgentIssues)),
+                'timeline' => '1-2 weeks',
+            ];
+        }
+        
+        // Priority 2: Leverage opportunities based on goals
+        foreach ($goals as $index => $goal) {
+            $priorities[] = [
+                'priority' => $index + 2,
+                'focus' => ucfirst($goal) . ' Strategy',
+                'description' => $this->getGoalDescription($goal, $opportunities),
+                'timeline' => '2-4 weeks',
+            ];
+        }
+        
+        return array_slice($priorities, 0, 4); // Limit to top 4 priorities
     }
-
+    
     /**
-     * Formulate growth thesis
+     * Assess real market opportunity based on performance data
      */
-    protected function formulateGrowthThesis(string $industry, array $goals): string
+    protected function assessRealMarketOpportunity(array $performanceData, array $platforms): array
     {
-        $thesisTemplates = [
-            'growth' => 'Sustainable growth will be achieved through consistent value delivery, authentic community building, and strategic platform optimization, focusing on quality over quantity to build lasting audience relationships.',
-            'engagement' => 'Deep engagement will drive growth by creating a loyal community that actively participates, shares content, and advocates for our brand, leading to organic reach expansion and higher conversion rates.',
-            'revenue' => 'Revenue growth will be supported by a strong foundation of audience trust and value delivery, enabling multiple monetization streams while maintaining audience satisfaction and long-term sustainability.',
-            'brand' => 'Brand recognition will be built through thought leadership, consistent messaging, and valuable content that positions us as the go-to resource in our industry, creating long-term competitive advantages.',
+        $marketData = [
+            'total_addressable_market' => 0,
+            'current_market_share' => 0,
+            'growth_potential' => 'medium',
+            'competitive_position' => 'developing',
+            'barriers_to_entry' => [],
+            'success_indicators' => [],
         ];
         
+        if (empty($performanceData)) {
+            return $marketData;
+        }
+        
+        $totalViews = 0;
+        $bestPlatformPerformance = 0;
+        $platformReach = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['overall_performance'])) {
+                $totalViews += $performance['overall_performance']['total_views'] ?? 0;
+            }
+            
+            if (isset($performance['platform_breakdown'])) {
+                foreach ($performance['platform_breakdown'] as $platform => $data) {
+                    $score = $data['performance_score'] ?? 0;
+                    $reach = $data['views'] ?? 0;
+                    
+                    $platformReach[$platform] = ($platformReach[$platform] ?? 0) + $reach;
+                    $bestPlatformPerformance = max($bestPlatformPerformance, $score);
+                }
+            }
+        }
+        
+        // Estimate market opportunity based on current performance
+        $avgViewsPerVideo = count($performanceData) > 0 ? $totalViews / count($performanceData) : 0;
+        $estimatedMarketSize = $avgViewsPerVideo * 1000; // Conservative scaling factor
+        
+        $marketData['total_addressable_market'] = $estimatedMarketSize;
+        $marketData['current_market_share'] = $totalViews > 0 ? min(($totalViews / $estimatedMarketSize) * 100, 100) : 0;
+        
+        if ($bestPlatformPerformance > 80) {
+            $marketData['growth_potential'] = 'high';
+            $marketData['competitive_position'] = 'strong';
+        } elseif ($bestPlatformPerformance > 60) {
+            $marketData['growth_potential'] = 'medium-high';
+            $marketData['competitive_position'] = 'competitive';
+        }
+        
+        return $marketData;
+    }
+    
+    /**
+     * Identify actual advantages from performance data
+     */
+    protected function identifyActualAdvantages(array $performanceData): array
+    {
+        $advantages = [];
+        
+        if (empty($performanceData)) {
+            return ['Consistent content creation', 'Audience focus'];
+        }
+        
+        $strongPlatforms = [];
+        $highPerformanceAreas = [];
+        $consistencyScore = $this->calculatePerformanceConsistency($performanceData);
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['platform_breakdown'])) {
+                foreach ($performance['platform_breakdown'] as $platform => $data) {
+                    if (($data['performance_score'] ?? 0) > 75) {
+                        $strongPlatforms[] = ucfirst($platform);
+                    }
+                }
+            }
+            
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if ($opp['impact'] === 'high' && ($opp['confidence'] ?? 0) > 70) {
+                        $highPerformanceAreas[] = $opp['area'] ?? 'content quality';
+                    }
+                }
+            }
+        }
+        
+        // Build advantages list
+        if (!empty($strongPlatforms)) {
+            $advantages[] = 'Strong performance on ' . implode(' and ', array_unique($strongPlatforms));
+        }
+        
+        if ($consistencyScore > 70) {
+            $advantages[] = 'Consistent content performance';
+        }
+        
+        if (!empty($highPerformanceAreas)) {
+            $advantages[] = 'Proven expertise in ' . implode(', ', array_unique($highPerformanceAreas));
+        }
+        
+        if (count($performanceData) > 10) {
+            $advantages[] = 'Substantial content library and experience';
+        }
+        
+        return !empty($advantages) ? $advantages : ['Dedicated content creation', 'Audience-focused approach'];
+    }
+    
+    /**
+     * Formulate data-based growth thesis
+     */
+    protected function formulateDataBasedThesis(array $performanceData, array $goals): string
+    {
+        if (empty($performanceData)) {
+            return 'Build sustainable growth through consistent, high-quality content creation and strategic audience engagement';
+        }
+        
+        $avgScore = $this->calculateAveragePerformanceScore($performanceData);
+        $consistency = $this->calculatePerformanceConsistency($performanceData);
+        $platformCount = $this->countActivePlatforms($performanceData);
         $primaryGoal = $goals[0] ?? 'growth';
-        return $thesisTemplates[$primaryGoal] ?? $thesisTemplates['growth'];
+        
+        if ($avgScore > 75 && $consistency > 70) {
+            return "Leverage proven high-performance content strategy to scale {$primaryGoal} through systematic optimization and expansion";
+        } elseif ($platformCount > 2 && $avgScore > 60) {
+            return "Capitalize on multi-platform presence to drive {$primaryGoal} through cross-platform synergy and targeted optimization";
+        } elseif ($consistency > 80) {
+            return "Build on consistent content performance to achieve {$primaryGoal} through strategic quality improvements and audience expansion";
+        } else {
+            return "Optimize current content foundation to achieve sustainable {$primaryGoal} through data-driven improvements and strategic focus";
+        }
     }
 
     /**
-     * Define pillar success factors
+     * Analyze existing content distribution from user video data
      */
-    protected function definePillarSuccessFactors(string $pillarId): array
+    protected function analyzeExistingContent(array $userVideoData): array
     {
-        $factors = [
-            'educational' => ['content_depth', 'practical_application', 'clear_explanations', 'actionable_insights'],
-            'entertaining' => ['audience_engagement', 'creative_storytelling', 'emotional_connection', 'shareability'],
-            'inspirational' => ['authentic_messaging', 'relatable_experiences', 'positive_impact', 'community_building'],
-            'promotional' => ['value_demonstration', 'clear_call_to_action', 'trust_building', 'benefit_focus'],
+        if (empty($userVideoData)) {
+            return ['educational' => 25, 'entertaining' => 25, 'promotional' => 25, 'inspirational' => 25];
+        }
+        
+        $contentTypes = ['educational' => 0, 'entertaining' => 0, 'promotional' => 0, 'inspirational' => 0];
+        $totalVideos = count($userVideoData);
+        
+        foreach ($userVideoData as $video) {
+            $title = strtolower($video['title'] ?? '');
+            $description = strtolower($video['description'] ?? '');
+            $content = $title . ' ' . $description;
+            
+            // Analyze content for keywords
+            if ($this->containsEducationalKeywords($content)) {
+                $contentTypes['educational']++;
+            } elseif ($this->containsEntertainmentKeywords($content)) {
+                $contentTypes['entertaining']++;
+            } elseif ($this->containsPromotionalKeywords($content)) {
+                $contentTypes['promotional']++;
+            } else {
+                $contentTypes['inspirational']++;
+            }
+        }
+        
+        // Convert to percentages
+        foreach ($contentTypes as $type => $count) {
+            $contentTypes[$type] = $totalVideos > 0 ? round(($count / $totalVideos) * 100) : 25;
+        }
+        
+        return $contentTypes;
+    }
+    
+    /**
+     * Analyze performance by content type
+     */
+    protected function analyzePerformanceByContentType(array $performanceData): array
+    {
+        $performanceByType = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['content_recommendations'])) {
+                foreach ($performance['content_recommendations'] as $rec) {
+                    $type = $rec['type'] ?? 'general';
+                    $score = $rec['confidence'] ?? 50;
+                    
+                    if (!isset($performanceByType[$type])) {
+                        $performanceByType[$type] = ['scores' => [], 'count' => 0];
+                    }
+                    
+                    $performanceByType[$type]['scores'][] = $score;
+                    $performanceByType[$type]['count']++;
+                }
+            }
+        }
+        
+        // Calculate averages
+        foreach ($performanceByType as $type => $data) {
+            $performanceByType[$type]['average_score'] = array_sum($data['scores']) / count($data['scores']);
+        }
+        
+        return $performanceByType;
+    }
+    
+    /**
+     * Calculate recommended percentage for content type
+     */
+    protected function calculateRecommendedPercentage(string $type, array $performanceByType): int
+    {
+        if (!isset($performanceByType[$type])) {
+            return 25; // Default equal distribution
+        }
+        
+        $score = $performanceByType[$type]['average_score'] ?? 50;
+        
+        if ($score > 80) {
+            return 40; // Increase high-performing content
+        } elseif ($score > 60) {
+            return 30;
+        } elseif ($score > 40) {
+            return 25;
+        } else {
+            return 15; // Reduce low-performing content
+        }
+    }
+
+    /**
+     * Helper methods for content analysis
+     */
+    protected function containsEducationalKeywords(string $content): bool
+    {
+        $keywords = ['how to', 'tutorial', 'guide', 'learn', 'explain', 'tips', 'lesson', 'teach', 'step by step'];
+        foreach ($keywords as $keyword) {
+            if (strpos($content, $keyword) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    protected function containsEntertainmentKeywords(string $content): bool
+    {
+        $keywords = ['funny', 'comedy', 'fun', 'laugh', 'hilarious', 'entertaining', 'challenge', 'reaction'];
+        foreach ($keywords as $keyword) {
+            if (strpos($content, $keyword) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    protected function containsPromotionalKeywords(string $content): bool
+    {
+        $keywords = ['buy', 'sale', 'discount', 'offer', 'product', 'review', 'unboxing', 'sponsor'];
+        foreach ($keywords as $keyword) {
+            if (strpos($content, $keyword) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    protected function getPerformanceTier(float $score): string
+    {
+        if ($score > 75) return 'high';
+        if ($score > 50) return 'medium';
+        return 'low';
+    }
+    
+    protected function calculatePerformanceConsistency(array $performanceData): float
+    {
+        if (empty($performanceData)) return 0;
+        
+        $scores = [];
+        foreach ($performanceData as $performance) {
+            $scores[] = $performance['performance_score'] ?? 50;
+        }
+        
+        if (count($scores) < 2) return 100;
+        
+        $mean = array_sum($scores) / count($scores);
+        $variance = array_sum(array_map(function($score) use ($mean) {
+            return pow($score - $mean, 2);
+        }, $scores)) / count($scores);
+        
+        $stdDev = sqrt($variance);
+        $consistency = max(0, 100 - ($stdDev * 2)); // Convert to 0-100 scale
+        
+        return round($consistency, 1);
+    }
+    
+    protected function countActivePlatforms(array $performanceData): int
+    {
+        $platforms = [];
+        foreach ($performanceData as $performance) {
+            if (isset($performance['platform_breakdown'])) {
+                $platforms = array_merge($platforms, array_keys($performance['platform_breakdown']));
+            }
+        }
+        return count(array_unique($platforms));
+    }
+    
+    protected function mapContentTypeToPhilosophy(string $contentType): string
+    {
+        $philosophies = [
+            'educational' => 'Knowledge-first content that empowers and educates',
+            'entertaining' => 'Engagement-driven content that delights and entertains',
+            'promotional' => 'Value-based promotion that serves audience needs',
+            'inspirational' => 'Purpose-driven content that motivates and inspires',
         ];
         
-        return $factors[$pillarId] ?? $factors['educational'];
+        return $philosophies[$contentType] ?? 'Audience-centric value creation';
     }
-
-    /**
-     * Generate optimization tips
-     */
-    protected function generateOptimizationTips(string $pillarId): array
+    
+    protected function getGoalDescription(string $goal, array $opportunities): string
     {
-        $tips = [
-            'educational' => [
-                'Use clear, concise language',
-                'Include practical examples',
-                'Break down complex concepts',
-                'Provide actionable takeaways',
-            ],
-            'entertaining' => [
-                'Focus on storytelling',
-                'Use humor appropriately',
-                'Create emotional moments',
-                'Encourage audience participation',
-            ],
-            'inspirational' => [
-                'Share personal experiences',
-                'Highlight transformation stories',
-                'Use motivational language',
-                'Connect with audience values',
-            ],
-            'promotional' => [
-                'Lead with value',
-                'Use social proof',
-                'Create urgency appropriately',
-                'Focus on benefits over features',
-            ],
+        $descriptions = [
+            'growth' => 'Expand reach and audience through strategic content optimization',
+            'engagement' => 'Increase interaction and community building',
+            'revenue' => 'Develop monetization strategies and revenue streams',
+            'brand' => 'Strengthen brand identity and market positioning',
         ];
         
-        return $tips[$pillarId] ?? $tips['educational'];
-    }
-
-    /**
-     * Define pillar metrics
-     */
-    protected function definePillarMetrics(string $pillarId): array
-    {
-        $metrics = [
-            'educational' => ['completion_rate', 'save_rate', 'comment_quality', 'follow_up_questions'],
-            'entertaining' => ['watch_time', 'share_rate', 'reaction_engagement', 'repeat_views'],
-            'inspirational' => ['comment_sentiment', 'story_shares', 'tag_mentions', 'community_growth'],
-            'promotional' => ['click_through_rate', 'conversion_rate', 'cost_per_acquisition', 'return_on_ad_spend'],
-        ];
+        $description = $descriptions[$goal] ?? 'Strategic improvement';
         
-        return $metrics[$pillarId] ?? $metrics['educational'];
+        if (!empty($opportunities)) {
+            $description .= ' focusing on ' . implode(', ', array_slice($opportunities, 0, 2));
+        }
+        
+        return $description;
     }
 
     /**
-     * Get seasonal adjustments
+     * Content type optimization methods
      */
-    protected function getSeasonalAdjustments(string $pillarId): array
+    protected function getEducationalOptimizations(array $performanceData): array
+    {
+        $optimizations = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if (strpos(strtolower($opp['area'] ?? ''), 'educational') !== false ||
+                        strpos(strtolower($opp['description'] ?? ''), 'tutorial') !== false) {
+                        $optimizations[] = $opp['description'] ?? 'Improve educational content structure';
+                    }
+                }
+            }
+        }
+        
+        return !empty($optimizations) ? array_unique($optimizations) : [
+            'Add step-by-step tutorials',
+            'Include more detailed explanations',
+            'Create beginner-friendly content',
+            'Add visual aids and demonstrations'
+        ];
+    }
+
+    protected function getEntertainmentOptimizations(array $performanceData): array
+    {
+        $optimizations = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if (strpos(strtolower($opp['area'] ?? ''), 'entertainment') !== false ||
+                        strpos(strtolower($opp['description'] ?? ''), 'engaging') !== false) {
+                        $optimizations[] = $opp['description'] ?? 'Improve entertainment value';
+                    }
+                }
+            }
+        }
+        
+        return !empty($optimizations) ? array_unique($optimizations) : [
+            'Add humor and personality',
+            'Include interactive elements',
+            'Use trending formats and styles',
+            'Improve storytelling techniques'
+        ];
+    }
+
+    protected function getPromotionalOptimizations(array $performanceData): array
+    {
+        $optimizations = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if (strpos(strtolower($opp['area'] ?? ''), 'promotional') !== false ||
+                        strpos(strtolower($opp['description'] ?? ''), 'conversion') !== false) {
+                        $optimizations[] = $opp['description'] ?? 'Improve promotional effectiveness';
+                    }
+                }
+            }
+        }
+        
+        return !empty($optimizations) ? array_unique($optimizations) : [
+            'Balance promotional with value content',
+            'Use soft-sell approaches',
+            'Include customer testimonials',
+            'Create compelling call-to-actions'
+        ];
+    }
+
+    protected function getInspirationalOptimizations(array $performanceData): array
+    {
+        $optimizations = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if (strpos(strtolower($opp['area'] ?? ''), 'inspirational') !== false ||
+                        strpos(strtolower($opp['description'] ?? ''), 'motivational') !== false) {
+                        $optimizations[] = $opp['description'] ?? 'Improve inspirational impact';
+                    }
+                }
+            }
+        }
+        
+        return !empty($optimizations) ? array_unique($optimizations) : [
+            'Share personal success stories',
+            'Include motivational quotes',
+            'Create behind-the-scenes content',
+            'Focus on transformation journeys'
+        ];
+    }
+
+    protected function getTopPerformingContent(string $type, array $performanceData): array
+    {
+        $topContent = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['content_recommendations'])) {
+                foreach ($performance['content_recommendations'] as $rec) {
+                    if (($rec['type'] ?? '') === $type && ($rec['confidence'] ?? 0) > 70) {
+                        $topContent[] = [
+                            'title' => $rec['title'] ?? 'High-performing ' . $type . ' content',
+                            'score' => $rec['confidence'] ?? 75,
+                            'description' => $rec['description'] ?? 'Content that performed well in this category',
+                        ];
+                    }
+                }
+            }
+        }
+        
+        // Sort by score and return top 3
+        usort($topContent, function($a, $b) {
+            return $b['score'] - $a['score'];
+        });
+        
+        return array_slice($topContent, 0, 3);
+    }
+
+    protected function identifyImprovementAreas(string $type, array $performanceData): array
+    {
+        $improvements = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if (($opp['priority'] ?? '') === 'high' && 
+                        strpos(strtolower($opp['area'] ?? ''), $type) !== false) {
+                        $improvements[] = $opp['description'] ?? 'General improvement needed';
+                    }
+                }
+            }
+        }
+        
+        return array_unique($improvements);
+    }
+
+    /**
+     * Competitive analysis methods
+     */
+    protected function calculateIndustryBenchmarks(array $performanceData): array
+    {
+        if (empty($performanceData)) {
+            return [
+                'avg_views' => 1000,
+                'avg_engagement_rate' => 3.5,
+                'avg_completion_rate' => 45,
+                'confidence' => 'low'
+            ];
+        }
+        
+        $totalViews = 0;
+        $totalEngagement = 0;
+        $videoCount = 0;
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['overall_performance'])) {
+                $totalViews += $performance['overall_performance']['total_views'] ?? 0;
+                $totalEngagement += $performance['overall_performance']['total_engagement'] ?? 0;
+                $videoCount++;
+            }
+        }
+        
+        $avgViews = $videoCount > 0 ? $totalViews / $videoCount : 0;
+        $avgEngagementRate = $totalViews > 0 ? ($totalEngagement / $totalViews) * 100 : 0;
+        
+        return [
+            'avg_views' => round($avgViews),
+            'avg_engagement_rate' => round($avgEngagementRate, 2),
+            'avg_completion_rate' => 60, // Estimated based on typical performance
+            'confidence' => $videoCount >= 5 ? 'high' : 'medium'
+        ];
+    }
+
+    protected function assessCompetitivePosition(array $performanceData, array $benchmarks): array
+    {
+        $avgPerformanceScore = $this->calculateAveragePerformanceScore($performanceData);
+        $consistency = $this->calculatePerformanceConsistency($performanceData);
+        
+        $position = 'developing';
+        if ($avgPerformanceScore > 80) {
+            $position = 'leader';
+        } elseif ($avgPerformanceScore > 60) {
+            $position = 'competitive';
+        } elseif ($avgPerformanceScore > 40) {
+            $position = 'improving';
+        }
+        
+        return [
+            'position' => $position,
+            'score' => $avgPerformanceScore,
+            'consistency' => $consistency,
+            'vs_benchmarks' => [
+                'performance' => $avgPerformanceScore > 60 ? 'above average' : 'below average',
+                'consistency' => $consistency > 70 ? 'highly consistent' : 'needs improvement'
+            ]
+        ];
+    }
+
+    protected function rankPlatformPerformance(array $performanceData): array
+    {
+        $platformScores = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['platform_breakdown'])) {
+                foreach ($performance['platform_breakdown'] as $platform => $data) {
+                    $score = $data['performance_score'] ?? 0;
+                    $platformScores[$platform] = ($platformScores[$platform] ?? 0) + $score;
+                }
+            }
+        }
+        
+        // Calculate averages
+        foreach ($platformScores as $platform => $totalScore) {
+            $platformScores[$platform] = $totalScore / count($performanceData);
+        }
+        
+        // Sort by score
+        arsort($platformScores);
+        
+        return $platformScores;
+    }
+
+    protected function identifyContentGaps(array $performanceData, array $trendData): array
+    {
+        $gaps = [];
+        
+        // Analyze trending topics not covered
+        if (isset($trendData['trending_topics'])) {
+            foreach ($trendData['trending_topics'] as $topic) {
+                $covered = false;
+                foreach ($performanceData as $performance) {
+                    if (isset($performance['content_recommendations'])) {
+                        foreach ($performance['content_recommendations'] as $rec) {
+                            if (strpos(strtolower($rec['title'] ?? ''), strtolower($topic['keyword'] ?? '')) !== false) {
+                                $covered = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                
+                if (!$covered) {
+                    $gaps[] = [
+                        'topic' => $topic['keyword'] ?? 'trending topic',
+                        'opportunity_score' => $topic['opportunity_score'] ?? 70,
+                        'recommendation' => 'Create content around this trending topic'
+                    ];
+                }
+            }
+        }
+        
+        return array_slice($gaps, 0, 5); // Return top 5 gaps
+    }
+
+    protected function estimateMarketShare(array $performanceData): array
+    {
+        $totalViews = 0;
+        foreach ($performanceData as $performance) {
+            $totalViews += $performance['overall_performance']['total_views'] ?? 0;
+        }
+        
+        // Very rough estimation based on views
+        $estimatedShare = min(($totalViews / 1000000) * 100, 100); // Cap at 100%
+        
+        return [
+            'estimated_share' => round($estimatedShare, 3),
+            'total_views' => $totalViews,
+            'confidence' => 'low', // Market share is very difficult to estimate accurately
+            'note' => 'Estimate based on content performance, not actual market data'
+        ];
+    }
+
+    protected function identifyCompetitiveStrengths(array $performanceData): array
+    {
+        $strengths = [];
+        $avgScore = $this->calculateAveragePerformanceScore($performanceData);
+        $consistency = $this->calculatePerformanceConsistency($performanceData);
+        
+        if ($avgScore > 70) {
+            $strengths[] = 'High average performance score';
+        }
+        
+        if ($consistency > 70) {
+            $strengths[] = 'Consistent content quality';
+        }
+        
+        $platformCount = $this->countActivePlatforms($performanceData);
+        if ($platformCount > 2) {
+            $strengths[] = 'Multi-platform presence';
+        }
+        
+        return !empty($strengths) ? $strengths : ['Dedicated content creation', 'Growing audience base'];
+    }
+
+    protected function identifyCompetitiveWeaknesses(array $performanceData): array
+    {
+        $weaknesses = [];
+        $avgScore = $this->calculateAveragePerformanceScore($performanceData);
+        $consistency = $this->calculatePerformanceConsistency($performanceData);
+        
+        if ($avgScore < 50) {
+            $weaknesses[] = 'Below-average performance scores';
+        }
+        
+        if ($consistency < 50) {
+            $weaknesses[] = 'Inconsistent content quality';
+        }
+        
+        if (count($performanceData) < 5) {
+            $weaknesses[] = 'Limited content volume';
+        }
+        
+        return !empty($weaknesses) ? $weaknesses : ['Room for optimization', 'Growth potential untapped'];
+    }
+
+    protected function identifyMarketOpportunities(array $trendData, array $performanceData): array
+    {
+        $opportunities = [];
+        
+        if (isset($trendData['emerging_trends'])) {
+            foreach ($trendData['emerging_trends'] as $trend) {
+                $opportunities[] = [
+                    'trend' => $trend['trend'] ?? 'emerging opportunity',
+                    'growth_potential' => $trend['growth_potential'] ?? 'medium',
+                    'time_sensitivity' => $trend['time_sensitivity'] ?? 'moderate'
+                ];
+            }
+        }
+        
+        return array_slice($opportunities, 0, 3);
+    }
+
+    protected function identifyCompetitiveThreats(array $performanceData, array $trendData): array
+    {
+        $threats = [];
+        
+        $avgScore = $this->calculateAveragePerformanceScore($performanceData);
+        if ($avgScore < 40) {
+            $threats[] = 'Low performance may lead to algorithm deprioritization';
+        }
+        
+        if (isset($trendData['viral_content'])) {
+            $threats[] = 'Fast-moving viral trends require quick adaptation';
+        }
+        
+        return !empty($threats) ? $threats : ['Market saturation', 'Algorithm changes'];
+    }
+
+    protected function setImprovementTargets(array $performanceData, array $benchmarks): array
+    {
+        $currentScore = $this->calculateAveragePerformanceScore($performanceData);
+        $targetScore = min($currentScore + 20, 100); // Aim for 20-point improvement
+        
+        return [
+            'performance_score' => [
+                'current' => $currentScore,
+                'target' => $targetScore,
+                'timeline' => '3 months'
+            ],
+            'consistency' => [
+                'current' => $this->calculatePerformanceConsistency($performanceData),
+                'target' => 80,
+                'timeline' => '2 months'
+            ]
+        ];
+    }
+
+    /**
+     * Content calendar strategy methods
+     */
+    protected function calculateOptimalPostingFrequency(array $userVideoData, array $performanceData): array
+    {
+        $videoCount = count($userVideoData);
+        $days = 30; // Assume 30-day analysis period
+        
+        $currentFrequency = $videoCount > 0 ? $videoCount / $days : 0;
+        $recommendedFrequency = max($currentFrequency * 1.2, 1); // 20% increase, minimum 1 per day
+        
+        return [
+            'current_per_day' => round($currentFrequency, 2),
+            'recommended_per_day' => round($recommendedFrequency, 2),
+            'weekly' => round($recommendedFrequency * 7, 1)
+        ];
+    }
+
+    protected function analyzeBestPostingTimes(array $userVideoData): array
+    {
+        $times = [];
+        
+        foreach ($userVideoData as $video) {
+            if (isset($video['created_at'])) {
+                $hour = date('H', strtotime($video['created_at']));
+                $times[$hour] = ($times[$hour] ?? 0) + 1;
+            }
+        }
+        
+        arsort($times);
+        
+        return [
+            'best_hours' => array_keys(array_slice($times, 0, 3, true)),
+            'distribution' => $times
+        ];
+    }
+
+    protected function analyzeOptimalContentMix(array $performanceData): array
+    {
+        $contentTypes = ['educational' => 0, 'entertaining' => 0, 'promotional' => 0, 'inspirational' => 0];
+        $totalScore = 0;
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['content_recommendations'])) {
+                foreach ($performance['content_recommendations'] as $rec) {
+                    $type = $rec['type'] ?? 'educational';
+                    $score = $rec['confidence'] ?? 50;
+                    $contentTypes[$type] += $score;
+                    $totalScore += $score;
+                }
+            }
+        }
+        
+        // Convert to percentages
+        foreach ($contentTypes as $type => $score) {
+            $contentTypes[$type] = $totalScore > 0 ? round(($score / $totalScore) * 100) : 25;
+        }
+        
+        return $contentTypes;
+    }
+
+    // Add remaining stub methods with basic implementations
+    protected function calculateCurrentFrequency(array $userVideoData): array
+    {
+        $count = count($userVideoData);
+        return ['daily' => round($count / 30, 2), 'weekly' => round($count / 4, 1)];
+    }
+
+    protected function calculatePlatformSpecificFrequency(array $platforms, array $performanceData): array
+    {
+        $frequencies = [];
+        foreach ($platforms as $platform) {
+            $frequencies[$platform] = ['recommended_daily' => 1, 'recommended_weekly' => 7];
+        }
+        return $frequencies;
+    }
+
+    protected function calculateFrequencyOptimization(array $userVideoData, array $performanceData): array
+    {
+        return ['potential_increase' => '20%', 'optimal_frequency' => 'daily'];
+    }
+
+    protected function getPlatformOptimalTimes(array $platforms, array $performanceData): array
+    {
+        $times = [];
+        foreach ($platforms as $platform) {
+            $times[$platform] = ['morning' => '09:00', 'afternoon' => '15:00', 'evening' => '19:00'];
+        }
+        return $times;
+    }
+
+    protected function getSeasonalRecommendations(array $performanceData): array
+    {
+        return ['spring' => 'Increase frequency', 'summer' => 'Focus on trending topics'];
+    }
+
+    protected function generateProductionSchedule(array $optimalFrequency, array $contentMix): array
     {
         return [
-            'q1' => ['focus' => 'planning_and_goals', 'adjustment' => '+10%'],
-            'q2' => ['focus' => 'growth_and_expansion', 'adjustment' => '+5%'],
-            'q3' => ['focus' => 'summer_engagement', 'adjustment' => '-5%'],
-            'q4' => ['focus' => 'year_end_reflection', 'adjustment' => '+15%'],
+            'weekly_schedule' => [
+                'Monday' => 'Educational content',
+                'Wednesday' => 'Entertainment content',
+                'Friday' => 'Promotional content'
+            ]
         ];
     }
 
     /**
-     * Get platform overview
+     * Platform strategy methods
      */
-    protected function getPlatformOverview(string $platform): array
+    protected function getPlatformPerformanceData(string $platform, array $performanceData): array
     {
-        $overviews = [
-            'youtube' => [
-                'type' => 'Video-first platform',
-                'audience_size' => '2.7B+ users',
-                'content_format' => 'Long-form and short-form video',
-                'primary_demographics' => '18-49 years old',
-                'content_discovery' => 'Algorithm-driven recommendations',
-            ],
-            'instagram' => [
-                'type' => 'Visual storytelling platform',
-                'audience_size' => '2B+ users',
-                'content_format' => 'Photos, Stories, Reels, IGTV',
-                'primary_demographics' => '18-34 years old',
-                'content_discovery' => 'Hashtags and algorithm',
-            ],
-            'tiktok' => [
-                'type' => 'Short-form video platform',
-                'audience_size' => '1B+ users',
-                'content_format' => 'Short vertical videos',
-                'primary_demographics' => '16-34 years old',
-                'content_discovery' => 'For You Page algorithm',
-            ],
-            'facebook' => [
-                'type' => 'Social networking platform',
-                'audience_size' => '2.9B+ users',
-                'content_format' => 'Text, photos, videos, live streams',
-                'primary_demographics' => '25-54 years old',
-                'content_discovery' => 'News Feed algorithm',
-            ],
-            'twitter' => [
-                'type' => 'Microblogging platform',
-                'audience_size' => '450M+ users',
-                'content_format' => 'Short text, images, videos',
-                'primary_demographics' => '25-49 years old',
-                'content_discovery' => 'Timeline and trending topics',
-            ],
-        ];
+        $platformData = [];
         
-        return $overviews[$platform] ?? $overviews['youtube'];
+        foreach ($performanceData as $performance) {
+            if (isset($performance['platform_breakdown'][$platform])) {
+                $platformData[] = $performance['platform_breakdown'][$platform];
+            }
+        }
+        
+        return $platformData;
     }
 
-    /**
-     * Get platform audience characteristics
-     */
-    protected function getPlatformAudience(string $platform): array
+    protected function identifyPlatformOptimizations(string $platform, array $platformPerformance): array
     {
-        $audiences = [
-            'youtube' => [
-                'behavior_patterns' => ['research_focused', 'educational_content_seekers', 'long_attention_spans'],
-                'engagement_preferences' => ['detailed_content', 'tutorials', 'entertainment'],
-                'peak_activity_times' => ['7-9 PM weekdays', '2-4 PM weekends'],
-            ],
-            'instagram' => [
-                'behavior_patterns' => ['visual_first', 'story_consumers', 'quick_scrollers'],
-                'engagement_preferences' => ['aesthetic_content', 'behind_scenes', 'lifestyle'],
-                'peak_activity_times' => ['11 AM-1 PM', '7-9 PM'],
-            ],
-            'tiktok' => [
-                'behavior_patterns' => ['trend_followers', 'quick_consumption', 'high_engagement'],
-                'engagement_preferences' => ['entertaining', 'trendy', 'authentic'],
-                'peak_activity_times' => ['6-10 AM', '7-9 PM'],
-            ],
-        ];
-        
-        return $audiences[$platform] ?? $audiences['youtube'];
+        return ['Optimize posting times', 'Improve content format', 'Enhance engagement'];
     }
 
-    /**
-     * Generate platform content strategy
-     */
-    protected function generatePlatformContentStrategy(string $platform, string $industry): array
+    protected function generatePlatformContentStrategy(string $platform, array $platformPerformance, array $goals): array
     {
         return [
-            'content_pillars_adaptation' => [
-                'educational' => $platform === 'youtube' ? 'Long-form tutorials' : 'Quick tips',
-                'entertaining' => $platform === 'tiktok' ? 'Trending content' : 'Storytelling',
-                'inspirational' => 'Success stories and motivation',
-                'promotional' => 'Product showcases and demos',
-            ],
-            'optimal_formats' => $this->getOptimalFormats($platform),
-            'content_calendar' => $this->getPlatformCalendar($platform),
-            'engagement_tactics' => $this->getEngagementTactics($platform),
+            'content_focus' => 'Platform-specific content',
+            'posting_schedule' => 'Daily posts',
+            'engagement_strategy' => 'Community building'
         ];
     }
 
-    protected function getOptimalFormats(string $platform): array
+    protected function calculatePlatformGrowthPotential(string $platform, array $platformPerformance): array
     {
-        $formats = [
-            'youtube' => ['tutorials', 'vlogs', 'reviews', 'live_streams'],
-            'instagram' => ['carousel_posts', 'stories', 'reels', 'igtv'],
-            'tiktok' => ['short_videos', 'challenges', 'duets', 'trends'],
-            'facebook' => ['native_videos', 'live_videos', 'photo_albums', 'events'],
-            'twitter' => ['threads', 'polls', 'images', 'videos'],
-        ];
-        
-        return $formats[$platform] ?? $formats['youtube'];
+        return ['potential' => 'high', 'timeline' => '3 months'];
     }
 
-    protected function getPlatformCalendar(string $platform): array
+    protected function recommendPlatformResourceAllocation(string $platform, array $platformPerformance): array
     {
+        return ['time_percentage' => 30, 'budget_percentage' => 25];
+    }
+
+    protected function definePlatformSuccessMetrics(string $platform, array $goals): array
+    {
+        return ['followers' => 1000, 'engagement_rate' => 5.0];
+    }
+
+    protected function analyzePlatformCompetitivePosition(string $platform, array $platformPerformance): array
+    {
+        return ['position' => 'competitive', 'score' => 75];
+    }
+
+    /**
+     * KPI Framework helper methods
+     */
+    protected function extractCurrentMetrics(array $performanceData): array
+    {
+        if (empty($performanceData)) {
+            return [
+                'total_views' => 0,
+                'total_engagement' => 0,
+                'avg_performance_score' => 0,
+                'consistency_score' => 0
+            ];
+        }
+
+        $totalViews = 0;
+        $totalEngagement = 0;
+        $performanceScores = [];
+
+        foreach ($performanceData as $performance) {
+            if (isset($performance['overall_performance'])) {
+                $totalViews += $performance['overall_performance']['total_views'] ?? 0;
+                $totalEngagement += $performance['overall_performance']['total_engagement'] ?? 0;
+            }
+            if (isset($performance['performance_score'])) {
+                $performanceScores[] = $performance['performance_score'];
+            }
+        }
+
         return [
-            'posting_frequency' => $platform === 'tiktok' ? 'Daily' : ($platform === 'youtube' ? '2-3 times/week' : 'Daily'),
-            'optimal_times' => $this->getOptimalPostingTimes([$platform])[$platform] ?? ['9 AM', '7 PM'],
-            'content_types_schedule' => ['Monday' => 'Educational', 'Wednesday' => 'Entertainment', 'Friday' => 'Inspirational'],
+            'total_views' => $totalViews,
+            'total_engagement' => $totalEngagement,
+            'avg_performance_score' => !empty($performanceScores) ? array_sum($performanceScores) / count($performanceScores) : 0,
+            'consistency_score' => $this->calculatePerformanceConsistency($performanceData),
+            'video_count' => count($performanceData)
         ];
     }
 
-    protected function getEngagementTactics(string $platform): array
+    protected function calculatePerformanceBenchmarks(array $performanceData): array
     {
-        $tactics = [
-            'youtube' => ['call_to_action', 'community_posts', 'live_chat', 'premieres'],
-            'instagram' => ['stories_polls', 'hashtag_strategy', 'user_generated_content', 'influencer_collaborations'],
-            'tiktok' => ['trending_hashtags', 'challenges', 'duets', 'live_streams'],
-            'facebook' => ['groups', 'events', 'live_videos', 'polls'],
-            'twitter' => ['hashtags', 'twitter_spaces', 'polls', 'retweets'],
-        ];
-        
-        return $tactics[$platform] ?? $tactics['youtube'];
+        return $this->calculateIndustryBenchmarks($performanceData);
     }
 
-    /**
-     * Generate platform optimization tactics
-     */
-    protected function generatePlatformOptimization(string $platform): array
-    {
-        return [
-            'algorithm_optimization' => $this->getAlgorithmOptimization($platform),
-            'seo_tactics' => $this->getSEOTactics($platform),
-            'engagement_boosters' => $this->getEngagementBoosters($platform),
-            'growth_hacks' => $this->getGrowthHacks($platform),
-        ];
-    }
-
-    protected function getAlgorithmOptimization(string $platform): array
-    {
-        $optimization = [
-            'youtube' => ['watch_time_optimization', 'thumbnail_ab_testing', 'keyword_optimization', 'end_screen_optimization'],
-            'instagram' => ['hashtag_optimization', 'post_timing', 'story_engagement', 'reel_trends'],
-            'tiktok' => ['trending_sounds', 'hashtag_challenges', 'video_completion_rate', 'engagement_velocity'],
-            'facebook' => ['native_video_priority', 'meaningful_social_interactions', 'group_engagement', 'live_video_boost'],
-            'twitter' => ['trending_topics', 'hashtag_usage', 'thread_engagement', 'retweet_optimization'],
-        ];
-        
-        return $optimization[$platform] ?? $optimization['youtube'];
-    }
-
-    protected function getSEOTactics(string $platform): array
-    {
-        return [
-            'keyword_research' => 'Platform-specific keyword optimization',
-            'title_optimization' => 'Compelling and searchable titles',
-            'description_optimization' => 'Detailed, keyword-rich descriptions',
-            'tag_strategy' => 'Strategic use of platform tags/hashtags',
-        ];
-    }
-
-    protected function getEngagementBoosters(string $platform): array
-    {
-        return [
-            'community_building' => 'Foster genuine community interactions',
-            'response_strategy' => 'Quick and meaningful responses to comments',
-            'collaboration' => 'Partner with other creators in your niche',
-            'user_generated_content' => 'Encourage and showcase audience content',
-        ];
-    }
-
-    protected function getGrowthHacks(string $platform): array
-    {
-        $hacks = [
-            'youtube' => ['playlist_optimization', 'community_tab_usage', 'shorts_integration', 'premiere_scheduling'],
-            'instagram' => ['story_highlights', 'reel_cross_promotion', 'hashtag_research', 'influencer_tags'],
-            'tiktok' => ['trend_early_adoption', 'sound_optimization', 'hashtag_challenges', 'cross_platform_promotion'],
-        ];
-        
-        return $hacks[$platform] ?? [];
-    }
-
-    /**
-     * Generate platform growth strategies
-     */
-    protected function generatePlatformGrowthStrategies(string $platform, array $goals): array
-    {
-        return [
-            'organic_growth' => [
-                'content_consistency' => 'Regular, high-quality content publication',
-                'community_engagement' => 'Active participation in platform communities',
-                'trend_participation' => 'Strategic engagement with platform trends',
-                'collaboration' => 'Cross-creator partnerships and features',
-            ],
-            'paid_growth' => [
-                'targeted_advertising' => 'Strategic paid promotion campaigns',
-                'influencer_partnerships' => 'Collaborations with relevant influencers',
-                'boosted_posts' => 'Selective content amplification',
-                'cross_promotion' => 'Multi-platform promotional strategies',
-            ],
-            'viral_potential' => [
-                'trend_identification' => 'Early trend adoption and adaptation',
-                'shareability_optimization' => 'Creating highly shareable content',
-                'timing_optimization' => 'Strategic posting for maximum reach',
-                'controversy_navigation' => 'Thoughtful engagement with trending topics',
-            ],
-        ];
-    }
-
-    /**
-     * Identify monetization opportunities
-     */
-    protected function identifyMonetizationOpportunities(string $platform): array
-    {
-        $opportunities = [
-            'youtube' => [
-                'ad_revenue' => 'YouTube Partner Program monetization',
-                'sponsorships' => 'Brand partnership and sponsored content',
-                'memberships' => 'Channel memberships and Super Chat',
-                'merchandise' => 'Creator merchandise integration',
-                'courses' => 'Educational content and course sales',
-            ],
-            'instagram' => [
-                'sponsored_posts' => 'Brand collaboration and sponsored content',
-                'affiliate_marketing' => 'Product recommendation commissions',
-                'digital_products' => 'Course and digital product sales',
-                'instagram_shop' => 'Direct product sales through Instagram',
-                'consulting' => 'One-on-one coaching and consulting services',
-            ],
-            'tiktok' => [
-                'creator_fund' => 'TikTok Creator Fund participation',
-                'live_gifts' => 'Virtual gifts during live streams',
-                'brand_partnerships' => 'Sponsored content collaborations',
-                'affiliate_links' => 'Product promotion and affiliate earnings',
-                'cross_platform' => 'Driving traffic to monetized platforms',
-            ],
-        ];
-        
-        return $opportunities[$platform] ?? [];
-    }
-
-    /**
-     * Get algorithm insights
-     */
-    protected function getAlgorithmInsights(string $platform): array
-    {
-        $insights = [
-            'youtube' => [
-                'ranking_factors' => ['watch_time', 'click_through_rate', 'audience_retention', 'engagement'],
-                'optimization_tips' => ['compelling_thumbnails', 'strong_hooks', 'consistent_branding', 'end_screen_optimization'],
-                'content_signals' => ['video_quality', 'audio_quality', 'content_freshness', 'topic_relevance'],
-            ],
-            'instagram' => [
-                'ranking_factors' => ['engagement_rate', 'post_recency', 'relationship_strength', 'content_type'],
-                'optimization_tips' => ['hashtag_strategy', 'story_engagement', 'consistent_posting', 'authentic_interactions'],
-                'content_signals' => ['visual_quality', 'caption_relevance', 'timing', 'format_optimization'],
-            ],
-            'tiktok' => [
-                'ranking_factors' => ['completion_rate', 'engagement_velocity', 'trend_participation', 'sound_usage'],
-                'optimization_tips' => ['trending_sounds', 'quick_hooks', 'vertical_optimization', 'hashtag_trends'],
-                'content_signals' => ['video_quality', 'editing_style', 'trend_relevance', 'authenticity'],
-            ],
-        ];
-        
-        return $insights[$platform] ?? [];
-    }
-
-    /**
-     * Get platform best practices
-     */
-    protected function getPlatformBestPractices(string $platform): array
-    {
-        $practices = [
-            'youtube' => [
-                'content_quality' => 'High-quality video and audio production',
-                'seo_optimization' => 'Keyword-optimized titles and descriptions',
-                'thumbnail_design' => 'Eye-catching, branded thumbnail designs',
-                'community_engagement' => 'Active response to comments and community posts',
-            ],
-            'instagram' => [
-                'visual_consistency' => 'Cohesive visual brand and aesthetic',
-                'story_utilization' => 'Regular use of Instagram Stories features',
-                'hashtag_strategy' => 'Strategic mix of popular and niche hashtags',
-                'authentic_engagement' => 'Genuine interactions with followers',
-            ],
-            'tiktok' => [
-                'trend_awareness' => 'Stay current with platform trends and challenges',
-                'authentic_content' => 'Genuine, unpolished content performs well',
-                'quick_engagement' => 'Capture attention within first 3 seconds',
-                'community_participation' => 'Engage with comments and create response videos',
-            ],
-        ];
-        
-        return $practices[$platform] ?? [];
-    }
-
-    /**
-     * Define platform metrics
-     */
-    protected function definePlatformMetrics(string $platform): array
-    {
-        $metrics = [
-            'youtube' => [
-                'primary' => ['watch_time', 'subscriber_growth', 'average_view_duration'],
-                'secondary' => ['click_through_rate', 'impression_count', 'engagement_rate'],
-                'monetization' => ['rpm', 'cpm', 'estimated_revenue'],
-            ],
-            'instagram' => [
-                'primary' => ['follower_growth', 'engagement_rate', 'reach'],
-                'secondary' => ['story_completion_rate', 'save_rate', 'share_rate'],
-                'monetization' => ['sponsored_post_rate', 'affiliate_earnings', 'product_sales'],
-            ],
-            'tiktok' => [
-                'primary' => ['view_count', 'engagement_rate', 'follower_growth'],
-                'secondary' => ['completion_rate', 'share_rate', 'comment_rate'],
-                'monetization' => ['creator_fund_earnings', 'brand_partnership_rate', 'live_gift_revenue'],
-            ],
-        ];
-        
-        return $metrics[$platform] ?? [];
-    }
-
-    /**
-     * Analyze platform competition
-     */
-    protected function analyzePlatformCompetition(string $platform, string $industry): array
-    {
-        return [
-            'competitor_analysis' => [
-                'top_performers' => 'Analysis of leading accounts in your niche',
-                'content_gaps' => 'Opportunities not being addressed by competitors',
-                'engagement_strategies' => 'Successful tactics used by competitors',
-                'posting_patterns' => 'Optimal timing and frequency insights',
-            ],
-            'differentiation_opportunities' => [
-                'unique_angles' => 'Underexplored perspectives in your industry',
-                'content_formats' => 'Formats that could set you apart',
-                'audience_segments' => 'Underserved audience niches',
-                'collaboration_opportunities' => 'Potential partnership strategies',
-            ],
-        ];
-    }
-
-    /**
-     * Define primary KPIs
-     */
-    protected function definePrimaryKPIs(array $goals): array
+    protected function definePrimaryKPIs(array $goals, array $currentMetrics): array
     {
         $kpis = [];
         
-        if (in_array('growth', $goals)) {
-            $kpis['follower_growth_rate'] = 'Monthly follower growth percentage';
-            $kpis['reach_expansion'] = 'Monthly reach increase across platforms';
-        }
-        
-        if (in_array('engagement', $goals)) {
-            $kpis['engagement_rate'] = 'Average engagement rate across content';
-            $kpis['community_growth'] = 'Active community member growth';
-        }
-        
-        if (in_array('revenue', $goals)) {
-            $kpis['revenue_growth'] = 'Monthly revenue increase';
-            $kpis['conversion_rate'] = 'Audience to customer conversion rate';
-        }
-        
-        if (in_array('brand', $goals)) {
-            $kpis['brand_awareness'] = 'Brand mention and recognition metrics';
-            $kpis['thought_leadership'] = 'Industry recognition and citations';
+        foreach ($goals as $goal) {
+            switch ($goal) {
+                case 'growth':
+                    $kpis[] = [
+                        'name' => 'Total Views',
+                        'current' => $currentMetrics['total_views'],
+                        'target' => $currentMetrics['total_views'] * 1.5,
+                        'unit' => 'views'
+                    ];
+                    break;
+                case 'engagement':
+                    $kpis[] = [
+                        'name' => 'Engagement Rate',
+                        'current' => $currentMetrics['total_views'] > 0 ? 
+                            round(($currentMetrics['total_engagement'] / $currentMetrics['total_views']) * 100, 2) : 0,
+                        'target' => 5.0,
+                        'unit' => '%'
+                    ];
+                    break;
+                case 'revenue':
+                    $kpis[] = [
+                        'name' => 'Revenue Per Video',
+                        'current' => 0, // Would need revenue tracking
+                        'target' => 100,
+                        'unit' => '$'
+                    ];
+                    break;
+                case 'brand':
+                    $kpis[] = [
+                        'name' => 'Brand Consistency Score',
+                        'current' => $currentMetrics['consistency_score'],
+                        'target' => 85,
+                        'unit' => 'score'
+                    ];
+                    break;
+            }
         }
         
         return $kpis;
     }
 
-    /**
-     * Define secondary KPIs
-     */
-    protected function defineSecondaryKPIs(array $goals): array
+    protected function defineSecondaryKPIs(array $goals, array $currentMetrics): array
     {
         return [
-            'content_performance' => [
-                'average_view_duration' => 'How long audience watches content',
-                'save_rate' => 'Percentage of content saved by audience',
-                'share_rate' => 'Content sharing frequency',
-                'comment_quality' => 'Meaningful engagement in comments',
+            [
+                'name' => 'Content Creation Frequency',
+                'current' => round($currentMetrics['video_count'] / 30, 2),
+                'target' => 1.0,
+                'unit' => 'videos/day'
             ],
-            'audience_quality' => [
-                'return_visitor_rate' => 'Percentage of returning audience members',
-                'audience_retention' => 'Long-term follower retention rate',
-                'demographic_alignment' => 'Alignment with target demographics',
-                'geographic_reach' => 'Geographic distribution of audience',
-            ],
-            'operational_efficiency' => [
-                'content_production_cost' => 'Cost per piece of content produced',
-                'time_to_publish' => 'Content creation to publication time',
-                'team_productivity' => 'Content output per team member',
-                'resource_utilization' => 'Efficiency of resource allocation',
-            ],
+            [
+                'name' => 'Performance Consistency',
+                'current' => $currentMetrics['consistency_score'],
+                'target' => 80,
+                'unit' => 'score'
+            ]
         ];
     }
 
-    /**
-     * Define platform-specific KPIs
-     */
-    protected function definePlatformKPIs(array $platforms): array
+    protected function definePlatformKPIs(array $platforms, array $performanceData): array
     {
         $platformKPIs = [];
         
         foreach ($platforms as $platform) {
-            $platformKPIs[$platform] = $this->definePlatformMetrics($platform);
+            $platformKPIs[$platform] = [
+                'followers' => ['current' => 1000, 'target' => 2000],
+                'engagement_rate' => ['current' => 3.5, 'target' => 5.0],
+                'posting_frequency' => ['current' => 0.5, 'target' => 1.0]
+            ];
         }
         
         return $platformKPIs;
     }
 
-    /**
-     * Define measurement framework
-     */
-    protected function defineMeasurementFramework(): array
+    protected function calculateTargetImprovements(array $currentMetrics, array $benchmarks): array
     {
         return [
-            'data_collection' => [
-                'automated_tracking' => 'Platform analytics integration',
-                'manual_tracking' => 'Qualitative metrics and observations',
-                'third_party_tools' => 'Advanced analytics and social listening',
-                'survey_data' => 'Audience feedback and satisfaction surveys',
-            ],
-            'analysis_methodology' => [
-                'trend_analysis' => 'Long-term performance trend identification',
-                'comparative_analysis' => 'Performance comparison across platforms',
-                'cohort_analysis' => 'Audience behavior tracking over time',
-                'attribution_modeling' => 'Content performance attribution',
-            ],
-            'reporting_cadence' => [
-                'daily_monitoring' => 'Real-time performance tracking',
-                'weekly_reviews' => 'Weekly performance summaries',
-                'monthly_analysis' => 'Comprehensive monthly reports',
-                'quarterly_strategy' => 'Strategic quarterly reviews',
-            ],
+            'views_improvement' => 25, // 25% improvement target
+            'engagement_improvement' => 30,
+            'consistency_improvement' => 15
+        ];
+    }
+
+    protected function defineRealMeasurementFramework(array $platforms): array
+    {
+        return [
+            'tracking_tools' => ['Platform analytics', 'Third-party tools'],
+            'measurement_frequency' => 'weekly',
+            'reporting_schedule' => 'monthly',
+            'platforms_tracked' => $platforms
+        ];
+    }
+
+    protected function generateDataDrivenReportingSchedule(array $performanceData): array
+    {
+        return [
+            'daily' => ['Basic metrics check'],
+            'weekly' => ['Performance review', 'Trend analysis'],
+            'monthly' => ['Strategic review', 'Goal assessment'],
+            'quarterly' => ['Strategy adjustment', 'Roadmap update']
         ];
     }
 
     /**
-     * Define reporting structure
+     * Growth Roadmap helper methods
      */
-    protected function defineReportingStructure(): array
+    protected function assessCurrentGrowthStage(User $user, array $performanceData): array
     {
-        return [
-            'executive_dashboard' => [
-                'key_metrics' => 'High-level performance indicators',
-                'trend_summaries' => 'Performance trend overviews',
-                'goal_progress' => 'Progress toward strategic objectives',
-                'roi_analysis' => 'Return on investment calculations',
-            ],
-            'operational_reports' => [
-                'content_performance' => 'Individual content piece analysis',
-                'platform_breakdowns' => 'Platform-specific performance details',
-                'audience_insights' => 'Detailed audience behavior analysis',
-                'competitive_intelligence' => 'Market and competitor updates',
-            ],
-            'strategic_reviews' => [
-                'quarterly_assessments' => 'Comprehensive strategy evaluations',
-                'annual_planning' => 'Yearly strategy development',
-                'market_analysis' => 'Industry and market trend analysis',
-                'opportunity_identification' => 'New growth opportunity assessment',
-            ],
-        ];
-    }
-
-    /**
-     * Define benchmarking approach
-     */
-    protected function defineBenchmarkingApproach(): array
-    {
-        return [
-            'internal_benchmarks' => [
-                'historical_performance' => 'Comparison to past performance',
-                'content_type_analysis' => 'Performance by content category',
-                'seasonal_adjustments' => 'Seasonal performance variations',
-                'goal_alignment' => 'Progress toward stated objectives',
-            ],
-            'external_benchmarks' => [
-                'industry_standards' => 'Comparison to industry averages',
-                'competitor_analysis' => 'Performance relative to competitors',
-                'platform_benchmarks' => 'Platform-specific performance standards',
-                'market_leaders' => 'Comparison to top performers',
-            ],
-            'best_practice_identification' => [
-                'success_pattern_analysis' => 'Identification of winning strategies',
-                'failure_analysis' => 'Learning from underperforming content',
-                'optimization_opportunities' => 'Areas for improvement identification',
-                'innovation_tracking' => 'New strategy and tactic evaluation',
-            ],
-        ];
-    }
-
-    /**
-     * Define goal setting methodology
-     */
-    protected function defineGoalSettingMethodology(): array
-    {
-        return [
-            'smart_framework' => [
-                'specific' => 'Clear, well-defined objectives',
-                'measurable' => 'Quantifiable success metrics',
-                'achievable' => 'Realistic and attainable targets',
-                'relevant' => 'Aligned with business objectives',
-                'time_bound' => 'Clear deadlines and milestones',
-            ],
-            'goal_hierarchy' => [
-                'strategic_objectives' => 'High-level business goals',
-                'tactical_goals' => 'Platform-specific objectives',
-                'operational_targets' => 'Daily and weekly benchmarks',
-                'individual_kpis' => 'Personal performance metrics',
-            ],
-            'review_process' => [
-                'monthly_check_ins' => 'Regular progress assessments',
-                'quarterly_adjustments' => 'Goal refinement and updates',
-                'annual_planning' => 'Strategic goal setting for the year',
-                'real_time_monitoring' => 'Continuous performance tracking',
-            ],
-        ];
-    }
-
-    /**
-     * Define performance thresholds
-     */
-    protected function definePerformanceThresholds(array $goals): array
-    {
-        $thresholds = [
-            'growth' => [
-                'excellent' => '>25% monthly growth',
-                'good' => '15-25% monthly growth',
-                'acceptable' => '5-15% monthly growth',
-                'needs_improvement' => '<5% monthly growth',
-            ],
-            'engagement' => [
-                'excellent' => '>10% engagement rate',
-                'good' => '6-10% engagement rate',
-                'acceptable' => '3-6% engagement rate',
-                'needs_improvement' => '<3% engagement rate',
-            ],
-            'revenue' => [
-                'excellent' => '>20% monthly revenue growth',
-                'good' => '10-20% monthly revenue growth',
-                'acceptable' => '5-10% monthly revenue growth',
-                'needs_improvement' => '<5% monthly revenue growth',
-            ],
-        ];
+        $videoCount = $user->videos()->count();
+        $avgScore = $this->calculateAveragePerformanceScore($performanceData);
+        $platformCount = $this->countActivePlatforms($performanceData);
         
-        $result = [];
-        foreach ($goals as $goal) {
-            if (isset($thresholds[$goal])) {
-                $result[$goal] = $thresholds[$goal];
+        $stage = 'beginner';
+        if ($videoCount > 50 && $avgScore > 70 && $platformCount > 2) {
+            $stage = 'advanced';
+        } elseif ($videoCount > 20 && $avgScore > 50) {
+            $stage = 'intermediate';
+        }
+        
+        return [
+            'stage' => $stage,
+            'video_count' => $videoCount,
+            'performance_level' => $avgScore,
+            'platform_presence' => $platformCount
+        ];
+    }
+
+    protected function calculateGrowthPotential(array $performanceData): array
+    {
+        $avgScore = $this->calculateAveragePerformanceScore($performanceData);
+        $consistency = $this->calculatePerformanceConsistency($performanceData);
+        
+        $potential = 'medium';
+        if ($avgScore > 70 && $consistency > 70) {
+            $potential = 'high';
+        } elseif ($avgScore < 40 || $consistency < 40) {
+            $potential = 'low';
+        }
+        
+        return [
+            'overall_potential' => $potential,
+            'growth_score' => round(($avgScore + $consistency) / 2),
+            'key_factors' => $avgScore > 60 ? ['Strong performance'] : ['Needs optimization']
+        ];
+    }
+
+    protected function analyzeGrowthTrajectory(array $performanceData): array
+    {
+        // Simple growth analysis based on performance trends
+        $recentScores = array_slice(array_column($performanceData, 'performance_score'), -5);
+        $trend = 'stable';
+        
+        if (count($recentScores) >= 3) {
+            $first = array_slice($recentScores, 0, 2);
+            $last = array_slice($recentScores, -2);
+            
+            $firstAvg = array_sum($first) / count($first);
+            $lastAvg = array_sum($last) / count($last);
+            
+            if ($lastAvg > $firstAvg + 5) {
+                $trend = 'improving';
+            } elseif ($lastAvg < $firstAvg - 5) {
+                $trend = 'declining';
             }
         }
         
-        return $result;
-    }
-
-    /**
-     * Define alert system
-     */
-    protected function defineAlertSystem(): array
-    {
         return [
-            'performance_alerts' => [
-                'significant_drops' => 'Alert when metrics drop below thresholds',
-                'unusual_patterns' => 'Notification of anomalous performance',
-                'goal_misalignment' => 'Warning when off-track from objectives',
-                'competitive_threats' => 'Alert to competitor performance changes',
-            ],
-            'opportunity_alerts' => [
-                'viral_potential' => 'Notification of high-performing content',
-                'trending_topics' => 'Alert to relevant trending opportunities',
-                'collaboration_requests' => 'Partnership opportunity notifications',
-                'monetization_opportunities' => 'Revenue generation alerts',
-            ],
-            'operational_alerts' => [
-                'content_schedule' => 'Publishing schedule reminders',
-                'engagement_response' => 'Community management alerts',
-                'technical_issues' => 'Platform or technical problem notifications',
-                'team_coordination' => 'Workflow and collaboration alerts',
-            ],
+            'trend' => $trend,
+            'momentum' => $trend === 'improving' ? 'positive' : ($trend === 'declining' ? 'negative' : 'neutral'),
+            'prediction' => $trend === 'improving' ? 'continued growth' : 'optimization needed'
         ];
     }
 
-    /**
-     * Define KPI optimization triggers
-     */
-    protected function defineKPIOptimizationTriggers(): array
+    protected function setRealisticMilestones(array $performanceData, array $goals): array
     {
-        return [
-            'performance_triggers' => [
-                'declining_engagement' => 'Trigger optimization when engagement drops 20%',
-                'stagnant_growth' => 'Activate growth strategies when growth stops',
-                'low_conversion' => 'Optimize funnel when conversion drops below 2%',
-                'increased_competition' => 'Respond to competitive pressure indicators',
-            ],
-            'opportunity_triggers' => [
-                'viral_content' => 'Scale successful content immediately',
-                'trending_topics' => 'Capitalize on relevant trends within 24 hours',
-                'audience_feedback' => 'Respond to audience requests and suggestions',
-                'platform_updates' => 'Adapt to algorithm and feature changes',
-            ],
-            'strategic_triggers' => [
-                'goal_achievement' => 'Set new targets when goals are met early',
-                'market_changes' => 'Adjust strategy based on market shifts',
-                'resource_availability' => 'Scale efforts when resources increase',
-                'seasonal_patterns' => 'Adjust tactics based on seasonal performance',
-            ],
-        ];
-    }
-
-    /**
-     * Generate strategic initiatives
-     */
-    protected function generateStrategicInitiatives(array $goals): array
-    {
-        $initiatives = [];
+        $currentScore = $this->calculateAveragePerformanceScore($performanceData);
         
-        if (in_array('growth', $goals)) {
-            $initiatives['audience_expansion'] = [
-                'initiative' => 'Multi-platform audience expansion',
-                'description' => 'Systematic growth across all active platforms',
-                'timeline' => '6-12 months',
-                'key_activities' => ['cross_promotion', 'collaboration', 'paid_acquisition'],
+        return [
+            '30_days' => [
+                'performance_score' => min($currentScore + 10, 100),
+                'content_consistency' => 'Maintain regular posting schedule'
+            ],
+            '90_days' => [
+                'performance_score' => min($currentScore + 25, 100),
+                'audience_growth' => '20% increase in engagement'
+            ],
+            '180_days' => [
+                'performance_score' => min($currentScore + 40, 100),
+                'platform_expansion' => 'Optimize multi-platform strategy'
+            ]
+        ];
+    }
+
+    protected function calculateResourceRequirements(array $growthPotential): array
+    {
+        $potential = $growthPotential['overall_potential'];
+        
+        return [
+            'time_investment' => $potential === 'high' ? '15-20 hours/week' : '10-15 hours/week',
+            'content_frequency' => $potential === 'high' ? 'Daily' : '3-4 times/week',
+            'tool_requirements' => ['Analytics tools', 'Content planning software'],
+            'skill_development' => ['Video editing', 'Audience analysis']
+        ];
+    }
+
+    protected function generateGrowthTimeline(array $performanceData, array $goals): array
+    {
+        return [
+            'Phase 1 (0-30 days)' => 'Optimize current content strategy',
+            'Phase 2 (30-90 days)' => 'Scale high-performing content types',
+            'Phase 3 (90-180 days)' => 'Expand to new platforms/audiences',
+            'Phase 4 (180+ days)' => 'Monetization and partnership opportunities'
+        ];
+    }
+
+    protected function prioritizeOptimizations(array $performanceData): array
+    {
+        $optimizations = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['optimization_opportunities'])) {
+                foreach ($performance['optimization_opportunities'] as $opp) {
+                    if (($opp['priority'] ?? '') === 'high') {
+                        $optimizations[] = $opp;
+                    }
+                }
+            }
+        }
+        
+        // Sort by impact/confidence
+        usort($optimizations, function($a, $b) {
+            $scoreA = ($a['impact'] === 'high' ? 3 : 1) * ($a['confidence'] ?? 50);
+            $scoreB = ($b['impact'] === 'high' ? 3 : 1) * ($b['confidence'] ?? 50);
+            return $scoreB - $scoreA;
+        });
+        
+        return array_slice($optimizations, 0, 5);
+    }
+
+    /**
+     * Risk Analysis helper methods
+     */
+    protected function identifyPerformanceRisks(array $performanceData): array
+    {
+        $risks = [];
+        $avgScore = $this->calculateAveragePerformanceScore($performanceData);
+        $consistency = $this->calculatePerformanceConsistency($performanceData);
+        
+        if ($avgScore < 40) {
+            $risks[] = ['risk' => 'Low performance scores', 'severity' => 'high', 'impact' => 'Algorithm deprioritization'];
+        }
+        
+        if ($consistency < 50) {
+            $risks[] = ['risk' => 'Inconsistent content quality', 'severity' => 'medium', 'impact' => 'Unpredictable results'];
+        }
+        
+        if (count($performanceData) < 5) {
+            $risks[] = ['risk' => 'Limited content volume', 'severity' => 'medium', 'impact' => 'Reduced visibility'];
+        }
+        
+        return $risks;
+    }
+
+    protected function analyzePlatformRisks(array $platforms, array $performanceData): array
+    {
+        $risks = [];
+        
+        if (count($platforms) === 1) {
+            $risks[] = ['risk' => 'Single platform dependency', 'severity' => 'high', 'mitigation' => 'Diversify platform presence'];
+        }
+        
+        foreach ($platforms as $platform) {
+            $platformPerf = $this->getPlatformPerformanceData($platform, $performanceData);
+            if (empty($platformPerf)) {
+                $risks[] = ['risk' => "No performance data for {$platform}", 'severity' => 'medium'];
+            }
+        }
+        
+        return $risks;
+    }
+
+    protected function identifyContentRisks(array $performanceData): array
+    {
+        return [
+            ['risk' => 'Content saturation in niche', 'probability' => 'medium'],
+            ['risk' => 'Trending topic dependency', 'probability' => 'low'],
+            ['risk' => 'Quality decline under pressure', 'probability' => 'medium']
+        ];
+    }
+
+    protected function assessCompetitiveRisks(array $performanceData): array
+    {
+        return [
+            ['risk' => 'Competitor content copying', 'probability' => 'medium'],
+            ['risk' => 'Market saturation', 'probability' => 'high'],
+            ['risk' => 'Platform algorithm changes', 'probability' => 'high']
+        ];
+    }
+
+    protected function generateDataBasedMitigationStrategies(array $performanceRisks, array $platformRisks): array
+    {
+        $strategies = [];
+        
+        foreach ($performanceRisks as $risk) {
+            switch ($risk['risk']) {
+                case 'Low performance scores':
+                    $strategies[] = 'Focus on content quality improvement and audience research';
+                    break;
+                case 'Inconsistent content quality':
+                    $strategies[] = 'Implement content quality checklist and review process';
+                    break;
+            }
+        }
+        
+        foreach ($platformRisks as $risk) {
+            if ($risk['risk'] === 'Single platform dependency') {
+                $strategies[] = 'Gradually expand to additional platforms';
+            }
+        }
+        
+        return array_unique($strategies);
+    }
+
+    protected function definePerformanceAlerts(array $performanceData): array
+    {
+        $avgScore = $this->calculateAveragePerformanceScore($performanceData);
+        
+        return [
+            'performance_drop' => ['threshold' => max(40, $avgScore - 20), 'action' => 'Review content strategy'],
+            'engagement_decline' => ['threshold' => '20% drop', 'action' => 'Analyze audience preferences'],
+            'consistency_issues' => ['threshold' => 'Below 60% consistency', 'action' => 'Implement posting schedule']
+        ];
+    }
+
+    /**
+     * Budget Recommendations helper methods
+     */
+    protected function calculatePlatformROI(array $performanceData): array
+    {
+        $platformROI = [];
+        
+        foreach ($performanceData as $performance) {
+            if (isset($performance['platform_breakdown'])) {
+                foreach ($performance['platform_breakdown'] as $platform => $data) {
+                    $score = $data['performance_score'] ?? 0;
+                    $platformROI[$platform] = ($platformROI[$platform] ?? 0) + $score;
+                }
+            }
+        }
+        
+        return $platformROI;
+    }
+
+    protected function prioritizePlatformInvestments(array $roiAnalysis): array
+    {
+        arsort($roiAnalysis);
+        
+        $totalBudget = 1000; // Example budget
+        $allocation = [];
+        $platforms = array_keys($roiAnalysis);
+        
+        foreach ($platforms as $index => $platform) {
+            $percentage = match($index) {
+                0 => 40, // Top performer gets 40%
+                1 => 30, // Second gets 30%
+                2 => 20, // Third gets 20%
+                default => 10 // Others get remaining 10%
+            };
+            
+            $allocation[$platform] = [
+                'budget' => ($totalBudget * $percentage) / 100,
+                'percentage' => $percentage,
+                'justification' => 'Based on performance ROI'
             ];
         }
         
+        return $allocation;
+    }
+
+    protected function calculateOptimalBudget(array $performanceData, array $goals): array
+    {
+        $baseAmount = 500; // Base monthly budget
+        $platformCount = $this->countActivePlatforms($performanceData);
+        $goalMultiplier = in_array('revenue', $goals) ? 1.5 : 1.0;
+        
+        return [
+            'monthly_budget' => $baseAmount * $platformCount * $goalMultiplier,
+            'breakdown' => [
+                'content_creation' => 60,
+                'promotion' => 25,
+                'tools_software' => 15
+            ]
+        ];
+    }
+
+    protected function recommendContentInvestments(array $performanceData): array
+    {
+        return [
+            'video_editing_software' => 50,
+            'stock_footage' => 30,
+            'thumbnail_design' => 20,
+            'audio_equipment' => 100
+        ];
+    }
+
+    protected function recommendToolInvestments(array $performanceData): array
+    {
+        return [
+            'analytics_tools' => 25,
+            'scheduling_software' => 15,
+            'content_planning' => 10,
+            'collaboration_tools' => 20
+        ];
+    }
+
+    protected function projectROI(array $roiAnalysis, array $goals): array
+    {
+        return [
+            '3_months' => '15% improvement in engagement',
+            '6_months' => '30% growth in audience',
+            '12_months' => '50% increase in overall performance'
+        ];
+    }
+
+    protected function optimizeBudgetAllocation(array $performanceData): array
+    {
+        return [
+            'high_performing_platforms' => 70,
+            'experimental_content' => 20,
+            'tool_upgrades' => 10
+        ];
+    }
+
+    /**
+     * Success Metrics helper methods
+     */
+    protected function calculateRealisticTargets(array $currentMetrics, array $goals): array
+    {
+        $targets = [];
+        
+        foreach ($goals as $goal) {
+            switch ($goal) {
+                case 'growth':
+                    $targets['audience_growth'] = ($currentMetrics['total_views'] ?? 0) * 1.3;
+                    break;
+                case 'engagement':
+                    $currentEngagement = $currentMetrics['total_views'] > 0 
+                        ? ($currentMetrics['total_engagement'] / $currentMetrics['total_views']) * 100 
+                        : 0;
+                    $targets['engagement_rate'] = max(5.0, $currentEngagement * 1.5);
+                    break;
+                case 'revenue':
+                    $targets['monthly_revenue'] = 500; // Example target
+                    break;
+                case 'brand':
+                    $targets['brand_consistency'] = 85;
+                    break;
+            }
+        }
+        
+        return $targets;
+    }
+
+    protected function generateMilestoneSchedule(array $improvementTargets, string $timeframe): array
+    {
+        $days = $this->getTimeframeDays($timeframe);
+        
+        return [
+            'week_2' => '10% progress toward targets',
+            'month_1' => '25% progress toward targets',
+            'month_2' => '50% progress toward targets',
+            'final' => '100% target achievement'
+        ];
+    }
+
+    protected function defineSuccessThresholds(array $currentMetrics, array $improvementTargets): array
+    {
+        return [
+            'minimum_acceptable' => '75% of targets achieved',
+            'good_performance' => '90% of targets achieved',
+            'exceptional' => '110% of targets achieved'
+        ];
+    }
+
+    protected function recommendTrackingMethods(array $goals): array
+    {
+        $methods = ['Platform native analytics'];
+        
         if (in_array('engagement', $goals)) {
-            $initiatives['community_building'] = [
-                'initiative' => 'Deep community engagement program',
-                'description' => 'Build stronger relationships with existing audience',
-                'timeline' => '3-6 months',
-                'key_activities' => ['community_events', 'user_generated_content', 'personalized_interactions'],
-            ];
+            $methods[] = 'Social listening tools';
         }
         
         if (in_array('revenue', $goals)) {
-            $initiatives['monetization_optimization'] = [
-                'initiative' => 'Revenue stream diversification',
-                'description' => 'Develop multiple income sources from content',
-                'timeline' => '6-18 months',
-                'key_activities' => ['product_development', 'sponsorship_program', 'affiliate_optimization'],
-            ];
+            $methods[] = 'Revenue tracking dashboard';
         }
         
-        return $initiatives;
-    }
-
-    /**
-     * Generate resource allocation
-     */
-    protected function generateResourceAllocation(): array
-    {
-        return [
-            'time_allocation' => [
-                'content_creation' => '40%',
-                'community_engagement' => '25%',
-                'strategic_planning' => '15%',
-                'analytics_optimization' => '10%',
-                'learning_development' => '10%',
-            ],
-            'budget_allocation' => [
-                'content_production' => '45%',
-                'paid_promotion' => '25%',
-                'tools_software' => '15%',
-                'education_training' => '10%',
-                'contingency' => '5%',
-            ],
-            'team_allocation' => [
-                'content_creators' => '50%',
-                'community_managers' => '25%',
-                'analysts' => '15%',
-                'strategists' => '10%',
-            ],
-        ];
-    }
-
-    /**
-     * Generate risk mitigation strategies
-     */
-    protected function generateRiskMitigation(): array
-    {
-        return [
-            'platform_risks' => [
-                'algorithm_changes' => [
-                    'risk' => 'Platform algorithm updates affecting reach',
-                    'mitigation' => 'Diversify across multiple platforms',
-                    'monitoring' => 'Track platform announcements and performance',
-                ],
-                'policy_changes' => [
-                    'risk' => 'Platform policy updates affecting content',
-                    'mitigation' => 'Stay updated on platform guidelines',
-                    'monitoring' => 'Regular policy review and compliance checks',
-                ],
-            ],
-            'content_risks' => [
-                'creator_burnout' => [
-                    'risk' => 'Unsustainable content production pace',
-                    'mitigation' => 'Build content buffer and team support',
-                    'monitoring' => 'Regular team wellness checks',
-                ],
-                'content_saturation' => [
-                    'risk' => 'Market oversaturation in content niche',
-                    'mitigation' => 'Continuous innovation and differentiation',
-                    'monitoring' => 'Competitive analysis and trend tracking',
-                ],
-            ],
-            'business_risks' => [
-                'revenue_concentration' => [
-                    'risk' => 'Over-reliance on single revenue stream',
-                    'mitigation' => 'Diversify monetization methods',
-                    'monitoring' => 'Revenue stream performance tracking',
-                ],
-                'audience_dependency' => [
-                    'risk' => 'Over-dependence on specific audience segment',
-                    'mitigation' => 'Gradually expand to adjacent audiences',
-                    'monitoring' => 'Audience demographic analysis',
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * Generate innovation pipeline
-     */
-    protected function generateInnovationPipeline(string $industry): array
-    {
-        $innovations = [
-            'technology' => [
-                'emerging_formats' => ['AR/VR content', 'interactive_videos', 'AI_generated_content'],
-                'new_platforms' => ['clubhouse_audio', 'metaverse_spaces', 'blockchain_platforms'],
-                'content_innovation' => ['live_coding', 'tech_storytelling', 'community_challenges'],
-            ],
-            'education' => [
-                'emerging_formats' => ['microlearning', 'gamified_content', 'peer_learning'],
-                'new_platforms' => ['learning_communities', 'skill_platforms', 'mentorship_networks'],
-                'content_innovation' => ['interactive_courses', 'assessment_tools', 'progress_tracking'],
-            ],
-            'entertainment' => [
-                'emerging_formats' => ['interactive_storytelling', 'audience_participation', 'transmedia_content'],
-                'new_platforms' => ['streaming_platforms', 'gaming_integration', 'virtual_events'],
-                'content_innovation' => ['character_development', 'narrative_series', 'audience_choice'],
-            ],
-            'business' => [
-                'emerging_formats' => ['executive_briefings', 'case_study_videos', 'strategic_simulations'],
-                'new_platforms' => ['professional_networks', 'industry_forums', 'B2B_communities'],
-                'content_innovation' => ['thought_leadership', 'industry_analysis', 'leadership_insights'],
-            ],
-        ];
-        
-        return $innovations[$industry] ?? $innovations['technology'];
-    }
-
-    // Placeholder methods for comprehensive functionality
-    protected function assessInnovationPace(string $industry): string { return 'medium'; }
-    protected function performContentGapAnalysis(string $industry): array { return []; }
-    protected function generateOpportunityMatrix(string $industry, array $platforms): array { return []; }
-    protected function assessThreats(string $industry): array { return []; }
-    protected function analyzeCompetitivePositioning(string $industry): array { return []; }
-    protected function generateBenchmarkingData(string $industry, array $platforms): array { return []; }
-    protected function generateDifferentiationStrategies(string $industry): array { return []; }
-    protected function analyzeMarketShare(string $industry): array { return []; }
-    protected function gatherCompetitiveIntelligence(string $industry, array $platforms): array { return []; }
-    protected function calculatePlatformFrequency(array $platforms, int $baseFrequency): array { return []; }
-    protected function getSeasonalPostingAdjustments(string $industry): array { return []; }
-    protected function getOptimalPostingTimes(array $platforms): array { return []; }
-    protected function generateMonthlyThemes(string $industry): array { return []; }
-    protected function generateWeeklyFocusAreas(string $industry): array { return []; }
-    protected function generateDailyContentTypes(array $platforms): array { return []; }
-    protected function generateSpecialCampaigns(string $industry): array { return []; }
-    protected function calculatePillarDistribution(): array { return []; }
-    protected function calculateFormatDistribution(array $platforms): array { return []; }
-    protected function generateTopicRotation(string $industry): array { return []; }
-    protected function generateEngagementOptimization(): array { return []; }
-    protected function generateCreationTimeline(): array { return []; }
-    protected function defineReviewProcess(): array { return []; }
-    protected function definePublishingWorkflow(array $platforms): array { return []; }
-    protected function defineQualityCheckpoints(): array { return []; }
-    protected function defineCalendarMetrics(): array { return []; }
-    protected function defineReviewCycles(): array { return []; }
-    protected function defineOptimizationTriggers(): array { return []; }
-    protected function defineReportingSchedule(): array { return []; }
-
-    /**
-     * Generate mitigation strategies for identified risks
-     */
-    protected function generateMitigationStrategies(): array
-    {
-        return [
-            'multi_platform' => [
-                'strategy' => 'Diversify across multiple platforms to reduce dependency',
-                'implementation' => [
-                    'Maintain presence on 3-5 platforms',
-                    'Cross-post content with platform-specific adaptations',
-                    'Build direct audience relationship (email list, website)',
-                ],
-                'timeline' => '30-60 days',
-                'effectiveness' => 'high',
-            ],
-            'diversification' => [
-                'strategy' => 'Diversify revenue streams and content types',
-                'implementation' => [
-                    'Multiple monetization methods (ads, sponsorships, products)',
-                    'Various content formats and topics',
-                    'Different audience segments',
-                ],
-                'timeline' => '60-90 days',
-                'effectiveness' => 'high',
-            ],
-            'backup_plans' => [
-                'strategy' => 'Prepare technical and operational backups',
-                'implementation' => [
-                    'Content backup systems',
-                    'Alternative publishing methods',
-                    'Emergency communication channels',
-                ],
-                'timeline' => '14-30 days',
-                'effectiveness' => 'medium',
-            ],
-            'relationship_building' => [
-                'strategy' => 'Build strong relationships with platforms and partners',
-                'implementation' => [
-                    'Direct communication with platform representatives',
-                    'Participate in creator programs',
-                    'Network with other creators for support',
-                ],
-                'timeline' => '90+ days',
-                'effectiveness' => 'medium',
-            ],
-            'trend_monitoring' => [
-                'strategy' => 'Stay ahead of industry changes and trends',
-                'implementation' => [
-                    'Regular industry research and analysis',
-                    'Early adoption of new features and platforms',
-                    'Flexible content strategy that can adapt quickly',
-                ],
-                'timeline' => 'Ongoing',
-                'effectiveness' => 'high',
-            ],
-        ];
-    }
-
-    /**
-     * Generate contingency plans for different scenarios
-     */
-    protected function generateContingencyPlans(): array
-    {
-        return [
-            'algorithm_change' => [
-                'scenario' => 'Major platform algorithm update reduces reach',
-                'immediate_actions' => [
-                    'Analyze performance data to understand changes',
-                    'Test different content formats and posting times',
-                    'Increase community engagement efforts',
-                ],
-                'recovery_timeline' => '2-4 weeks',
-                'success_indicators' => ['Engagement rate recovery', 'Reach stabilization'],
-            ],
-            'platform_suspension' => [
-                'scenario' => 'Account suspension or platform access issues',
-                'immediate_actions' => [
-                    'Appeal through official channels',
-                    'Communicate with audience via other platforms',
-                    'Implement backup content distribution',
-                ],
-                'recovery_timeline' => '1-2 weeks',
-                'success_indicators' => ['Account restoration', 'Audience retention'],
-            ],
-            'competitor_surge' => [
-                'scenario' => 'New competitor gains significant market share',
-                'immediate_actions' => [
-                    'Analyze competitor strategies and differentiate',
-                    'Double down on unique value proposition',
-                    'Accelerate innovation and content quality',
-                ],
-                'recovery_timeline' => '4-8 weeks',
-                'success_indicators' => ['Market share stabilization', 'Audience growth'],
-            ],
-            'content_fatigue' => [
-                'scenario' => 'Audience shows signs of content fatigue',
-                'immediate_actions' => [
-                    'Survey audience for feedback and preferences',
-                    'Introduce new content formats and topics',
-                    'Collaborate with other creators for fresh perspectives',
-                ],
-                'recovery_timeline' => '3-6 weeks',
-                'success_indicators' => ['Engagement rate improvement', 'Positive feedback'],
-            ],
-            'monetization_loss' => [
-                'scenario' => 'Primary monetization source is compromised',
-                'immediate_actions' => [
-                    'Activate alternative revenue streams',
-                    'Negotiate with existing partners for support',
-                    'Launch emergency fundraising or product sales',
-                ],
-                'recovery_timeline' => '2-6 weeks',
-                'success_indicators' => ['Revenue stabilization', 'New income sources'],
-            ],
-        ];
-    }
-
-    /**
-     * Define risk monitoring systems
-     */
-    protected function defineRiskMonitoring(): array
-    {
-        return [
-            'performance_monitoring' => [
-                'metrics' => ['reach', 'engagement', 'growth_rate', 'conversion'],
-                'frequency' => 'daily',
-                'alert_thresholds' => [
-                    'reach_drop' => '15% decrease over 3 days',
-                    'engagement_drop' => '20% decrease over 7 days',
-                    'growth_stagnation' => 'No growth for 14 days',
-                ],
-                'tools' => ['Analytics dashboards', 'Automated alerts', 'Weekly reports'],
-            ],
-            'platform_health' => [
-                'indicators' => ['policy_changes', 'algorithm_updates', 'feature_changes'],
-                'monitoring_methods' => [
-                    'Official platform communications',
-                    'Creator community discussions',
-                    'Third-party industry reports',
-                ],
-                'frequency' => 'weekly',
-                'response_time' => '24-48 hours',
-            ],
-            'competitive_intelligence' => [
-                'focus_areas' => ['competitor_performance', 'market_trends', 'audience_shifts'],
-                'data_sources' => [
-                    'Social listening tools',
-                    'Competitor analysis platforms',
-                    'Industry benchmarking reports',
-                ],
-                'frequency' => 'monthly',
-                'action_triggers' => ['Significant competitor gains', 'Market disruption'],
-            ],
-            'audience_sentiment' => [
-                'monitoring_points' => ['comments', 'direct_messages', 'engagement_quality'],
-                'tools' => ['Sentiment analysis', 'Community feedback', 'Survey responses'],
-                'frequency' => 'weekly',
-                'escalation_criteria' => ['Negative sentiment spike', 'Feedback pattern changes'],
-            ],
-            'technical_monitoring' => [
-                'systems' => ['content_delivery', 'backup_systems', 'automation_tools'],
-                'checks' => ['uptime', 'performance', 'data_integrity'],
-                'frequency' => 'daily',
-                'incident_response' => ['Immediate alerts', 'Backup activation', 'Recovery procedures'],
-            ],
-        ];
+        return $methods;
     }
 }

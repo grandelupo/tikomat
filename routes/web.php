@@ -96,6 +96,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('optimize-thumbnails', [AIController::class, 'optimizeThumbnails'])->name('optimize-thumbnails');
     Route::post('generate-optimized-thumbnail', [AIController::class, 'generateOptimizedThumbnail'])->name('generate-optimized-thumbnail');
     Route::post('set-video-thumbnail', [AIController::class, 'setVideoThumbnail'])->name('set-video-thumbnail');
+    Route::post('upload-custom-thumbnail', [AIController::class, 'uploadCustomThumbnail'])->name('upload-custom-thumbnail');
     Route::post('thumbnail-design-analysis', [AIController::class, 'getThumbnailDesignAnalysis'])->name('thumbnail-design-analysis');
     Route::post('thumbnail-ctr-predictions', [AIController::class, 'getThumbnailCTRPredictions'])->name('thumbnail-ctr-predictions');
     Route::post('thumbnail-text-suggestions', [AIController::class, 'getThumbnailTextSuggestions'])->name('thumbnail-text-suggestions');

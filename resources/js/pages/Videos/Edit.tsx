@@ -122,6 +122,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
     const [showThumbnailOptimizer, setShowThumbnailOptimizer] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isGeneratingTags, setIsGeneratingTags] = useState(false);
+    const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
     const [availablePlatforms] = useState(['youtube', 'instagram', 'tiktok', 'facebook', 'twitter', 'pinterest', 'snapchat']);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -280,15 +281,102 @@ export default function VideoEdit({ video }: VideoEditProps) {
         }
     };
 
-    const handleThumbnailUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleThumbnailUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (file) {
-            setCustomThumbnail(file);
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Please select a valid image file');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image size must be less than 5MB');
+            return;
+        }
+
+        setIsUploadingThumbnail(true);
+        setCustomThumbnail(file);
+
+        try {
+            // Create FormData for file upload
+            const formData = new FormData();
+            formData.append('thumbnail', file);
+            formData.append('video_id', video.id.toString());
+
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            console.log('CSRF Token:', csrfToken ? 'Found' : 'Missing');
+
+            const response = await fetch('/ai/upload-custom-thumbnail', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken || '',
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            });
+
+            console.log('Response status:', response.status);
+            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    setSelectedThumbnail(result.thumbnail_url);
+                    
+                    // Show success message
+                    const successElement = document.createElement('div');
+                    successElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                    successElement.textContent = '✅ Thumbnail uploaded successfully!';
+                    document.body.appendChild(successElement);
+                    setTimeout(() => {
+                        if (document.body.contains(successElement)) {
+                            document.body.removeChild(successElement);
+                        }
+                    }, 3000);
+                } else {
+                    throw new Error(result.message || 'Upload failed');
+                }
+            } else {
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                console.log('Error response content-type:', contentType);
+                
+                if (contentType && contentType.includes('application/json')) {
+                    const error = await response.json();
+                    throw new Error(error.message || `HTTP ${response.status}: Upload failed`);
+                } else {
+                    // HTML error response - log first 200 characters
+                    const text = await response.text();
+                    console.log('HTML error response:', text.substring(0, 200));
+                    throw new Error(`HTTP ${response.status}: Server returned HTML instead of JSON - check Laravel logs`);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to upload thumbnail:', error);
+            
+            // Show error message
+            const errorElement = document.createElement('div');
+            errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            errorElement.textContent = `❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            document.body.appendChild(errorElement);
+            setTimeout(() => {
+                if (document.body.contains(errorElement)) {
+                    document.body.removeChild(errorElement);
+                }
+            }, 5000);
+
+            // Fallback: show local preview
             const reader = new FileReader();
             reader.onload = (e) => {
                 setSelectedThumbnail(e.target?.result as string);
             };
             reader.readAsDataURL(file);
+        } finally {
+            setIsUploadingThumbnail(false);
         }
     };
 
@@ -939,55 +1027,70 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                     </CardContent>
                                 </Card>
 
+                                {/* 6. Thumbnail Optimization Section */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Image className="w-5 h-5" />
+                                            Thumbnail Optimization
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Set your video thumbnail using AI optimization or custom upload
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                onClick={() => setShowThumbnailOptimizer(true)}
+                                                className="bg-purple-600 hover:bg-purple-700"
+                                            >
+                                                <Sparkles className="w-4 h-4 mr-2" />
+                                                AI Optimize Thumbnail
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={isUploadingThumbnail}
+                                            >
+                                                {isUploadingThumbnail ? (
+                                                    <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+                                                ) : (
+                                                    <Upload className="w-4 h-4 mr-2" />
+                                                )}
+                                                {isUploadingThumbnail ? 'Uploading...' : 'Upload Custom Thumbnail'}
+                                            </Button>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleThumbnailUpload}
+                                                className="hidden"
+                                            />
+                                        </div>
+                                        
+                                        {selectedThumbnail && (
+                                            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                                <p className="text-sm text-green-700">
+                                                    ✓ Thumbnail has been set for this video
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {video.thumbnail && (
+                                            <div className="mt-4">
+                                                <p className="text-sm font-medium text-muted-foreground mb-2">Current Thumbnail:</p>
+                                                <img 
+                                                    src={`${video.thumbnail}`} 
+                                                    alt="Current thumbnail" 
+                                                    className="w-32 h-20 object-cover rounded-lg border"
+                                                />
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
 
                             </div>
                         </div>
-
-                        {/* 10. Thumbnail Optimization Section */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Image className="w-5 h-5" />
-                                    Thumbnail Optimization
-                                </CardTitle>
-                                <CardDescription>
-                                    Set your video thumbnail using AI optimization or custom upload
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={() => setShowThumbnailOptimizer(true)}
-                                        className="bg-purple-600 hover:bg-purple-700"
-                                    >
-                                        <Sparkles className="w-4 h-4 mr-2" />
-                                        AI Optimize Thumbnail
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => fileInputRef.current?.click()}
-                                    >
-                                        <Upload className="w-4 h-4 mr-2" />
-                                        Upload Custom Thumbnail
-                                    </Button>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleThumbnailUpload}
-                                        className="hidden"
-                                    />
-                                </div>
-                                
-                                {selectedThumbnail && (
-                                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                        <p className="text-sm text-green-700">
-                                            ✓ Thumbnail has been set for this video
-                                        </p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
 
 
                     </TabsContent>

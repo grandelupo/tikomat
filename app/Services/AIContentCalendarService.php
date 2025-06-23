@@ -96,7 +96,7 @@ class AIContentCalendarService
     ];
 
     /**
-     * Generate AI-powered content calendar
+     * Generate AI-powered content calendar based on user's video performance data
      */
     public function generateContentCalendar(int $userId, array $options = []): array
     {
@@ -107,35 +107,62 @@ class AIContentCalendarService
                 Log::info('Generating content calendar', ['user_id' => $userId]);
 
                 $user = User::find($userId);
+                if (!$user) {
+                    throw new \Exception('User not found');
+                }
+
                 $startDate = Carbon::parse($options['start_date'] ?? 'now');
                 $endDate = Carbon::parse($options['end_date'] ?? 'now')->addDays($options['days'] ?? 30);
                 $platforms = $options['platforms'] ?? ['youtube', 'instagram', 'tiktok'];
 
+                // Get user's video data for analysis
+                $videoData = $this->getUserVideoData($userId);
+                $hasVideoData = !empty($videoData);
+
                 $calendar = [
                     'user_id' => $userId,
+                    'has_data' => $hasVideoData,
                     'period' => [
                         'start_date' => $startDate->toDateString(),
                         'end_date' => $endDate->toDateString(),
                         'total_days' => $startDate->diffInDays($endDate),
                     ],
                     'platforms' => $platforms,
-                    'optimal_schedule' => $this->generateOptimalSchedule($startDate, $endDate, $platforms, $options),
-                    'content_recommendations' => $this->generateContentRecommendations($startDate, $endDate, $options),
-                    'trending_opportunities' => $this->identifyTrendingOpportunities($startDate, $endDate),
-                    'engagement_predictions' => $this->predictEngagementTrends($startDate, $endDate, $platforms),
-                    'content_gaps' => $this->analyzeContentGaps($userId, $startDate, $endDate),
-                    'seasonal_insights' => $this->getSeasonalInsights($startDate, $endDate),
-                    'posting_frequency' => $this->calculateOptimalPostingFrequency($platforms, $options),
-                    'performance_forecasts' => $this->generatePerformanceForecasts($startDate, $endDate, $platforms),
-                    'content_themes' => $this->suggestContentThemes($startDate, $endDate),
-                    'competitive_analysis' => $this->analyzeCompetitiveOpportunities($startDate, $endDate),
-                    'calendar_score' => 0,
+                    'data_sources' => $this->getDataSources($userId),
                 ];
 
+                if ($hasVideoData) {
+                    // Generate AI-powered insights based on real data
+                    $calendar = array_merge($calendar, [
+                        'optimal_schedule' => $this->generateOptimalScheduleFromData($videoData, $startDate, $endDate, $platforms),
+                        'content_recommendations' => $this->generateContentRecommendationsFromData($videoData),
+                        'trending_opportunities' => $this->identifyTrendingOpportunitiesFromData($videoData),
+                        'engagement_predictions' => $this->predictEngagementTrendsFromData($videoData, $startDate, $endDate, $platforms),
+                        'content_gaps' => $this->analyzeContentGapsFromData($videoData, $userId),
+                        'performance_forecasts' => $this->generatePerformanceForecastsFromData($videoData, $platforms),
+                        'best_performing_content' => $this->getBestPerformingContent($videoData),
+                        'platform_insights' => $this->getPlatformInsights($videoData, $platforms),
+                    ]);
+                } else {
+                    // Provide basic calendar without AI functionality
+                    $calendar = array_merge($calendar, [
+                        'optimal_schedule' => $this->generateBasicSchedule($startDate, $endDate, $platforms),
+                        'content_recommendations' => $this->getBasicContentRecommendations(),
+                        'trending_opportunities' => [],
+                        'engagement_predictions' => [],
+                        'content_gaps' => [],
+                        'performance_forecasts' => [],
+                        'setup_guide' => $this->getSetupGuide(),
+                    ]);
+                }
+
+                $calendar['seasonal_insights'] = $this->getSeasonalInsights($startDate, $endDate);
+                $calendar['posting_frequency'] = $this->calculateOptimalPostingFrequency($platforms, $options, $hasVideoData);
                 $calendar['calendar_score'] = $this->calculateCalendarScore($calendar);
 
                 Log::info('Content calendar generated', [
                     'user_id' => $userId,
+                    'has_data' => $hasVideoData,
                     'total_days' => $calendar['period']['total_days'],
                     'calendar_score' => $calendar['calendar_score'],
                 ]);
@@ -421,6 +448,291 @@ class AIContentCalendarService
     }
 
     /**
+     * Get user's video data for analysis
+     */
+    protected function getUserVideoData(int $userId): array
+    {
+        // Get user's videos with their targets and performance data
+        $videos = Video::where('user_id', $userId)
+            ->with(['targets', 'user'])
+            ->where('created_at', '>=', now()->subDays(90)) // Last 90 days
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $videoData = [];
+        foreach ($videos as $video) {
+            $videoInfo = [
+                'id' => $video->id,
+                'title' => $video->title,
+                'description' => $video->description,
+                'duration' => $video->duration,
+                'created_at' => $video->created_at,
+                'platforms' => [],
+                'total_engagement' => 0,
+                'best_platform' => null,
+                'content_type' => $this->inferContentType($video),
+            ];
+
+            foreach ($video->targets as $target) {
+                $platformData = [
+                    'platform' => $target->platform,
+                    'status' => $target->status,
+                    'platform_video_id' => $target->platform_video_id,
+                    'platform_url' => $target->platform_url,
+                    'published_at' => $target->publish_at,
+                    'performance_score' => $this->calculatePlatformPerformanceScore($target),
+                ];
+
+                $videoInfo['platforms'][$target->platform] = $platformData;
+                $videoInfo['total_engagement'] += $platformData['performance_score'];
+            }
+
+            // Determine best performing platform
+            if (!empty($videoInfo['platforms'])) {
+                $bestPlatform = array_reduce(array_keys($videoInfo['platforms']), function ($best, $platform) use ($videoInfo) {
+                    return $best === null || $videoInfo['platforms'][$platform]['performance_score'] > $videoInfo['platforms'][$best]['performance_score']
+                        ? $platform : $best;
+                });
+                $videoInfo['best_platform'] = $bestPlatform;
+            }
+
+            $videoData[] = $videoInfo;
+        }
+
+        return $videoData;
+    }
+
+    /**
+     * Get data sources available for the user
+     */
+    protected function getDataSources(int $userId): array
+    {
+        $user = User::find($userId);
+        $videoCount = $user->videos()->count();
+        $publishedCount = Video::where('user_id', $userId)
+            ->whereHas('targets', function ($query) {
+                $query->where('status', 'success');
+            })->count();
+        
+        $connectedPlatforms = $user->socialAccounts()->pluck('platform')->toArray();
+
+        return [
+            'total_videos' => $videoCount,
+            'published_videos' => $publishedCount,
+            'connected_platforms' => $connectedPlatforms,
+            'has_sufficient_data' => $videoCount >= 3 && $publishedCount >= 1,
+            'data_quality' => $this->assessDataQuality($videoCount, $publishedCount, count($connectedPlatforms)),
+        ];
+    }
+
+    /**
+     * Generate optimal schedule based on actual video performance data
+     */
+    protected function generateOptimalScheduleFromData(array $videoData, Carbon $startDate, Carbon $endDate, array $platforms): array
+    {
+        $schedule = [];
+        $currentDate = $startDate->copy();
+
+        // Analyze best performing times from video data
+        $performanceByDay = $this->analyzePerformanceByDay($videoData);
+        $performanceByTime = $this->analyzePerformanceByTime($videoData);
+
+        while ($currentDate->lte($endDate)) {
+            $dayOfWeek = strtolower($currentDate->format('l'));
+            $isWeekend = in_array($dayOfWeek, ['saturday', 'sunday']);
+            
+            $dayPerformance = $performanceByDay[$dayOfWeek] ?? ['score' => 50, 'video_count' => 0];
+            
+            $daySchedule = [
+                'date' => $currentDate->toDateString(),
+                'day_of_week' => $dayOfWeek,
+                'is_weekend' => $isWeekend,
+                'historical_performance' => $dayPerformance['score'],
+                'video_count' => $dayPerformance['video_count'],
+                'platforms' => [],
+                'recommended_posts' => 0,
+                'optimal_times' => $performanceByTime[$dayOfWeek] ?? ['12:00', '18:00'],
+                'confidence_level' => $dayPerformance['video_count'] > 0 ? 'high' : 'low',
+            ];
+
+            foreach ($platforms as $platform) {
+                $platformPerformance = $this->getPlatformPerformanceForDay($videoData, $platform, $dayOfWeek);
+                
+                $platformSchedule = [
+                    'platform' => $platform,
+                    'historical_performance' => $platformPerformance['score'],
+                    'video_count' => $platformPerformance['count'],
+                    'success_rate' => $platformPerformance['success_rate'],
+                    'recommended_posts' => $platformPerformance['count'] > 0 ? 1 : 0,
+                    'optimal_times' => $platformPerformance['best_times'] ?? ['12:00', '18:00'],
+                    'confidence' => $platformPerformance['count'] > 0 ? 'high' : 'low',
+                ];
+
+                $daySchedule['platforms'][$platform] = $platformSchedule;
+                $daySchedule['recommended_posts'] += $platformSchedule['recommended_posts'];
+            }
+
+            $schedule[] = $daySchedule;
+            $currentDate->addDay();
+        }
+
+        return $schedule;
+    }
+
+    /**
+     * Generate content recommendations based on user's successful content
+     */
+    protected function generateContentRecommendationsFromData(array $videoData): array
+    {
+        $recommendations = [];
+        
+        // Analyze content types that perform well
+        $contentTypePerformance = $this->analyzeContentTypePerformance($videoData);
+        
+        foreach ($contentTypePerformance as $type => $data) {
+            if ($data['avg_score'] > 60 && $data['count'] > 0) {
+                $recommendations[] = [
+                    'type' => $type,
+                    'performance_score' => $data['avg_score'],
+                    'video_count' => $data['count'],
+                    'success_rate' => $data['success_rate'],
+                    'best_platforms' => $data['best_platforms'],
+                    'optimal_duration' => $data['avg_duration'],
+                    'example_titles' => $data['example_titles'],
+                    'suggested_frequency' => $this->suggestFrequency($data),
+                ];
+            }
+        }
+
+        // If no high-performing content, suggest based on general best practices
+        if (empty($recommendations)) {
+            $recommendations = $this->getBasicContentRecommendations();
+        }
+
+        return $recommendations;
+    }
+
+    /**
+     * Get basic schedule for users without data
+     */
+    protected function generateBasicSchedule(Carbon $startDate, Carbon $endDate, array $platforms): array
+    {
+        $schedule = [];
+        $currentDate = $startDate->copy();
+
+        while ($currentDate->lte($endDate)) {
+            $dayOfWeek = strtolower($currentDate->format('l'));
+            $isWeekend = in_array($dayOfWeek, ['saturday', 'sunday']);
+            
+            $daySchedule = [
+                'date' => $currentDate->toDateString(),
+                'day_of_week' => $dayOfWeek,
+                'is_weekend' => $isWeekend,
+                'platforms' => [],
+                'recommended_posts' => 0,
+                'optimal_times' => $this->platformOptimalTimes['general'] ?? ['12:00', '18:00'],
+                'note' => 'Based on general best practices. Connect platforms and upload videos for personalized insights.',
+            ];
+
+            foreach ($platforms as $platform) {
+                $platformTimes = $this->platformOptimalTimes[$platform] ?? [];
+                $timeSlots = $isWeekend ? ($platformTimes['weekends'] ?? ['12:00', '18:00']) : ($platformTimes['weekdays'] ?? ['12:00', '18:00']);
+                
+                $daySchedule['platforms'][$platform] = [
+                    'platform' => $platform,
+                    'optimal_times' => $timeSlots,
+                    'recommended_posts' => in_array($dayOfWeek, ['tuesday', 'wednesday', 'thursday']) ? 1 : 0,
+                    'note' => 'General recommendations - upload videos for personalized timing',
+                ];
+                
+                $daySchedule['recommended_posts'] += $daySchedule['platforms'][$platform]['recommended_posts'];
+            }
+
+            $schedule[] = $daySchedule;
+            $currentDate->addDay();
+        }
+
+        return $schedule;
+    }
+
+    /**
+     * Get basic content recommendations for users without data
+     */
+    protected function getBasicContentRecommendations(): array
+    {
+        return [
+            [
+                'type' => 'educational',
+                'title' => 'Tutorial Content',
+                'description' => 'Create how-to videos and educational content',
+                'suggested_frequency' => '2-3 times per week',
+                'platforms' => ['youtube', 'instagram'],
+                'tips' => [
+                    'Keep videos under 60 seconds for optimal engagement',
+                    'Use clear, descriptive titles',
+                    'Include relevant hashtags',
+                ],
+                'note' => 'General recommendation - upload videos to get personalized suggestions',
+            ],
+            [
+                'type' => 'entertainment',
+                'title' => 'Fun & Engaging Content',
+                'description' => 'Create entertaining videos that engage your audience',
+                'suggested_frequency' => '3-4 times per week',
+                'platforms' => ['tiktok', 'instagram'],
+                'tips' => [
+                    'Follow trending audio and challenges',
+                    'Use engaging thumbnails',
+                    'Post during peak hours',
+                ],
+                'note' => 'General recommendation - upload videos to get personalized suggestions',
+            ],
+        ];
+    }
+
+    /**
+     * Get setup guide for users without data
+     */
+    protected function getSetupGuide(): array
+    {
+        return [
+            'steps' => [
+                [
+                    'title' => 'Connect Social Media Accounts',
+                    'description' => 'Connect your YouTube, Instagram, TikTok, and other social media accounts',
+                    'action' => 'Go to Connections page',
+                    'importance' => 'high',
+                ],
+                [
+                    'title' => 'Upload Your First Video',
+                    'description' => 'Upload and publish at least one video to start gathering performance data',
+                    'action' => 'Go to Videos page',
+                    'importance' => 'high',
+                ],
+                [
+                    'title' => 'Publish to Multiple Platforms',
+                    'description' => 'Publish your videos to multiple platforms to compare performance',
+                    'action' => 'Use the multi-platform publishing feature',
+                    'importance' => 'medium',
+                ],
+                [
+                    'title' => 'Wait for Performance Data',
+                    'description' => 'Allow time for your content to gather views and engagement data',
+                    'action' => 'Check back in 24-48 hours',
+                    'importance' => 'medium',
+                ],
+            ],
+            'estimated_time' => '5-10 minutes setup, 24-48 hours for data collection',
+            'benefits' => [
+                'Personalized posting schedules based on your audience',
+                'Content recommendations based on your successful videos',
+                'Platform-specific optimization insights',
+                'Trend analysis for your niche',
+            ],
+        ];
+    }
+
+    /**
      * Get seasonal insights
      */
     protected function getSeasonalInsights(Carbon $startDate, Carbon $endDate): array
@@ -443,7 +755,7 @@ class AIContentCalendarService
     /**
      * Calculate optimal posting frequency
      */
-    protected function calculateOptimalPostingFrequency(array $platforms, array $options): array
+    protected function calculateOptimalPostingFrequency(array $platforms, array $options, bool $hasData): array
     {
         $frequency = [];
         
@@ -457,37 +769,17 @@ class AIContentCalendarService
                 default => 3,
             };
             
-            $audienceSize = $options['audience_size'] ?? 'medium';
-            $contentQuality = $options['content_quality'] ?? 'medium';
-            $resourcesAvailable = $options['resources'] ?? 'medium';
-            
-            $adjustmentFactor = 1.0;
-            
-            // Adjust based on audience size
-            $adjustmentFactor *= match ($audienceSize) {
-                'small' => 0.8,
-                'medium' => 1.0,
-                'large' => 1.2,
-                default => 1.0,
-            };
-            
-            // Adjust based on content quality
-            $adjustmentFactor *= match ($contentQuality) {
-                'low' => 0.7,
-                'medium' => 1.0,
-                'high' => 1.3,
-                default => 1.0,
-            };
-            
-            $adjustedFrequency = round($baseFrequency * $adjustmentFactor);
+            if (!$hasData) {
+                // Provide conservative recommendations for users without data
+                $baseFrequency = (int) ($baseFrequency * 0.7);
+            }
             
             $frequency[$platform] = [
                 'platform' => $platform,
-                'posts_per_week' => $adjustedFrequency,
-                'posts_per_day' => round($adjustedFrequency / 7, 1),
-                'optimal_times_per_day' => $this->getOptimalTimesPerDay($platform),
-                'content_mix' => $this->getRecommendedContentMix($platform),
-                'engagement_goal' => $this->calculateEngagementGoal($platform, $adjustedFrequency),
+                'posts_per_week' => $baseFrequency,
+                'posts_per_day' => round($baseFrequency / 7, 1),
+                'confidence' => $hasData ? 'high' : 'low',
+                'note' => $hasData ? 'Based on your video performance data' : 'Conservative recommendation - upload videos for personalized insights',
             ];
         }
         
@@ -1024,27 +1316,514 @@ class AIContentCalendarService
 
     protected function getFailsafeContentCalendar(int $userId, array $options): array
     {
+        $startDate = Carbon::parse($options['start_date'] ?? 'now');
+        $endDate = Carbon::parse($options['end_date'] ?? 'now')->addDays($options['days'] ?? 30);
+        $platforms = $options['platforms'] ?? ['youtube', 'instagram', 'tiktok'];
+
         return [
             'user_id' => $userId,
+            'has_data' => false,
             'period' => [
-                'start_date' => now()->toDateString(),
-                'end_date' => now()->addDays(30)->toDateString(),
-                'total_days' => 30,
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $endDate->toDateString(),
+                'total_days' => $startDate->diffInDays($endDate),
             ],
-            'platforms' => $options['platforms'] ?? ['youtube', 'instagram', 'tiktok'],
-            'optimal_schedule' => [],
-            'content_recommendations' => [],
+            'platforms' => $platforms,
+            'optimal_schedule' => $this->generateBasicSchedule($startDate, $endDate, $platforms),
+            'content_recommendations' => $this->getBasicContentRecommendations(),
             'trending_opportunities' => [],
             'engagement_predictions' => [],
             'content_gaps' => [],
-            'seasonal_insights' => [],
-            'posting_frequency' => [],
+            'seasonal_insights' => $this->getSeasonalInsights($startDate, $endDate),
+            'posting_frequency' => $this->calculateOptimalPostingFrequency($platforms, $options, false),
             'performance_forecasts' => [],
-            'content_themes' => [],
-            'competitive_analysis' => [],
-            'calendar_score' => 0,
+            'setup_guide' => $this->getSetupGuide(),
+            'calendar_score' => 30, // Basic score
             'status' => 'error',
-            'error' => 'Failed to generate content calendar',
+            'error' => 'Failed to generate content calendar - showing basic recommendations',
         ];
+    }
+
+    // Helper methods for data analysis
+    protected function inferContentType($video): string
+    {
+        $title = strtolower($video->title);
+        $description = strtolower($video->description ?? '');
+        $content = $title . ' ' . $description;
+
+        if (str_contains($content, 'tutorial') || str_contains($content, 'how to') || str_contains($content, 'guide')) {
+            return 'educational';
+        }
+        if (str_contains($content, 'funny') || str_contains($content, 'comedy') || str_contains($content, 'entertainment')) {
+            return 'entertainment';
+        }
+        if (str_contains($content, 'review') || str_contains($content, 'unboxing')) {
+            return 'review';
+        }
+        if (str_contains($content, 'behind') || str_contains($content, 'bts')) {
+            return 'behind_the_scenes';
+        }
+        
+        return 'general';
+    }
+
+    protected function calculatePlatformPerformanceScore($target): int
+    {
+        if ($target->status !== 'success') {
+            return 0;
+        }
+
+        // Basic scoring based on successful publication
+        $baseScore = 60;
+        
+        // Bonus for having platform video ID (means it was actually uploaded)
+        if ($target->platform_video_id) {
+            $baseScore += 20;
+        }
+        
+        // Bonus for having platform URL (means it's accessible)
+        if ($target->platform_url) {
+            $baseScore += 10;
+        }
+        
+        // Time-based scoring (more recent = potentially better)
+        if ($target->publish_at) {
+            $daysAgo = Carbon::parse($target->publish_at)->diffInDays(now());
+            if ($daysAgo <= 7) {
+                $baseScore += 10;
+            }
+        }
+
+        return min(100, $baseScore);
+    }
+
+    protected function analyzePerformanceByDay(array $videoData): array
+    {
+        $dayPerformance = [];
+        
+        foreach ($videoData as $video) {
+            if (empty($video['platforms'])) continue;
+            
+            $publishDate = Carbon::parse($video['created_at']);
+            $dayOfWeek = strtolower($publishDate->format('l'));
+            
+            if (!isset($dayPerformance[$dayOfWeek])) {
+                $dayPerformance[$dayOfWeek] = ['scores' => [], 'video_count' => 0];
+            }
+            
+            $dayPerformance[$dayOfWeek]['scores'][] = $video['total_engagement'];
+            $dayPerformance[$dayOfWeek]['video_count']++;
+        }
+
+        // Calculate average scores
+        foreach ($dayPerformance as $day => $data) {
+            $dayPerformance[$day]['score'] = !empty($data['scores']) 
+                ? array_sum($data['scores']) / count($data['scores']) 
+                : 50;
+        }
+
+        return $dayPerformance;
+    }
+
+    protected function analyzePerformanceByTime(array $videoData): array
+    {
+        $timePerformance = [];
+        $defaultTimes = ['12:00', '18:00'];
+        
+        foreach (['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as $day) {
+            $timePerformance[$day] = $defaultTimes; // Default times
+        }
+
+        // For now, return default times since we don't have detailed time data
+        // In a real implementation, you'd analyze the actual posting times and their performance
+        return $timePerformance;
+    }
+
+    protected function getPlatformPerformanceForDay(array $videoData, string $platform, string $dayOfWeek): array
+    {
+        $platformData = [
+            'score' => 50,
+            'count' => 0,
+            'success_count' => 0,
+            'success_rate' => 0,
+            'best_times' => ['12:00', '18:00'],
+        ];
+
+        foreach ($videoData as $video) {
+            if (empty($video['platforms'][$platform])) continue;
+            
+            $publishDate = Carbon::parse($video['created_at']);
+            if (strtolower($publishDate->format('l')) !== $dayOfWeek) continue;
+            
+            $platformData['count']++;
+            $score = $video['platforms'][$platform]['performance_score'];
+            
+            if ($score > 60) {
+                $platformData['success_count']++;
+            }
+        }
+
+        if ($platformData['count'] > 0) {
+            $platformData['success_rate'] = ($platformData['success_count'] / $platformData['count']) * 100;
+            $platformData['score'] = 50 + ($platformData['success_rate'] * 0.5); // Adjust score based on success rate
+        }
+
+        return $platformData;
+    }
+
+    protected function analyzeContentTypePerformance(array $videoData): array
+    {
+        $typePerformance = [];
+        
+        foreach ($videoData as $video) {
+            $type = $video['content_type'];
+            
+            if (!isset($typePerformance[$type])) {
+                $typePerformance[$type] = [
+                    'scores' => [],
+                    'durations' => [],
+                    'titles' => [],
+                    'platforms' => [],
+                    'success_count' => 0,
+                    'count' => 0,
+                ];
+            }
+            
+            $typePerformance[$type]['count']++;
+            $typePerformance[$type]['scores'][] = $video['total_engagement'];
+            $typePerformance[$type]['durations'][] = $video['duration'];
+            $typePerformance[$type]['titles'][] = $video['title'];
+            
+            if ($video['total_engagement'] > 120) { // Threshold for "success"
+                $typePerformance[$type]['success_count']++;
+            }
+            
+            foreach ($video['platforms'] as $platform => $data) {
+                if ($data['status'] === 'success') {
+                    $typePerformance[$type]['platforms'][] = $platform;
+                }
+            }
+        }
+
+        // Calculate aggregated metrics
+        foreach ($typePerformance as $type => $data) {
+            $typePerformance[$type]['avg_score'] = !empty($data['scores']) 
+                ? array_sum($data['scores']) / count($data['scores']) 
+                : 0;
+            $typePerformance[$type]['avg_duration'] = !empty($data['durations']) 
+                ? array_sum($data['durations']) / count($data['durations']) 
+                : 30;
+            $typePerformance[$type]['success_rate'] = $data['count'] > 0 
+                ? ($data['success_count'] / $data['count']) * 100 
+                : 0;
+            $typePerformance[$type]['best_platforms'] = !empty($data['platforms']) 
+                ? array_unique($data['platforms']) 
+                : [];
+            $typePerformance[$type]['example_titles'] = array_slice($data['titles'], 0, 3);
+        }
+
+        return $typePerformance;
+    }
+
+    protected function suggestFrequency(array $data): string
+    {
+        if ($data['success_rate'] > 80) {
+            return 'Daily';
+        } elseif ($data['success_rate'] > 60) {
+            return '4-5 times per week';
+        } elseif ($data['success_rate'] > 40) {
+            return '2-3 times per week';
+        }
+        
+        return '1-2 times per week';
+    }
+
+    protected function assessDataQuality(int $videoCount, int $publishedCount, int $platformCount): string
+    {
+        $score = 0;
+        
+        if ($videoCount >= 10) $score += 3;
+        elseif ($videoCount >= 5) $score += 2;
+        elseif ($videoCount >= 1) $score += 1;
+        
+        if ($publishedCount >= 5) $score += 3;
+        elseif ($publishedCount >= 3) $score += 2;
+        elseif ($publishedCount >= 1) $score += 1;
+        
+        if ($platformCount >= 3) $score += 2;
+        elseif ($platformCount >= 2) $score += 1;
+        
+        if ($score >= 7) return 'excellent';
+        if ($score >= 5) return 'good';
+        if ($score >= 3) return 'fair';
+        return 'poor';
+    }
+
+    // Data-driven methods for users with video data
+    protected function identifyTrendingOpportunitiesFromData(array $videoData): array
+    {
+        $opportunities = [];
+        
+        // Analyze what content types are working
+        $contentTypePerformance = $this->analyzeContentTypePerformance($videoData);
+        
+        foreach ($contentTypePerformance as $type => $data) {
+            if ($data['success_rate'] > 70 && $data['count'] >= 2) {
+                $opportunities[] = [
+                    'type' => 'content_type_success',
+                    'title' => "More {$type} content",
+                    'description' => "Your {$type} content has a {$data['success_rate']}% success rate",
+                    'performance_score' => $data['avg_score'],
+                    'recommended_action' => "Create more {$type} content similar to: " . implode(', ', array_slice($data['example_titles'], 0, 2)),
+                    'confidence' => 'high',
+                ];
+            }
+        }
+
+        return $opportunities;
+    }
+
+    protected function predictEngagementTrendsFromData(array $videoData, Carbon $startDate, Carbon $endDate, array $platforms): array
+    {
+        $predictions = [];
+        $currentDate = $startDate->copy();
+
+        // Analyze historical performance by day
+        $dayPerformance = $this->analyzePerformanceByDay($videoData);
+
+        while ($currentDate->lte($endDate)) {
+            $dayOfWeek = strtolower($currentDate->format('l'));
+            $historicalData = $dayPerformance[$dayOfWeek] ?? ['score' => 50, 'video_count' => 0];
+            
+            $predictions[] = [
+                'date' => $currentDate->toDateString(),
+                'day_of_week' => $dayOfWeek,
+                'predicted_engagement' => $historicalData['score'],
+                'confidence' => $historicalData['video_count'] > 0 ? 'high' : 'low',
+                'based_on_videos' => $historicalData['video_count'],
+                'recommendation' => $historicalData['score'] > 70 ? 'Great day to post!' : 'Consider posting on higher-performing days',
+            ];
+            
+            $currentDate->addDay();
+        }
+
+        return $predictions;
+    }
+
+    protected function analyzeContentGapsFromData(array $videoData, int $userId): array
+    {
+        $gaps = [];
+        
+        // Analyze content type distribution
+        $contentTypes = [];
+        foreach ($videoData as $video) {
+            $type = $video['content_type'];
+            $contentTypes[$type] = ($contentTypes[$type] ?? 0) + 1;
+        }
+        
+        $recommendedTypes = ['educational', 'entertainment', 'behind_the_scenes', 'review'];
+        foreach ($recommendedTypes as $type) {
+            if (!isset($contentTypes[$type]) || $contentTypes[$type] < 2) {
+                $gaps[] = [
+                    'type' => 'content_type_gap',
+                    'missing_type' => $type,
+                    'current_count' => $contentTypes[$type] ?? 0,
+                    'recommended_count' => 3,
+                    'priority' => 'medium',
+                    'suggestion' => "Try creating more {$type} content to diversify your content portfolio",
+                ];
+            }
+        }
+
+        return $gaps;
+    }
+
+    protected function generatePerformanceForecastsFromData(array $videoData, array $platforms): array
+    {
+        $forecasts = [];
+        
+        foreach ($platforms as $platform) {
+            $platformVideos = array_filter($videoData, function ($video) use ($platform) {
+                return isset($video['platforms'][$platform]) && $video['platforms'][$platform]['status'] === 'success';
+            });
+            
+            if (empty($platformVideos)) {
+                $forecasts[$platform] = [
+                    'platform' => $platform,
+                    'status' => 'no_data',
+                    'message' => 'No published videos on this platform yet',
+                ];
+                continue;
+            }
+            
+            $avgScore = array_sum(array_column($platformVideos, 'total_engagement')) / count($platformVideos);
+            $successRate = (count($platformVideos) / count($videoData)) * 100;
+            
+            $forecasts[$platform] = [
+                'platform' => $platform,
+                'avg_performance_score' => round($avgScore, 1),
+                'success_rate' => round($successRate, 1),
+                'video_count' => count($platformVideos),
+                'trend' => $avgScore > 70 ? 'positive' : ($avgScore > 50 ? 'stable' : 'needs_improvement'),
+                'recommendation' => $this->getPlatformRecommendation($platform, $avgScore, $successRate),
+            ];
+        }
+        
+        return $forecasts;
+    }
+
+    protected function getBestPerformingContent(array $videoData): array
+    {
+        if (empty($videoData)) {
+            return [];
+        }
+        
+        // Sort by total engagement
+        usort($videoData, function ($a, $b) {
+            return $b['total_engagement'] <=> $a['total_engagement'];
+        });
+        
+        return array_slice(array_map(function ($video) {
+            return [
+                'id' => $video['id'],
+                'title' => $video['title'],
+                'content_type' => $video['content_type'],
+                'total_engagement' => $video['total_engagement'],
+                'best_platform' => $video['best_platform'],
+                'created_at' => $video['created_at']->format('Y-m-d'),
+                'success_factors' => $this->identifySuccessFactors($video),
+            ];
+        }, $videoData), 0, 5);
+    }
+
+    protected function getPlatformInsights(array $videoData, array $platforms): array
+    {
+        $insights = [];
+        
+        foreach ($platforms as $platform) {
+            $platformVideos = array_filter($videoData, function ($video) use ($platform) {
+                return isset($video['platforms'][$platform]);
+            });
+            
+            if (empty($platformVideos)) {
+                $insights[$platform] = [
+                    'platform' => $platform,
+                    'status' => 'no_data',
+                    'message' => 'No videos published to this platform',
+                ];
+                continue;
+            }
+            
+            $successfulVideos = array_filter($platformVideos, function ($video) use ($platform) {
+                return $video['platforms'][$platform]['status'] === 'success';
+            });
+            
+            $insights[$platform] = [
+                'platform' => $platform,
+                'total_videos' => count($platformVideos),
+                'successful_videos' => count($successfulVideos),
+                'success_rate' => count($platformVideos) > 0 ? (count($successfulVideos) / count($platformVideos)) * 100 : 0,
+                'avg_performance' => $this->calculateAveragePerformance($successfulVideos, $platform),
+                'best_content_type' => $this->getBestContentTypeForPlatform($successfulVideos, $platform),
+                'recommendations' => $this->getPlatformSpecificRecommendations($platform, $successfulVideos),
+            ];
+        }
+        
+        return $insights;
+    }
+
+    // Additional helper methods
+    protected function getPlatformRecommendation(string $platform, float $avgScore, float $successRate): string
+    {
+        if ($avgScore > 80) {
+            return "Excellent performance on {$platform}! Keep up the great work.";
+        } elseif ($avgScore > 60) {
+            return "Good performance on {$platform}. Consider optimizing posting times and content format.";
+        } else {
+            return "Performance on {$platform} needs improvement. Review successful content patterns and platform best practices.";
+        }
+    }
+
+    protected function identifySuccessFactors(array $video): array
+    {
+        $factors = [];
+        
+        if ($video['duration'] <= 60) {
+            $factors[] = 'Optimal duration (≤60 seconds)';
+        }
+        
+        if (count($video['platforms']) > 2) {
+            $factors[] = 'Multi-platform distribution';
+        }
+        
+        if ($video['total_engagement'] > 150) {
+            $factors[] = 'High engagement score';
+        }
+        
+        return $factors;
+    }
+
+    protected function calculateAveragePerformance(array $videos, string $platform): float
+    {
+        if (empty($videos)) {
+            return 0;
+        }
+        
+        $scores = array_map(function ($video) use ($platform) {
+            return $video['platforms'][$platform]['performance_score'] ?? 0;
+        }, $videos);
+        
+        return array_sum($scores) / count($scores);
+    }
+
+    protected function getBestContentTypeForPlatform(array $videos, string $platform): string
+    {
+        if (empty($videos)) {
+            return 'unknown';
+        }
+        
+        $typeScores = [];
+        foreach ($videos as $video) {
+            $type = $video['content_type'];
+            if (!isset($typeScores[$type])) {
+                $typeScores[$type] = [];
+            }
+            $typeScores[$type][] = $video['platforms'][$platform]['performance_score'] ?? 0;
+        }
+        
+        $bestType = 'general';
+        $bestScore = 0;
+        
+        foreach ($typeScores as $type => $scores) {
+            $avgScore = array_sum($scores) / count($scores);
+            if ($avgScore > $bestScore) {
+                $bestScore = $avgScore;
+                $bestType = $type;
+            }
+        }
+        
+        return $bestType;
+    }
+
+    protected function getPlatformSpecificRecommendations(string $platform, array $videos): array
+    {
+        $recommendations = [];
+        
+        if (empty($videos)) {
+            $recommendations[] = "Start publishing content to {$platform} to gather performance data";
+            return $recommendations;
+        }
+        
+        $avgDuration = array_sum(array_column($videos, 'duration')) / count($videos);
+        if ($avgDuration > 60) {
+            $recommendations[] = "Consider shorter videos (≤60 seconds) for better engagement on {$platform}";
+        }
+        
+        $contentTypes = array_count_values(array_column($videos, 'content_type'));
+        if (count($contentTypes) < 2) {
+            $recommendations[] = "Diversify content types on {$platform} to reach different audience segments";
+        }
+        
+        return $recommendations;
     }
 }

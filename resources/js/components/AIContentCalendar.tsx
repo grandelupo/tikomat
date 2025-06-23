@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
     Calendar, 
     Clock, 
@@ -19,48 +20,142 @@ import {
     Filter,
     Download,
     Settings,
-    Brain
+    Brain,
+    Upload,
+    Users,
+    LinkIcon,
+    Star,
+    ArrowRight,
+    Info
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-interface ContentIdea {
-    id: string;
-    title: string;
-    description: string;
-    type: 'video' | 'post' | 'story';
-    category: string;
-    optimal_time: string;
-    predicted_engagement: number;
-    trending_score: number;
-    difficulty: 'easy' | 'medium' | 'hard';
-    platforms: string[];
-    tags: string[];
-    status: 'suggested' | 'planned' | 'created' | 'published';
-}
-
 interface CalendarData {
-    content_ideas: ContentIdea[];
-    optimal_schedule: {
-        monday: string[];
-        tuesday: string[];
-        wednesday: string[];
-        thursday: string[];
-        friday: string[];
-        saturday: string[];
-        sunday: string[];
+    user_id: number;
+    has_data: boolean;
+    period: {
+        start_date: string;
+        end_date: string;
+        total_days: number;
     };
-    performance_insights: {
-        best_posting_times: string[];
-        trending_topics: string[];
-        content_gaps: string[];
-        seasonal_opportunities: string[];
+    platforms: string[];
+    data_sources?: {
+        total_videos: number;
+        published_videos: number;
+        connected_platforms: string[];
+        has_sufficient_data: boolean;
+        data_quality: string;
     };
-    monthly_goals: {
-        target_posts: number;
-        target_engagement: number;
-        content_variety: Record<string, number>;
+    optimal_schedule: Array<{
+        date: string;
+        day_of_week: string;
+        is_weekend: boolean;
+        historical_performance?: number;
+        video_count?: number;
+        platforms: Record<string, {
+            platform: string;
+            historical_performance?: number;
+            video_count?: number;
+            success_rate?: number;
+            recommended_posts: number;
+            optimal_times: string[];
+            confidence?: string;
+            note?: string;
+        }>;
+        recommended_posts: number;
+        optimal_times: string[];
+        confidence_level?: string;
+        note?: string;
+    }>;
+    content_recommendations: Array<{
+        type: string;
+        title?: string;
+        description?: string;
+        performance_score?: number;
+        video_count?: number;
+        success_rate?: number;
+        best_platforms?: string[];
+        optimal_duration?: number;
+        example_titles?: string[];
+        suggested_frequency: string;
+        platforms?: string[];
+        tips?: string[];
+        note?: string;
+    }>;
+    trending_opportunities?: Array<{
+        type: string;
+        title: string;
+        description: string;
+        performance_score?: number;
+        recommended_action?: string;
+        confidence: string;
+    }>;
+    engagement_predictions?: Array<{
+        date: string;
+        day_of_week: string;
+        predicted_engagement: number;
+        confidence: string;
+        based_on_videos?: number;
+        recommendation?: string;
+    }>;
+    content_gaps?: Array<{
+        type: string;
+        missing_type?: string;
+        current_count: number;
+        recommended_count: number;
+        priority: string;
+        suggestion: string;
+    }>;
+    performance_forecasts?: Record<string, {
+        platform: string;
+        status?: string;
+        message?: string;
+        avg_performance_score?: number;
+        success_rate?: number;
+        video_count?: number;
+        trend?: string;
+        recommendation?: string;
+    }>;
+    best_performing_content?: Array<{
+        id: number;
+        title: string;
+        content_type: string;
+        total_engagement: number;
+        best_platform: string;
+        created_at: string;
+        success_factors: string[];
+    }>;
+    platform_insights?: Record<string, {
+        platform: string;
+        status?: string;
+        message?: string;
+        total_videos?: number;
+        successful_videos?: number;
+        success_rate?: number;
+        avg_performance?: number;
+        best_content_type?: string;
+        recommendations?: string[];
+    }>;
+    setup_guide?: {
+        steps: Array<{
+            title: string;
+            description: string;
+            action: string;
+            importance: string;
+        }>;
+        estimated_time: string;
+        benefits: string[];
     };
+    seasonal_insights: any;
+    posting_frequency: Record<string, {
+        platform: string;
+        posts_per_week: number;
+        posts_per_day: number;
+        confidence: string;
+        note: string;
+    }>;
+    calendar_score: number;
 }
 
 interface AIContentCalendarProps {
@@ -86,12 +181,8 @@ const AIContentCalendar: React.FC<AIContentCalendarProps> = ({ userId, className
                 },
                 body: JSON.stringify({
                     user_id: userId,
-                    preferences: {
-                        platforms: ['youtube', 'instagram', 'tiktok'],
-                        content_types: ['video', 'post', 'story'],
-                        posting_frequency: 'daily',
-                        focus_areas: ['entertainment', 'education', 'lifestyle']
-                    }
+                    platforms: ['youtube', 'instagram', 'tiktok'],
+                    days: 30,
                 }),
             });
 
@@ -100,171 +191,438 @@ const AIContentCalendar: React.FC<AIContentCalendarProps> = ({ userId, className
             if (data.success) {
                 setCalendarData(data.data);
                 toast({
-                    title: "Calendar Generated! 📅",
-                    description: "Your AI-powered content calendar is ready with personalized suggestions.",
+                    title: data.data.has_data ? "Calendar Generated! 📅" : "Basic Calendar Generated 📅",
+                    description: data.message,
                 });
             } else {
                 throw new Error(data.message || 'Failed to generate calendar');
             }
         } catch (error) {
             console.error('Calendar generation error:', error);
-            // Set mock data for demonstration
-            setCalendarData({
-                content_ideas: [
-                    {
-                        id: '1',
-                        title: 'Morning Routine Tips',
-                        description: 'Share your daily morning routine with productivity tips',
-                        type: 'video',
-                        category: 'lifestyle',
-                        optimal_time: '08:00',
-                        predicted_engagement: 85,
-                        trending_score: 92,
-                        difficulty: 'easy',
-                        platforms: ['youtube', 'instagram'],
-                        tags: ['morning', 'productivity', 'routine'],
-                        status: 'suggested'
-                    },
-                    {
-                        id: '2',
-                        title: 'Behind the Scenes',
-                        description: 'Show your content creation process',
-                        type: 'story',
-                        category: 'entertainment',
-                        optimal_time: '19:00',
-                        predicted_engagement: 78,
-                        trending_score: 85,
-                        difficulty: 'medium',
-                        platforms: ['instagram', 'tiktok'],
-                        tags: ['bts', 'creation', 'process'],
-                        status: 'suggested'
-                    },
-                    {
-                        id: '3',
-                        title: 'Tutorial: Video Editing',
-                        description: 'Step-by-step guide to video editing techniques',
-                        type: 'video',
-                        category: 'education',
-                        optimal_time: '15:00',
-                        predicted_engagement: 91,
-                        trending_score: 88,
-                        difficulty: 'hard',
-                        platforms: ['youtube'],
-                        tags: ['tutorial', 'editing', 'education'],
-                        status: 'suggested'
-                    }
-                ],
-                optimal_schedule: {
-                    monday: ['08:00', '19:00'],
-                    tuesday: ['09:00', '20:00'],
-                    wednesday: ['08:30', '18:30'],
-                    thursday: ['09:30', '19:30'],
-                    friday: ['08:00', '21:00'],
-                    saturday: ['10:00', '20:00'],
-                    sunday: ['11:00', '18:00']
-                },
-                performance_insights: {
-                    best_posting_times: ['8:00 AM', '7:00 PM', '9:00 PM'],
-                    trending_topics: ['AI tutorials', 'Morning routines', 'Productivity hacks'],
-                    content_gaps: ['Weekend content', 'Interactive posts', 'User-generated content'],
-                    seasonal_opportunities: ['New Year resolutions', 'Summer vacation content', 'Back to school']
-                },
-                monthly_goals: {
-                    target_posts: 30,
-                    target_engagement: 15000,
-                    content_variety: {
-                        'video': 15,
-                        'post': 10,
-                        'story': 5
-                    }
-                }
-            });
-            
             toast({
-                title: "Demo Calendar Loaded",
-                description: "Showing demo data. Connect to generate real insights.",
+                title: "Error",
+                description: "Failed to generate calendar. Please try again.",
+                variant: "destructive",
             });
         } finally {
             setLoading(false);
         }
     };
 
-    const getDifficultyColor = (difficulty: string) => {
-        switch (difficulty) {
-            case 'easy': return 'bg-green-100 text-green-800';
-            case 'medium': return 'bg-yellow-100 text-yellow-800';
-            case 'hard': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
+    const getDataQualityColor = (quality: string) => {
+        switch (quality) {
+            case 'excellent': return 'text-green-600 bg-green-50';
+            case 'good': return 'text-blue-600 bg-blue-50';
+            case 'fair': return 'text-yellow-600 bg-yellow-50';
+            case 'poor': return 'text-red-600 bg-red-50';
+            default: return 'text-gray-600 bg-gray-50';
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'suggested': return 'bg-blue-100 text-blue-800';
-            case 'planned': return 'bg-purple-100 text-purple-800';
-            case 'created': return 'bg-orange-100 text-orange-800';
-            case 'published': return 'bg-green-100 text-green-800';
-            default: return 'bg-gray-100 text-gray-800';
+    const getConfidenceIcon = (confidence: string) => {
+        switch (confidence) {
+            case 'high': return <CheckCircle className="h-4 w-4 text-green-500" />;
+            case 'medium': return <Clock className="h-4 w-4 text-yellow-500" />;
+            case 'low': return <AlertCircle className="h-4 w-4 text-red-500" />;
+            default: return <Info className="h-4 w-4 text-gray-500" />;
         }
     };
 
-    const filteredIdeas = calendarData?.content_ideas.filter(idea => {
-        if (selectedFilter === 'all') return true;
-        return idea.category === selectedFilter || idea.type === selectedFilter;
-    }) || [];
+    const getPlatformIcon = (platform: string) => {
+        const iconMap: Record<string, string> = {
+            youtube: '📺',
+            instagram: '📷',
+            tiktok: '🎵',
+            twitter: '🐦',
+            facebook: '👥',
+        };
+        return iconMap[platform] || '📱';
+    };
 
-    if (!calendarData && !loading) {
+    const DataSourcesSection = () => {
+        if (!calendarData?.data_sources) return null;
+
+        const { data_sources } = calendarData;
+
         return (
-            <div className={className}>
-                <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
-                    <CardHeader className="text-center pb-4">
-                        <div className="mx-auto p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full w-fit">
-                            <Calendar className="w-8 h-8 text-white" />
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        Data Sources
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                            <div className="text-2xl font-bold">{data_sources.total_videos}</div>
+                            <div className="text-sm text-gray-600">Total Videos</div>
                         </div>
-                        <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                            AI Content Calendar
-                        </CardTitle>
-                        <p className="text-gray-600">
-                            Generate a personalized content calendar with AI-powered scheduling and optimization
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                            <div className="text-2xl font-bold">{data_sources.published_videos}</div>
+                            <div className="text-sm text-gray-600">Published Videos</div>
+                        </div>
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                            <div className="text-2xl font-bold">{data_sources.connected_platforms.length}</div>
+                            <div className="text-sm text-gray-600">Connected Platforms</div>
+                        </div>
+                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                            <Badge className={cn("text-xs", getDataQualityColor(data_sources.data_quality))}>
+                                {data_sources.data_quality}
+                            </Badge>
+                            <div className="text-sm text-gray-600 mt-1">Data Quality</div>
+                        </div>
+                    </div>
+
+                    {!data_sources.has_sufficient_data && (
+                        <Alert className="mt-4">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                                Upload more videos and publish to platforms to get personalized insights and better recommendations.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    };
+
+    const SetupGuideSection = () => {
+        if (!calendarData?.setup_guide) return null;
+
+        const { setup_guide } = calendarData;
+
+        return (
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Settings className="h-5 w-5" />
+                        Get Started
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        <p className="text-gray-600 mb-4">
+                            Follow these steps to unlock AI-powered personalized insights:
                         </p>
-                    </CardHeader>
-                    <CardContent className="text-center space-y-6">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div className="p-3 bg-white rounded-lg border">
-                                <Brain className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                                <p className="font-medium">Smart Scheduling</p>
-                            </div>
-                            <div className="p-3 bg-white rounded-lg border">
-                                <Target className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                                <p className="font-medium">Content Ideas</p>
-                            </div>
-                            <div className="p-3 bg-white rounded-lg border">
-                                <TrendingUp className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-                                <p className="font-medium">Trend Analysis</p>
-                            </div>
-                            <div className="p-3 bg-white rounded-lg border">
-                                <BarChart3 className="w-6 h-6 text-orange-600 mx-auto mb-2" />
-                                <p className="font-medium">Performance Tracking</p>
-                            </div>
+
+                        <div className="space-y-3">
+                            {setup_guide.steps.map((step, index) => (
+                                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                    <div className={cn(
+                                        "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
+                                        step.importance === 'high' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                    )}>
+                                        {index + 1}
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-medium">{step.title}</h4>
+                                        <p className="text-sm text-gray-600 mt-1">{step.description}</p>
+                                        <Badge variant="outline" className="mt-2 text-xs">
+                                            {step.action}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                        
+
+                        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                            <h4 className="font-medium text-blue-900">Benefits of Setup:</h4>
+                            <ul className="mt-2 space-y-1">
+                                {setup_guide.benefits.map((benefit, index) => (
+                                    <li key={index} className="text-sm text-blue-700 flex items-center gap-2">
+                                        <Star className="h-3 w-3" />
+                                        {benefit}
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="text-xs text-blue-600 mt-3">
+                                Estimated time: {setup_guide.estimated_time}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    };
+
+    const BestPerformingContentSection = () => {
+        if (!calendarData?.best_performing_content?.length) return null;
+
+        return (
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5" />
+                        Your Best Performing Content
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-3">
+                        {calendarData.best_performing_content.map((content, index) => (
+                            <div key={content.id} className="p-3 border rounded-lg">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <h4 className="font-medium">{content.title}</h4>
+                                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                                            <span>{getPlatformIcon(content.best_platform)} Best on {content.best_platform}</span>
+                                            <span>Score: {content.total_engagement}</span>
+                                            <span>{content.content_type}</span>
+                                        </div>
+                                        {content.success_factors.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-2">
+                                                {content.success_factors.map((factor, idx) => (
+                                                    <Badge key={idx} variant="secondary" className="text-xs">
+                                                        {factor}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <Badge className="bg-green-100 text-green-800">
+                                        #{index + 1}
+                                    </Badge>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    };
+
+    const ScheduleSection = () => {
+        if (!calendarData?.optimal_schedule?.length) return null;
+
+        const upcomingDays = calendarData.optimal_schedule.slice(0, 7);
+
+        return (
+            <div className="space-y-4">
+                {upcomingDays.map((day) => (
+                    <Card key={day.date}>
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <div>
+                                    <h3 className="font-medium capitalize">{day.day_of_week}</h3>
+                                    <p className="text-sm text-gray-600">{day.date}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {calendarData.has_data && day.confidence_level && 
+                                        getConfidenceIcon(day.confidence_level)
+                                    }
+                                    <Badge variant={day.recommended_posts > 0 ? "default" : "secondary"}>
+                                        {day.recommended_posts} posts
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            {day.note && (
+                                <Alert className="mb-3">
+                                    <Info className="h-4 w-4" />
+                                    <AlertDescription>{day.note}</AlertDescription>
+                                </Alert>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                {Object.values(day.platforms).map((platform) => (
+                                    <div key={platform.platform} className="p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span>{getPlatformIcon(platform.platform)}</span>
+                                            <span className="font-medium capitalize">{platform.platform}</span>
+                                            {platform.confidence && getConfidenceIcon(platform.confidence)}
+                                        </div>
+                                        
+                                        <div className="text-sm space-y-1">
+                                            {platform.recommended_posts > 0 && (
+                                                <p>Recommended posts: {platform.recommended_posts}</p>
+                                            )}
+                                            
+                                            <p>Best times: {platform.optimal_times.join(', ')}</p>
+                                            
+                                            {calendarData.has_data && platform.video_count !== undefined && (
+                                                <p className="text-gray-600">
+                                                    Based on {platform.video_count} videos
+                                                    {platform.success_rate && ` (${platform.success_rate}% success rate)`}
+                                                </p>
+                                            )}
+                                            
+                                            {platform.note && (
+                                                <p className="text-xs text-gray-500 italic">{platform.note}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        );
+    };
+
+    const ContentRecommendationsSection = () => {
+        if (!calendarData?.content_recommendations?.length) return null;
+
+        return (
+            <div className="space-y-4">
+                {calendarData.content_recommendations.map((rec, index) => (
+                    <Card key={index}>
+                        <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                                <div>
+                                    <h3 className="font-medium">
+                                        {rec.title || `${rec.type.charAt(0).toUpperCase() + rec.type.slice(1)} Content`}
+                                    </h3>
+                                    {rec.description && (
+                                        <p className="text-sm text-gray-600 mt-1">{rec.description}</p>
+                                    )}
+                                </div>
+                                {rec.performance_score && (
+                                    <Badge className="bg-blue-100 text-blue-800">
+                                        Score: {Math.round(rec.performance_score)}
+                                    </Badge>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                                <div>
+                                    <p className="text-sm"><strong>Frequency:</strong> {rec.suggested_frequency}</p>
+                                    {rec.optimal_duration && (
+                                        <p className="text-sm"><strong>Optimal Duration:</strong> {Math.round(rec.optimal_duration)}s</p>
+                                    )}
+                                    {rec.platforms && (
+                                        <p className="text-sm">
+                                            <strong>Best Platforms:</strong> {rec.platforms.map(p => getPlatformIcon(p)).join(' ')}
+                                        </p>
+                                    )}
+                                </div>
+                                
+                                {calendarData.has_data && rec.video_count !== undefined && (
+                                    <div>
+                                        <p className="text-sm"><strong>Based on:</strong> {rec.video_count} videos</p>
+                                        {rec.success_rate && (
+                                            <p className="text-sm"><strong>Success Rate:</strong> {Math.round(rec.success_rate)}%</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {rec.example_titles && rec.example_titles.length > 0 && (
+                                <div className="mb-3">
+                                    <p className="text-sm font-medium mb-1">Example titles from your content:</p>
+                                    <ul className="text-xs text-gray-600 space-y-1">
+                                        {rec.example_titles.map((title, idx) => (
+                                            <li key={idx}>• {title}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {rec.tips && rec.tips.length > 0 && (
+                                <div className="mb-3">
+                                    <p className="text-sm font-medium mb-1">Tips:</p>
+                                    <ul className="text-xs text-gray-600 space-y-1">
+                                        {rec.tips.map((tip, idx) => (
+                                            <li key={idx}>• {tip}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {rec.note && (
+                                <Alert>
+                                    <Info className="h-4 w-4" />
+                                    <AlertDescription>{rec.note}</AlertDescription>
+                                </Alert>
+                            )}
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        );
+    };
+
+    const PlatformInsightsSection = () => {
+        if (!calendarData?.platform_insights) return null;
+
+        return (
+            <div className="space-y-4">
+                {Object.values(calendarData.platform_insights).map((insight) => (
+                    <Card key={insight.platform}>
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-xl">{getPlatformIcon(insight.platform)}</span>
+                                <h3 className="font-medium capitalize">{insight.platform}</h3>
+                            </div>
+
+                            {insight.status === 'no_data' ? (
+                                <Alert>
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertDescription>{insight.message}</AlertDescription>
+                                </Alert>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div className="text-center p-2 bg-gray-50 rounded">
+                                            <div className="font-bold">{insight.total_videos}</div>
+                                            <div className="text-xs text-gray-600">Total Videos</div>
+                                        </div>
+                                        <div className="text-center p-2 bg-gray-50 rounded">
+                                            <div className="font-bold">{insight.successful_videos}</div>
+                                            <div className="text-xs text-gray-600">Successful</div>
+                                        </div>
+                                        <div className="text-center p-2 bg-gray-50 rounded">
+                                            <div className="font-bold">{Math.round(insight.success_rate || 0)}%</div>
+                                            <div className="text-xs text-gray-600">Success Rate</div>
+                                        </div>
+                                        <div className="text-center p-2 bg-gray-50 rounded">
+                                            <div className="font-bold">{Math.round(insight.avg_performance || 0)}</div>
+                                            <div className="text-xs text-gray-600">Avg Performance</div>
+                                        </div>
+                                    </div>
+
+                                    {insight.best_content_type && (
+                                        <p className="text-sm">
+                                            <strong>Best Content Type:</strong> {insight.best_content_type}
+                                        </p>
+                                    )}
+
+                                    {insight.recommendations && insight.recommendations.length > 0 && (
+                                        <div>
+                                            <p className="text-sm font-medium mb-1">Recommendations:</p>
+                                            <ul className="text-xs text-gray-600 space-y-1">
+                                                {insight.recommendations.map((rec, idx) => (
+                                                    <li key={idx}>• {rec}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        );
+    };
+
+    if (!calendarData) {
+        return (
+            <div className={cn("space-y-6", className)}>
+                <Card>
+                    <CardContent className="p-8 text-center">
+                        <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-lg font-medium mb-2">AI Content Calendar</h3>
+                        <p className="text-gray-600 mb-6">
+                            Generate a personalized content calendar based on your video performance data and AI insights.
+                        </p>
                         <Button 
                             onClick={generateCalendar}
                             disabled={loading}
-                            size="lg"
-                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                            className="w-full max-w-sm"
                         >
-                            {loading ? (
-                                <>
-                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                                    Generating Calendar...
-                                </>
-                            ) : (
-                                <>
-                                    <Zap className="mr-2 h-4 w-4" />
-                                    Generate AI Content Calendar
-                                </>
-                            )}
+                            {loading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                            Generate Content Calendar
                         </Button>
                     </CardContent>
                 </Card>
@@ -274,234 +632,77 @@ const AIContentCalendar: React.FC<AIContentCalendarProps> = ({ userId, className
 
     return (
         <div className={cn("space-y-6", className)}>
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold">AI Content Calendar</h2>
-                    <p className="text-muted-foreground">Your personalized content strategy</p>
+                    <h2 className="text-2xl font-bold">Content Calendar</h2>
+                    <p className="text-gray-600">
+                        {calendarData.has_data 
+                            ? `Personalized insights based on your ${calendarData.data_sources?.total_videos || 0} videos`
+                            : 'Basic recommendations - upload videos for personalized insights'
+                        }
+                    </p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={generateCalendar} disabled={loading}>
-                        <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+                <div className="flex items-center gap-2">
+                    <Badge 
+                        className={cn(
+                            calendarData.has_data ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        )}
+                    >
+                        Score: {calendarData.calendar_score}/100
+                    </Badge>
+                    <Button onClick={generateCalendar} disabled={loading} variant="outline">
+                        {loading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
                         Regenerate
-                    </Button>
-                    <Button variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Export
                     </Button>
                 </div>
             </div>
 
-            {/* Tabs */}
+            {!calendarData.has_data && <SetupGuideSection />}
+            <DataSourcesSection />
+            {calendarData.has_data && <BestPerformingContentSection />}
+
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="calendar">Calendar</TabsTrigger>
-                    <TabsTrigger value="ideas">Content Ideas</TabsTrigger>
-                    <TabsTrigger value="insights">Insights</TabsTrigger>
-                    <TabsTrigger value="goals">Goals</TabsTrigger>
+                    <TabsTrigger value="calendar">Schedule</TabsTrigger>
+                    <TabsTrigger value="recommendations">Content Ideas</TabsTrigger>
+                    <TabsTrigger value="insights">Platform Insights</TabsTrigger>
+                    <TabsTrigger value="analytics">Analytics</TabsTrigger>
                 </TabsList>
 
-                {/* Calendar Tab */}
-                <TabsContent value="calendar" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <CalendarIcon className="w-5 h-5" />
-                                Optimal Posting Schedule
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-7 gap-4">
-                                {Object.entries(calendarData?.optimal_schedule || {}).map(([day, times]) => (
-                                    <div key={day} className="text-center">
-                                        <h4 className="font-medium capitalize mb-2">{day.slice(0, 3)}</h4>
-                                        <div className="space-y-1">
-                                            {times.map((time, index) => (
-                                                <div key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                                    {time}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
+                <TabsContent value="calendar" className="space-y-4">
+                    <ScheduleSection />
                 </TabsContent>
 
-                {/* Content Ideas Tab */}
-                <TabsContent value="ideas" className="space-y-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Filter className="w-4 h-4" />
-                        <select 
-                            value={selectedFilter} 
-                            onChange={(e) => setSelectedFilter(e.target.value)}
-                            className="border rounded px-3 py-1"
-                        >
-                            <option value="all">All Ideas</option>
-                            <option value="video">Videos</option>
-                            <option value="post">Posts</option>
-                            <option value="story">Stories</option>
-                            <option value="lifestyle">Lifestyle</option>
-                            <option value="education">Education</option>
-                            <option value="entertainment">Entertainment</option>
-                        </select>
-                    </div>
+                <TabsContent value="recommendations" className="space-y-4">
+                    <ContentRecommendationsSection />
+                </TabsContent>
 
-                    <div className="grid gap-4">
-                        {filteredIdeas.map((idea) => (
-                            <Card key={idea.id}>
+                <TabsContent value="insights" className="space-y-4">
+                    <PlatformInsightsSection />
+                </TabsContent>
+
+                <TabsContent value="analytics" className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Object.entries(calendarData.posting_frequency).map(([platform, freq]) => (
+                            <Card key={platform}>
                                 <CardContent className="p-4">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <h3 className="font-semibold mb-2">{idea.title}</h3>
-                                            <p className="text-sm text-muted-foreground mb-3">{idea.description}</p>
-                                            <div className="flex flex-wrap gap-2 mb-3">
-                                                <Badge variant="secondary">{idea.type}</Badge>
-                                                <Badge className={getDifficultyColor(idea.difficulty)}>
-                                                    {idea.difficulty}
-                                                </Badge>
-                                                <Badge className={getStatusColor(idea.status)}>
-                                                    {idea.status}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                                <span className="flex items-center gap-1">
-                                                    <Clock className="w-3 h-3" />
-                                                    {idea.optimal_time}
-                                                </span>
-                                                <span>Engagement: {idea.predicted_engagement}%</span>
-                                                <span>Trending: {idea.trending_score}%</span>
-                                            </div>
-                                        </div>
-                                        <Button size="sm">
-                                            <Plus className="w-4 h-4 mr-1" />
-                                            Plan
-                                        </Button>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span>{getPlatformIcon(platform)}</span>
+                                        <h3 className="font-medium capitalize">{platform}</h3>
+                                        {getConfidenceIcon(freq.confidence)}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <p className="text-sm">
+                                            <strong>Recommended:</strong> {freq.posts_per_week} posts/week
+                                        </p>
+                                        <p className="text-sm">
+                                            <strong>Daily average:</strong> {freq.posts_per_day} posts
+                                        </p>
+                                        <p className="text-xs text-gray-600 italic">{freq.note}</p>
                                     </div>
                                 </CardContent>
                             </Card>
                         ))}
-                    </div>
-                </TabsContent>
-
-                {/* Insights Tab */}
-                <TabsContent value="insights" className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Best Posting Times</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-2">
-                                    {calendarData?.performance_insights.best_posting_times.map((time, index) => (
-                                        <div key={index} className="flex items-center justify-between p-2 bg-green-50 rounded">
-                                            <span>{time}</span>
-                                            <CheckCircle className="w-4 h-4 text-green-600" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Trending Topics</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-2">
-                                    {calendarData?.performance_insights.trending_topics.map((topic, index) => (
-                                        <Badge key={index} variant="secondary" className="mr-2 mb-2">
-                                            {topic}
-                                        </Badge>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Content Gaps</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-2">
-                                    {calendarData?.performance_insights.content_gaps.map((gap, index) => (
-                                        <div key={index} className="flex items-center gap-2">
-                                            <AlertCircle className="w-4 h-4 text-orange-500" />
-                                            <span className="text-sm">{gap}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Seasonal Opportunities</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-2">
-                                    {calendarData?.performance_insights.seasonal_opportunities.map((opportunity, index) => (
-                                        <div key={index} className="p-2 bg-blue-50 rounded">
-                                            <span className="text-sm">{opportunity}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-
-                {/* Goals Tab */}
-                <TabsContent value="goals" className="space-y-6">
-                    <div className="grid md:grid-cols-3 gap-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Monthly Posts Target</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-center">
-                                    <div className="text-3xl font-bold text-blue-600">
-                                        {calendarData?.monthly_goals.target_posts}
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">Posts this month</p>
-                                    <Progress value={67} className="mt-2" />
-                                    <p className="text-xs text-muted-foreground mt-1">67% completed</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Engagement Target</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-center">
-                                    <div className="text-3xl font-bold text-green-600">
-                                        {calendarData?.monthly_goals.target_engagement.toLocaleString()}
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">Total engagement</p>
-                                    <Progress value={82} className="mt-2" />
-                                    <p className="text-xs text-muted-foreground mt-1">82% completed</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Content Variety</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-3">
-                                    {Object.entries(calendarData?.monthly_goals.content_variety || {}).map(([type, count]) => (
-                                        <div key={type} className="flex items-center justify-between">
-                                            <span className="capitalize">{type}</span>
-                                            <span className="font-medium">{count}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
                     </div>
                 </TabsContent>
             </Tabs>

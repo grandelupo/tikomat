@@ -112,4 +112,25 @@ return [
         'organization' => env('OPENAI_ORGANIZATION'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Trend Analysis Services
+    |--------------------------------------------------------------------------
+    */
+
+    'serpapi' => [
+        'key' => env('SERPAPI_API_KEY'),
+        'timeout' => env('SERPAPI_TIMEOUT', 30),
+    ],
+
+    'newsapi' => [
+        'key' => env('NEWSAPI_KEY'),
+        'timeout' => env('NEWSAPI_TIMEOUT', 30),
+    ],
+
+    'searchapi' => [
+        'key' => env('SEARCHAPI_KEY'),
+        'timeout' => env('SEARCHAPI_TIMEOUT', 30),
+    ],
+
 ];
