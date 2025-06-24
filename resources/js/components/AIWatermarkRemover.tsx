@@ -67,6 +67,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
     const [detection, setDetection] = useState<DetectionData | null>(null);
     const [removalProgress, setRemovalProgress] = useState<RemovalProgress | null>(null);
     const [selectedWatermarks, setSelectedWatermarks] = useState<string[]>([]);
+    const [autoRemovalInProgress, setAutoRemovalInProgress] = useState(false);
     const [removalSettings, setRemovalSettings] = useState({
         method: 'inpainting',
         quality_preset: 'balanced',
@@ -88,6 +89,83 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
         { id: 'temporal_coherence', name: 'Temporal Coherence', accuracy: 92, speed: 'Slow', description: 'Frame-by-frame consistency analysis' },
         { id: 'frequency_domain', name: 'Frequency Domain', accuracy: 85, speed: 'Fast', description: 'Spectral analysis and filtering' }
     ];
+
+    // Auto-detect and remove watermarks in one click
+    const findAndRemoveWatermarks = async () => {
+        if (!videoPath) {
+            alert('No video path provided');
+            return;
+        }
+        
+        setAutoRemovalInProgress(true);
+        setLoading(true);
+        
+        try {
+            // Step 1: Detect watermarks
+            const response = await fetch('/ai/watermark-detect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    video_path: videoPath,
+                    sensitivity: removalSettings.sensitivity,
+                    detection_mode: 'thorough', // Use thorough mode for best results
+                }),
+            });
+
+            const detectionData = await response.json();
+            if (!detectionData.success) {
+                throw new Error(detectionData.message || 'Watermark detection failed');
+            }
+
+            setDetection(detectionData.data);
+            const detectedWatermarks = detectionData.data.detected_watermarks || [];
+            
+            if (detectedWatermarks.length === 0) {
+                alert('🎉 No watermarks detected in your video! Your video is clean.');
+                setAutoRemovalInProgress(false);
+                setLoading(false);
+                return;
+            }
+
+            // Automatically select all detected watermarks
+            setSelectedWatermarks(detectedWatermarks.map((w: Watermark) => w.id));
+            setActiveTab('progress');
+
+            // Step 2: Remove watermarks automatically
+            const removalResponse = await fetch('/ai/watermark-remove', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    video_path: videoPath,
+                    watermarks: detectedWatermarks,
+                    method: removalSettings.method,
+                    quality_preset: 'high', // Use high quality for automatic removal
+                }),
+            });
+
+            const removalData = await removalResponse.json();
+            if (!removalData.success) {
+                throw new Error(removalData.message || 'Watermark removal failed');
+            }
+
+            setRemovalProgress(removalData.data);
+            
+            // Start polling for progress updates
+            pollProgress(removalData.data.removal_id);
+
+        } catch (error) {
+            console.error('Auto watermark removal failed:', error);
+            alert(`Failed to remove watermarks: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setAutoRemovalInProgress(false);
+            setLoading(false);
+        }
+    };
 
     const detectWatermarks = async () => {
         if (!videoPath) return;
@@ -113,9 +191,11 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                 setSelectedWatermarks(data.data.detected_watermarks.map((w: Watermark) => w.id));
             } else {
                 console.error('Watermark detection failed:', data.error);
+                alert(`Detection failed: ${data.message || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Error detecting watermarks:', error);
+            alert('An error occurred while detecting watermarks. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -152,9 +232,11 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                 pollProgress(data.data.removal_id);
             } else {
                 console.error('Watermark removal failed:', data.error);
+                alert(`Removal failed: ${data.message || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Error removing watermarks:', error);
+            alert('An error occurred while removing watermarks. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -177,16 +259,27 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                     setRemovalProgress(data.data);
                     
                     if (data.data.processing_status === 'completed') {
+                        setAutoRemovalInProgress(false);
+                        setLoading(false);
                         onRemovalComplete?.(data.data);
                         return;
                     }
                     
+                    if (data.data.processing_status === 'failed') {
+                        setAutoRemovalInProgress(false);
+                        setLoading(false);
+                        alert('Watermark removal failed. Please try again.');
+                        return;
+                    }
+                    
                     if (data.data.processing_status === 'processing') {
-                        setTimeout(poll, 2000); // Poll every 2 seconds
+                        setTimeout(poll, 3000); // Poll every 3 seconds
                     }
                 }
             } catch (error) {
                 console.error('Error polling progress:', error);
+                setAutoRemovalInProgress(false);
+                setLoading(false);
             }
         };
 
@@ -598,6 +691,81 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
             default: return renderDetectionTab();
         }
     };
+
+    // If no detection has been run yet, show the main action button
+    if (!detection && !autoRemovalInProgress) {
+        return (
+            <div className={`space-y-4 ${className}`}>
+                <div className="text-center space-y-4">
+                    <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                        <Trash2 className="w-8 h-8 text-red-600" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-semibold">Remove Watermarks</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Automatically detect and remove watermarks from your video using AI
+                        </p>
+                    </div>
+                    <Button 
+                        onClick={findAndRemoveWatermarks}
+                        disabled={loading || !videoPath}
+                        size="lg"
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                        {loading ? (
+                            <>
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                Processing...
+                            </>
+                        ) : (
+                            <>
+                                <Scan className="w-4 h-4 mr-2" />
+                                Find and Remove Watermarks
+                            </>
+                        )}
+                    </Button>
+                    <div className="text-xs text-muted-foreground">
+                        This will scan your entire video and automatically remove detected watermarks
+                    </div>
+                </div>
+                
+                {/* Advanced Options */}
+                <details className="mt-6">
+                    <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                        Advanced Options
+                    </summary>
+                    <div className="mt-3 space-y-3 p-3 border rounded-lg bg-muted/30">
+                        <div>
+                            <label className="text-sm font-medium">Detection Sensitivity</label>
+                            <select 
+                                value={removalSettings.sensitivity}
+                                onChange={(e) => setRemovalSettings({...removalSettings, sensitivity: e.target.value})}
+                                className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
+                            >
+                                <option value="low">Low - Fast detection</option>
+                                <option value="medium">Medium - Balanced</option>
+                                <option value="high">High - Thorough detection</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Removal Method</label>
+                            <select 
+                                value={removalSettings.method}
+                                onChange={(e) => setRemovalSettings({...removalSettings, method: e.target.value})}
+                                className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
+                            >
+                                {removalMethods.map(method => (
+                                    <option key={method.id} value={method.id}>
+                                        {method.name} - {method.description}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        );
+    }
 
     return (
         <div className={`max-w-6xl mx-auto p-6 ${className}`}>

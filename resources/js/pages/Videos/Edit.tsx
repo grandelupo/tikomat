@@ -13,6 +13,7 @@ import AIVideoAnalyzer from '@/components/AIVideoAnalyzer';
 import AIPerformanceOptimizer from '@/components/AIPerformanceOptimizer';
 import AIThumbnailOptimizer from '@/components/AIThumbnailOptimizer';
 import AISubtitleGenerator from '@/components/AISubtitleGenerator';
+import AIWatermarkRemover from '@/components/AIWatermarkRemover';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm, router } from '@inertiajs/react';
@@ -692,6 +693,39 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                 videoPath={video.video_path || video.file_path || ''}
                                                 videoId={video.id}
                                                 videoTitle={video.title}
+                                            />
+                                        </ErrorBoundary>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Watermark Removal Section */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Trash2 className="w-5 h-5" />
+                                            Watermark Removal
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Automatically detect and remove watermarks from your video
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ErrorBoundary>
+                                            <AIWatermarkRemover 
+                                                videoPath={video.video_path || video.file_path || ''}
+                                                onRemovalComplete={(result) => {
+                                                    console.log('Watermark removal completed:', result);
+                                                    // Show success message
+                                                    const successElement = document.createElement('div');
+                                                    successElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                                                    successElement.textContent = '✅ Watermarks removed successfully!';
+                                                    document.body.appendChild(successElement);
+                                                    setTimeout(() => {
+                                                        if (document.body.contains(successElement)) {
+                                                            document.body.removeChild(successElement);
+                                                        }
+                                                    }, 5000);
+                                                }}
                                             />
                                         </ErrorBoundary>
                                     </CardContent>
