@@ -58,6 +58,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Video routes (scoped to channels)
     Route::get('channels/{channel:slug}/videos/create', [VideoController::class, 'create'])->name('videos.create');
     Route::post('channels/{channel:slug}/videos', [VideoController::class, 'store'])->name('videos.store');
+    Route::post('channels/{channel:slug}/videos/instant-upload', [VideoController::class, 'instantUpload'])->name('videos.instant-upload');
     Route::get('videos', [VideoController::class, 'index'])->name('videos.index');
     Route::resource('videos', VideoController::class)->except(['create', 'store', 'index', 'show']);
     Route::post('video-targets/{target}/retry', [VideoController::class, 'retryTarget'])
@@ -192,6 +193,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // General OAuth callbacks (for OAuth providers that need exact URLs)
     Route::get('auth/{platform}/callback', [SocialAccountController::class, 'generalCallback'])
         ->name('social.general-callback');
+    
+    // OAuth error page
+    Route::get('oauth/error', function () {
+        $suggestedActions = request('suggested_actions') ? explode('|', request('suggested_actions')) : [];
+        
+        return Inertia::render('OAuthError', [
+            'platform' => request('platform', 'unknown'),
+            'channelSlug' => request('channel'),
+            'channelName' => request('channel_name'),
+            'errorMessage' => request('message', 'An unknown error occurred'),
+            'errorCode' => request('code'),
+            'errorDescription' => request('description'),
+            'suggestedActions' => $suggestedActions,
+            'supportInfo' => [
+                'contactEmail' => config('mail.from.address'),
+                'documentationUrl' => config('app.url') . '/docs/oauth-troubleshooting',
+            ],
+        ]);
+    })->name('oauth.error');
     
     // Development: Simulate OAuth connection
     Route::post('channels/{channel:slug}/simulate-oauth/{platform}', [SocialAccountController::class, 'simulateConnection'])

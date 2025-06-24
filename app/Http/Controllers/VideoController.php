@@ -108,7 +108,7 @@ class VideoController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Channel $channel, Request $request): RedirectResponse
+    public function store(Request $request, Channel $channel): RedirectResponse
     {
         // Ensure user owns this channel
         if ($channel->user_id !== $request->user()->id) {
@@ -604,6 +604,108 @@ class VideoController extends Controller
                 'success' => false,
                 'message' => 'Failed to update video on platforms: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Instant upload with AI-powered metadata generation.
+     */
+    public function instantUpload(Request $request, Channel $channel): RedirectResponse
+    {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'video' => 'required|file|mimes:mp4,mov,avi,wmv,webm|max:102400', // 100MB max
+        ]);
+
+        try {
+            Log::info('Starting instant upload process', [
+                'user_id' => $request->user()->id,
+                'channel_id' => $channel->id,
+                'file_name' => $request->file('video')->getClientOriginalName(),
+                'file_size' => $request->file('video')->getSize(),
+                'mime_type' => $request->file('video')->getMimeType(),
+            ]);
+
+            // Validate and process video
+            $this->videoService->validateVideo($request->file('video'));
+            Log::info('Video validation passed for instant upload');
+
+            // Process video
+            $videoInfo = $this->videoService->processVideo($request->file('video'));
+            
+            Log::info('Video processing completed for instant upload', [
+                'duration' => $videoInfo['duration'],
+                'thumbnail_path' => $videoInfo['thumbnail_path'] ?? 'none',
+                'file_path' => $videoInfo['path'],
+            ]);
+
+            $video = null;
+            DB::transaction(function () use ($request, $videoInfo, $channel, &$video) {
+                // Create video record with placeholder data
+                $video = Video::create([
+                    'user_id' => $request->user()->id,
+                    'channel_id' => $channel->id,
+                    'title' => 'Processing...',
+                    'description' => 'AI is generating optimized content...',
+                    'original_file_path' => $videoInfo['path'],
+                    'duration' => $videoInfo['duration'],
+                    'thumbnail_path' => $videoInfo['thumbnail_path'] ?? null,
+                    'video_width' => $videoInfo['width'] ?? null,
+                    'video_height' => $videoInfo['height'] ?? null,
+                ]);
+
+                Log::info('Video record created for instant upload', [
+                    'video_id' => $video->id,
+                    'duration' => $video->duration,
+                    'thumbnail_path' => $video->thumbnail_path,
+                ]);
+            });
+
+            // Get connected platforms for the channel
+            $connectedPlatforms = $channel->socialAccounts->pluck('platform')->toArray();
+            $allowedPlatforms = $request->user()->getAllowedPlatforms();
+            
+            // Filter platforms to only include those that are both connected and allowed
+            $availablePlatforms = array_intersect($connectedPlatforms, $allowedPlatforms);
+
+            if (empty($availablePlatforms)) {
+                Log::warning('No platforms available for instant upload', [
+                    'user_id' => $request->user()->id,
+                    'channel_id' => $channel->id,
+                    'connected_platforms' => $connectedPlatforms,
+                    'allowed_platforms' => $allowedPlatforms,
+                ]);
+                
+                return redirect()->route('channels.show', $channel->slug)
+                    ->with('error', 'No platforms available for instant upload. Please connect platforms first.');
+            }
+
+            // Dispatch AI processing job
+            \App\Jobs\ProcessInstantUploadWithAI::dispatch($video, $availablePlatforms);
+
+            Log::info('Instant upload AI processing job dispatched', [
+                'video_id' => $video->id,
+                'platforms' => $availablePlatforms,
+            ]);
+
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('success', 'Video uploaded successfully! AI is processing your content and will publish automatically.');
+
+        } catch (\Exception $e) {
+            Log::error('Instant upload failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user()->id,
+                'file_name' => $request->file('video')->getClientOriginalName() ?? 'unknown',
+            ]);
+
+            return redirect()->back()
+                ->withErrors(['video' => $e->getMessage()])
+                ->withInput();
         }
     }
 }

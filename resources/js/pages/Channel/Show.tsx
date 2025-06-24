@@ -34,10 +34,12 @@ import {
     Eye,
     Edit,
     Trash2,
-    Users
+    Users,
+    Brain
 } from 'lucide-react';
 import React, { useState } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
+import InstantUploadDropzone from '@/components/InstantUploadDropzone';
 
 interface Channel {
     id: number;
@@ -428,6 +430,19 @@ export default function ChannelShow({
                     )}
                 </div>
 
+                {/* Instant Upload Section */}
+                {availablePlatforms.filter(p => p.connected).length > 0 && (
+                    <div>
+                        <div className="mb-4">
+                            <h3 className="text-lg font-semibold">Instant Upload with AI</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Drop a video and let AI automatically generate titles, descriptions, and publish to all connected platforms
+                            </p>
+                        </div>
+                        <InstantUploadDropzone channel={channel} className="mb-6" />
+                    </div>
+                )}
+
                 {/* Videos Table */}
                 <Card>
                     <CardHeader>
@@ -479,7 +494,15 @@ export default function ChannelShow({
                                             </TableCell>
                                             <TableCell>
                                                 <div>
-                                                    <p className="font-medium">{video.title}</p>
+                                                    <div className="flex items-center space-x-2">
+                                                        <p className="font-medium">{video.title}</p>
+                                                        {video.title === 'Processing...' && (
+                                                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                                                                <Brain className="w-3 h-3 mr-1" />
+                                                                AI Processing
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                     {video.description && (
                                                         <p className="text-sm text-muted-foreground line-clamp-1">
                                                             {video.description}

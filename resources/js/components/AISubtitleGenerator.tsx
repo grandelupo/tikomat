@@ -1111,15 +1111,6 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
       <div className="p-6 border-b bg-gradient-to-r from-purple-50 to-blue-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg">
-                <Mic className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">Video Editor</h3>
-                <p className="text-sm text-gray-600">Generate and edit subtitles with real-time preview</p>
-              </div>
-            </div>
             
             <button
               onClick={toggleFullscreen}

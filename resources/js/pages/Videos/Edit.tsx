@@ -39,8 +39,8 @@ interface Video {
     formatted_duration: string;
     created_at: string;
     file_path?: string;
-    video_path?: string; // Computed attribute from getVideoPathAttribute()
-    original_file_path?: string; // Raw storage path
+    video_path?: string; // Computed attribute from getVideoPathAttribute() - URL route
+    original_file_path?: string; // Raw storage path - needed for backend processing
     tags?: string[];
     thumbnail?: string;
     targets?: VideoTarget[];
@@ -712,7 +712,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                     <CardContent>
                                         <ErrorBoundary>
                                             <AIWatermarkRemover 
-                                                videoPath={video.video_path || video.file_path || ''}
+                                                videoPath={video.original_file_path || video.file_path || ''}
                                                 onRemovalComplete={(result) => {
                                                     console.log('Watermark removal completed:', result);
                                                     // Show success message
@@ -743,7 +743,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         <ErrorBoundary>
                                             <AIVideoAnalyzer 
                                                 videoId={video.id}
-                                                videoPath={video.video_path || video.file_path}
+                                                videoPath={video.original_file_path || video.file_path}
                                                 onAnalysisComplete={handleVideoAnalysisComplete}
                                             />
                                         </ErrorBoundary>
@@ -1186,7 +1186,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     isOpen={showThumbnailOptimizer}
                     onClose={() => setShowThumbnailOptimizer(false)}
                     videoId={video.id}
-                    videoPath={video.video_path || video.file_path || ''}
+                    videoPath={video.original_file_path || video.file_path || ''}
                     title={data.title}
                     onThumbnailSet={() => {
                         setSelectedThumbnail('optimized');

@@ -4,48 +4,76 @@ namespace App\Http\Controllers;
 
 use App\Models\SocialAccount;
 use App\Models\Channel;
+use App\Services\OAuthErrorHandler;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class SocialAccountController extends Controller
 {
+    protected OAuthErrorHandler $errorHandler;
+
+    public function __construct(OAuthErrorHandler $errorHandler)
+    {
+        $this->errorHandler = $errorHandler;
+    }
+
     /**
      * Redirect to social media provider for authentication.
      */
     public function redirect(Channel $channel, string $platform, Request $request): RedirectResponse
     {
-        // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
-
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('error', 'Invalid platform selected.');
-        }
-
-        // Check if user can access this platform
-        if (!$request->user()->canAccessPlatform($platform)) {
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('error', 'This platform is not available with your current plan.');
-        }
-
-        // Check if OAuth credentials are configured
-        if (!$this->isOAuthConfigured($platform)) {
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('error', 'OAuth credentials for ' . ucfirst($platform) . ' are not configured. Please check your .env file and add the required credentials.');
-        }
-
-        // Check if this is a force reconnect (revoke existing permissions)
-        $forceReconnect = $request->boolean('force');
-        
-        if ($forceReconnect && $platform === 'youtube') {
-            $this->revokeGooglePermissions($request->user()->id, $channel->id);
-        }
-
         try {
+            // Ensure user owns this channel
+            if ($channel->user_id !== $request->user()->id) {
+                abort(403);
+            }
+
+            if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
+                $this->errorHandler->logConfigurationError($platform, 'Invalid platform selected');
+                return $this->redirectToErrorPage($platform, $channel->slug, 'Invalid platform selected.');
+            }
+
+            // Check if user can access this platform
+            if (!$request->user()->canAccessPlatform($platform)) {
+                $this->errorHandler->logConfigurationError($platform, 'Platform not available with current plan', [
+                    'user_plan' => $request->user()->subscription?->stripe_price ?? 'free',
+                    'channel_slug' => $channel->slug,
+                ]);
+                return $this->redirectToErrorPage(
+                    $platform, 
+                    $channel->slug, 
+                    'This platform is not available with your current plan.',
+                    'subscription_limitation'
+                );
+            }
+
+            // Check if OAuth credentials are configured
+            if (!$this->isOAuthConfigured($platform)) {
+                $this->errorHandler->logConfigurationError($platform, 'OAuth credentials not configured');
+                return $this->redirectToErrorPage(
+                    $platform, 
+                    $channel->slug, 
+                    'OAuth credentials for ' . ucfirst($platform) . ' are not configured. Please contact support.',
+                    'configuration_error'
+                );
+            }
+
+            // Log connection attempt
+            $this->errorHandler->logConnectionAttempt($platform, $channel->slug, [
+                'force_reconnect' => $request->boolean('force'),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            // Check if this is a force reconnect (revoke existing permissions)
+            $forceReconnect = $request->boolean('force');
+            
+            if ($forceReconnect && $platform === 'youtube') {
+                $this->revokeGooglePermissions($request->user()->id, $channel->id);
+            }
+
             // Map platform to Socialite driver
             $driver = $this->mapPlatformToDriver($platform);
 
@@ -58,121 +86,18 @@ class SocialAccountController extends Controller
                 'force' => $forceReconnect
             ]));
 
-            \Log::info('Starting OAuth redirect', [
-                'platform' => $platform,
-                'driver' => $driver,
-                'channel_slug' => $channel->slug,
-                'force_reconnect' => $forceReconnect,
-            ]);
-
             // Request appropriate scopes based on platform
-            if ($platform === 'youtube') {
-                // YouTube requires specific scopes for video uploading
-                return Socialite::driver($driver)
-                    ->scopes([
-                        'https://www.googleapis.com/auth/youtube.upload',
-                        'https://www.googleapis.com/auth/youtube',
-                        'https://www.googleapis.com/auth/userinfo.profile',
-                        'https://www.googleapis.com/auth/userinfo.email'
-                    ])
-                    ->with([
-                        'state' => $state,
-                        'access_type' => 'offline',        // Required for refresh token
-                        'prompt' => 'select_account consent', // Force account selection and consent
-                        'include_granted_scopes' => 'true'  // Include previously granted scopes
-                    ])
-                    ->redirect();
-            } elseif ($platform === 'instagram') {
-                // Instagram requires content publishing permissions
-                return Socialite::driver($driver)
-                    ->scopes([
-                        'instagram_content_publish',
-                        'instagram_basic',
-                        'pages_show_list',
-                        'pages_read_engagement'
-                    ])
-                    ->with([
-                        'state' => $state,
-                        'prompt' => 'select_account consent' // Force account selection
-                    ])
-                    ->redirect();
-            } elseif ($platform === 'tiktok') {
-                // TikTok requires video upload and publish permissions
-                return Socialite::driver($driver)
-                    ->scopes([
-                        'user.info.basic',
-                        'video.upload',
-                        'video.publish'
-                    ])
-                    ->with([
-                        'state' => $state,
-                        'prompt' => 'select_account consent' // Force account selection
-                    ])
-                    ->redirect();
-            } elseif ($platform === 'facebook') {
-                // Facebook requires pages and video publishing permissions
-                return Socialite::driver($driver)
-                    ->scopes([
-                        'pages_manage_posts',
-                        'pages_read_engagement',
-                        'pages_show_list',
-                        'publish_video'
-                    ])
-                    ->with([
-                        'state' => $state,
-                        'prompt' => 'select_account consent'
-                    ])
-                    ->redirect();
-            } elseif ($platform === 'snapchat') {
-                // Snapchat requires creative and media permissions
-                return Socialite::driver($driver)
-                    ->scopes([
-                        'snapchat-marketing-api',
-                        'snapchat-profile-api'
-                    ])
-                    ->with([
-                        'state' => $state,
-                        'prompt' => 'select_account consent'
-                    ])
-                    ->redirect();
-            } elseif ($platform === 'pinterest') {
-                // Pinterest requires board and pin creation permissions
-                return Socialite::driver($driver)
-                    ->scopes([
-                        'boards:read',
-                        'boards:write',
-                        'pins:read',
-                        'pins:write'
-                    ])
-                    ->with([
-                        'state' => $state,
-                        'prompt' => 'select_account consent'
-                    ])
-                    ->redirect();
-            } elseif ($platform === 'twitter') {
-                // Twitter API v2 with proper scopes using SocialiteProviders
-                return Socialite::driver($driver)
-                    ->scopes(['tweet.read', 'tweet.write', 'users.read', 'offline.access'])
-                    ->with([
-                        'state' => $state,
-                        'force_login' => true, // Force Twitter login prompt
-                    ])
-                    ->redirect();
-            }
+            return $this->buildOAuthRedirect($driver, $platform, $state);
 
-            // Fallback for any other cases
-            return Socialite::driver($driver)
-                ->with([
-                    'state' => $state,
-                    'access_type' => 'offline',
-                    'prompt' => 'select_account consent'
-                ])
-                ->redirect();
         } catch (\Exception $e) {
-            \Log::error('OAuth redirect failed: ' . $e->getMessage());
+            $this->errorHandler->logRedirectFailure($platform, $channel->slug, $e, $request);
             
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('error', 'Failed to initiate OAuth for ' . ucfirst($platform) . ': ' . $e->getMessage());
+            return $this->redirectToErrorPage(
+                $platform, 
+                $channel->slug, 
+                $this->errorHandler->formatUserErrorMessage($platform, $e, $request),
+                'redirect_failure'
+            );
         }
     }
 
@@ -181,23 +106,53 @@ class SocialAccountController extends Controller
      */
     public function callback(Channel $channel, string $platform, Request $request): RedirectResponse
     {
-        // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
-
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('error', 'Invalid platform selected.');
-        }
-
         try {
+            // Ensure user owns this channel
+            if ($channel->user_id !== $request->user()->id) {
+                abort(403);
+            }
+
+            if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
+                $this->errorHandler->logConfigurationError($platform, 'Invalid platform selected in callback');
+                return $this->redirectToErrorPage($platform, $channel->slug, 'Invalid platform selected.');
+            }
+
+            // Check for OAuth provider errors first
+            if ($request->input('error')) {
+                $this->errorHandler->logProviderError($platform, $request, [
+                    'channel_slug' => $channel->slug,
+                ]);
+                
+                return $this->redirectToErrorPage(
+                    $platform, 
+                    $channel->slug, 
+                    $this->errorHandler->formatUserErrorMessage($platform, new \Exception($request->input('error_description', $request->input('error'))), $request),
+                    $request->input('error')
+                );
+            }
+
             $driver = $this->mapPlatformToDriver($platform);
-            
-            \Log::info('OAuth callback for channel: ' . $channel->slug . ', platform: ' . $platform);
             
             // Get OAuth user data
             $socialUser = Socialite::driver($driver)->user();
+
+            // Validate we have the required tokens
+            if (empty($socialUser->token)) {
+                throw new \Exception('No access token received from ' . ucfirst($platform));
+            }
+
+            // For Google/YouTube, we need a refresh token for long-term access
+            if ($platform === 'youtube' && empty($socialUser->refreshToken)) {
+                $this->errorHandler->logConnectionFailure(
+                    $platform, 
+                    $channel->slug, 
+                    new \Exception('No refresh token received'), 
+                    $request,
+                    ['warning' => 'refresh_token_missing']
+                );
+                
+                // This is a warning, not a failure - continue with the connection
+            }
 
             // Store or update social account
             // First, delete any existing social account for this user+platform combination
@@ -217,16 +172,24 @@ class SocialAccountController extends Controller
                     now()->addSeconds($socialUser->expiresIn) : null,
             ]);
 
-            \Log::info('OAuth connection successful for channel: ' . $channel->slug . ', platform: ' . $platform);
+            $this->errorHandler->logConnectionSuccess($platform, $channel->slug, [
+                'social_account_id' => $socialAccount->id,
+                'has_refresh_token' => !empty($socialAccount->refresh_token),
+                'expires_at' => $socialAccount->token_expires_at?->toISOString() ?? 'never',
+            ]);
 
             return redirect()->route('channels.show', $channel->slug)
                 ->with('success', ucfirst($platform) . ' account connected successfully!');
 
         } catch (\Exception $e) {
-            \Log::error('OAuth callback failed for channel: ' . $channel->slug . ', platform: ' . $platform . ' - ' . $e->getMessage());
+            $this->errorHandler->logConnectionFailure($platform, $channel->slug, $e, $request);
             
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('error', 'Failed to connect ' . ucfirst($platform) . ' account: ' . $e->getMessage());
+            return $this->redirectToErrorPage(
+                $platform, 
+                $channel->slug, 
+                $this->errorHandler->formatUserErrorMessage($platform, $e, $request),
+                'callback_failure'
+            );
         }
     }
 
@@ -337,25 +300,31 @@ class SocialAccountController extends Controller
      */
     public function generalCallback(string $platform, Request $request): RedirectResponse
     {
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
-            return redirect()->route('dashboard')
-                ->with('error', 'Invalid platform selected.');
-        }
-
-        \Log::info('General OAuth callback URL: ' . $request->fullUrl());
-        \Log::info('General OAuth callback request data: ', $request->all());
-
         try {
+            if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
+                $this->errorHandler->logConfigurationError($platform, 'Invalid platform selected in general callback');
+                return $this->redirectToErrorPage($platform, 'unknown', 'Invalid platform selected.');
+            }
+
+            // Check for OAuth provider errors first
+            if ($request->input('error')) {
+                $this->errorHandler->logProviderError($platform, $request);
+                return $this->redirectToErrorPage(
+                    $platform, 
+                    'unknown', 
+                    $this->errorHandler->formatUserErrorMessage($platform, new \Exception($request->input('error_description', $request->input('error'))), $request),
+                    $request->input('error')
+                );
+            }
+
             // Extract state parameter to get channel information
             $stateParam = $request->input('state');
-            \Log::info('State parameter received: ' . $stateParam);
             
             if (!$stateParam) {
                 throw new \Exception('Missing state parameter');
             }
 
             $stateData = json_decode(base64_decode($stateParam), true);
-            \Log::info('Decoded state data: ', $stateData ?: []);
             
             if (!$stateData || !isset($stateData['channel_slug']) || !isset($stateData['user_id'])) {
                 throw new \Exception('Invalid state parameter - missing required fields');
@@ -363,7 +332,6 @@ class SocialAccountController extends Controller
 
             // Verify the user matches (security check)
             $currentUserId = Auth::id();
-            \Log::info('Current user ID: ' . $currentUserId . ', State user ID: ' . $stateData['user_id']);
             
             if ($stateData['user_id'] !== $currentUserId) {
                 throw new \Exception('State parameter user mismatch');
@@ -375,7 +343,6 @@ class SocialAccountController extends Controller
             }
 
             // Find the channel
-            \Log::info('Looking for channel with slug: ' . $stateData['channel_slug']);
             $channel = Channel::where('slug', $stateData['channel_slug'])
                 ->where('user_id', Auth::id())
                 ->first();
@@ -384,31 +351,8 @@ class SocialAccountController extends Controller
                 throw new \Exception('Channel not found or access denied');
             }
 
-            \Log::info('Found channel: ' . $channel->name . ' (ID: ' . $channel->id . ')');
-
             // Get OAuth user data
             $driver = $this->mapPlatformToDriver($platform);
-            \Log::info('Using driver: ' . $driver . ' for platform: ' . $platform);
-            
-            // Log the OAuth request details
-            \Log::info('About to call OAuth provider', [
-                'platform' => $platform,
-                'driver' => $driver,
-                'has_code' => !empty($request->input('code')),
-                'code_length' => strlen($request->input('code', '')),
-                'has_error' => !empty($request->input('error')),
-                'error' => $request->input('error'),
-                'error_description' => $request->input('error_description'),
-                'config_client_id_set' => !empty(config("services.{$driver}.client_id")),
-                'config_client_secret_set' => !empty(config("services.{$driver}.client_secret")),
-                'config_redirect_set' => !empty(config("services.{$driver}.redirect")),
-            ]);
-            
-            // Check for OAuth error first
-            if ($request->input('error')) {
-                $errorDesc = $request->input('error_description', 'No description provided');
-                throw new \Exception('OAuth provider returned error: ' . $request->input('error') . ' - ' . $errorDesc);
-            }
             
             // Validate OAuth configuration before attempting user retrieval
             $clientId = config("services.{$driver}.client_id");
@@ -416,33 +360,18 @@ class SocialAccountController extends Controller
             $redirectUrl = config("services.{$driver}.redirect");
             
             if (empty($clientId)) {
-                throw new \Exception("OAuth client ID is not configured for {$driver}. Please check SERVICES_{$driver}_CLIENT_ID in your .env file.");
+                throw new \Exception("OAuth client ID is not configured for {$driver}.");
             }
             
             if (empty($clientSecret)) {
-                throw new \Exception("OAuth client secret is not configured for {$driver}. Please check SERVICES_{$driver}_CLIENT_SECRET in your .env file.");
+                throw new \Exception("OAuth client secret is not configured for {$driver}.");
             }
             
             if (empty($redirectUrl)) {
-                throw new \Exception("OAuth redirect URL is not configured for {$driver}. Please check SERVICES_{$driver}_REDIRECT in your .env file.");
+                throw new \Exception("OAuth redirect URL is not configured for {$driver}.");
             }
             
-            \Log::info('OAuth configuration validated successfully', [
-                'platform' => $platform,
-                'driver' => $driver,
-                'redirect_url' => $redirectUrl,
-            ]);
-            
             $socialUser = Socialite::driver($driver)->stateless()->user();
-            \Log::info('OAuth user retrieved successfully', [
-                'has_token' => !empty($socialUser->token),
-                'token_length' => strlen($socialUser->token ?? ''),
-                'has_refresh_token' => !empty($socialUser->refreshToken),
-                'refresh_token_length' => strlen($socialUser->refreshToken ?? ''),
-                'expires_in' => $socialUser->expiresIn ?? 'not_set',
-                'user_id' => $socialUser->getId() ?? 'not_set',
-                'user_email' => $socialUser->getEmail() ?? 'not_set',
-            ]);
 
             // Validate we have the required tokens
             if (empty($socialUser->token)) {
@@ -451,13 +380,15 @@ class SocialAccountController extends Controller
 
             // For Google/YouTube, we need a refresh token for long-term access
             if ($platform === 'youtube' && empty($socialUser->refreshToken)) {
-                \Log::warning('YouTube OAuth completed but no refresh token received. User may need to revoke access and reconnect.', [
-                    'user_id' => Auth::id(),
-                    'channel_id' => $channel->id,
-                ]);
+                $this->errorHandler->logConnectionFailure(
+                    $platform, 
+                    $channel->slug, 
+                    new \Exception('No refresh token received'), 
+                    $request,
+                    ['warning' => 'refresh_token_missing']
+                );
                 
-                return redirect()->route('channels.show', $channel->slug)
-                    ->with('warning', 'YouTube connected successfully, but no refresh token was provided. You may need to reconnect the account if uploads fail after the token expires.');
+                // This is a warning, not a failure - continue with the connection
             }
 
             // Store or update social account
@@ -478,29 +409,29 @@ class SocialAccountController extends Controller
                     now()->addSeconds($socialUser->expiresIn) : null,
             ]);
 
-            \Log::info('Social account created/updated successfully', [
-                'account_id' => $socialAccount->id,
-                'has_access_token' => !empty($socialAccount->access_token),
+            $this->errorHandler->logConnectionSuccess($platform, $channel->slug, [
+                'social_account_id' => $socialAccount->id,
                 'has_refresh_token' => !empty($socialAccount->refresh_token),
                 'expires_at' => $socialAccount->token_expires_at?->toISOString() ?? 'never',
+                'callback_type' => 'general',
             ]);
 
             return redirect()->route('channels.show', $channel->slug)
                 ->with('success', ucfirst($platform) . ' account connected successfully!');
 
         } catch (\Exception $e) {
-            \Log::error('General OAuth callback failed: ' . $e->getMessage(), [
-                'exception' => $e,
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'platform' => $platform,
-                'user_id' => Auth::id(),
-                'request_data' => $request->all()
+            $channelSlug = $stateData['channel_slug'] ?? 'unknown';
+            
+            $this->errorHandler->logConnectionFailure($platform, $channelSlug, $e, $request, [
+                'callback_type' => 'general',
             ]);
             
-            return redirect()->route('dashboard')
-                ->with('error', 'Failed to connect ' . ucfirst($platform) . ' account: ' . $e->getMessage());
+            return $this->redirectToErrorPage(
+                $platform, 
+                $channelSlug, 
+                $this->errorHandler->formatUserErrorMessage($platform, $e, $request),
+                'general_callback_failure'
+            );
         }
     }
 
@@ -555,5 +486,180 @@ class SocialAccountController extends Controller
             'platform' => $platform,
             'force' => 'true'
         ]);
+    }
+
+    /**
+     * Build OAuth redirect with platform-specific scopes and parameters
+     */
+    protected function buildOAuthRedirect(string $driver, string $platform, string $state): RedirectResponse
+    {
+        // Request appropriate scopes based on platform
+        if ($platform === 'youtube') {
+            // YouTube requires specific scopes for video uploading
+            return Socialite::driver($driver)
+                ->scopes([
+                    'https://www.googleapis.com/auth/youtube.upload',
+                    'https://www.googleapis.com/auth/youtube',
+                    'https://www.googleapis.com/auth/userinfo.profile',
+                    'https://www.googleapis.com/auth/userinfo.email'
+                ])
+                ->with([
+                    'state' => $state,
+                    'access_type' => 'offline',        // Required for refresh token
+                    'prompt' => 'select_account consent', // Force account selection and consent
+                    'include_granted_scopes' => 'true'  // Include previously granted scopes
+                ])
+                ->redirect();
+        } elseif ($platform === 'instagram') {
+            // Instagram requires content publishing permissions
+            return Socialite::driver($driver)
+                ->scopes([
+                    'instagram_content_publish',
+                    'instagram_basic',
+                    'pages_show_list',
+                    'pages_read_engagement'
+                ])
+                ->with([
+                    'state' => $state,
+                    'prompt' => 'select_account consent' // Force account selection
+                ])
+                ->redirect();
+        } elseif ($platform === 'tiktok') {
+            // TikTok requires video upload and publish permissions
+            return Socialite::driver($driver)
+                ->scopes([
+                    'user.info.basic',
+                    'video.upload',
+                    'video.publish'
+                ])
+                ->with([
+                    'state' => $state,
+                    'prompt' => 'select_account consent' // Force account selection
+                ])
+                ->redirect();
+        } elseif ($platform === 'facebook') {
+            // Facebook requires pages and video publishing permissions
+            return Socialite::driver($driver)
+                ->scopes([
+                    'pages_manage_posts',
+                    'pages_read_engagement',
+                    'pages_show_list',
+                    'publish_video'
+                ])
+                ->with([
+                    'state' => $state,
+                    'prompt' => 'select_account consent'
+                ])
+                ->redirect();
+        } elseif ($platform === 'snapchat') {
+            // Snapchat requires creative and media permissions
+            return Socialite::driver($driver)
+                ->scopes([
+                    'snapchat-marketing-api',
+                    'snapchat-profile-api'
+                ])
+                ->with([
+                    'state' => $state,
+                    'prompt' => 'select_account consent'
+                ])
+                ->redirect();
+        } elseif ($platform === 'pinterest') {
+            // Pinterest requires board and pin creation permissions
+            return Socialite::driver($driver)
+                ->scopes([
+                    'boards:read',
+                    'boards:write',
+                    'pins:read',
+                    'pins:write'
+                ])
+                ->with([
+                    'state' => $state,
+                    'prompt' => 'select_account consent'
+                ])
+                ->redirect();
+        } elseif ($platform === 'twitter') {
+            // Twitter API v2 with proper scopes using SocialiteProviders
+            return Socialite::driver($driver)
+                ->scopes(['tweet.read', 'tweet.write', 'users.read', 'offline.access'])
+                ->with([
+                    'state' => $state,
+                    'force_login' => true, // Force Twitter login prompt
+                ])
+                ->redirect();
+        }
+
+        // Fallback for any other cases
+        return Socialite::driver($driver)
+            ->with([
+                'state' => $state,
+                'access_type' => 'offline',
+                'prompt' => 'select_account consent'
+            ])
+            ->redirect();
+    }
+
+    /**
+     * Redirect to error page with structured error information
+     */
+    protected function redirectToErrorPage(
+        string $platform, 
+        string $channelSlug, 
+        string $errorMessage, 
+        string $errorCode = null
+    ): RedirectResponse {
+        $channel = Channel::where('slug', $channelSlug)->first();
+        
+        return redirect()->route('oauth.error', [
+            'platform' => $platform,
+            'channel' => $channelSlug,
+            'channel_name' => $channel?->name,
+            'message' => $errorMessage,
+            'code' => $errorCode,
+            'suggested_actions' => implode('|', $this->getSuggestedActions($platform, $errorCode)),
+        ]);
+    }
+
+    /**
+     * Get suggested actions based on platform and error code
+     */
+    protected function getSuggestedActions(string $platform, ?string $errorCode): array
+    {
+        $actions = [];
+
+        // Error-specific actions
+        switch ($errorCode) {
+            case 'access_denied':
+                $actions[] = 'Click "Allow" or "Authorize" when prompted by ' . ucfirst($platform);
+                $actions[] = 'Make sure you have the necessary permissions on your ' . ucfirst($platform) . ' account';
+                break;
+            case 'configuration_error':
+                $actions[] = 'Contact support to resolve the configuration issue';
+                break;
+            case 'subscription_limitation':
+                $actions[] = 'Upgrade your subscription to access this platform';
+                $actions[] = 'Check your subscription status in the billing section';
+                break;
+            default:
+                $actions[] = 'Try connecting again';
+                $actions[] = 'Make sure you have a stable internet connection';
+        }
+
+        // Platform-specific actions
+        switch ($platform) {
+            case 'youtube':
+                $actions[] = 'Ensure your Google account has YouTube access enabled';
+                $actions[] = 'If you have multiple Google accounts, make sure you select the correct one';
+                break;
+            case 'facebook':
+                $actions[] = 'Make sure you have admin access to the Facebook page';
+                $actions[] = 'Verify your Facebook account is in good standing';
+                break;
+            case 'instagram':
+                $actions[] = 'Ensure your Instagram account is a business or creator account';
+                $actions[] = 'Make sure your Instagram is linked to a Facebook page';
+                break;
+        }
+
+        return array_unique($actions);
     }
 }
