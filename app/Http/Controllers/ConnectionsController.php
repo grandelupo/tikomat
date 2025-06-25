@@ -49,7 +49,7 @@ class ConnectionsController extends Controller
         // Available platforms based on subscription
         $allowedPlatforms = $user->getAllowedPlatforms();
         
-        $availablePlatforms = collect(['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])
+        $availablePlatforms = collect(['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])
             ->map(function ($platform) use ($allowedPlatforms, $socialAccounts) {
                 $connectedCount = $socialAccounts->where('platform', $platform)->count();
                 

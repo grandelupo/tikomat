@@ -709,7 +709,7 @@ class AIAudienceInsightsService
             'instagram' => 50,
             'tiktok' => 200,
             'facebook' => 75,
-            'twitter' => 30,
+            'x' => 30,
         ];
         
         return $publishCount * ($multipliers[$platform] ?? 50);
@@ -725,7 +725,7 @@ class AIAudienceInsightsService
             'instagram' => ['type' => 'visual_platform', 'audience' => 'young', 'engagement' => 'very_high'],
             'tiktok' => ['type' => 'short_form', 'audience' => 'gen_z', 'engagement' => 'viral'],
             'facebook' => ['type' => 'social_platform', 'audience' => 'mature', 'engagement' => 'moderate'],
-            'twitter' => ['type' => 'microblog', 'audience' => 'professionals', 'engagement' => 'discussion'],
+            'x' => ['type' => 'microblog', 'audience' => 'professionals', 'engagement' => 'discussion'],
         ];
         
         return $insights[$platform] ?? ['type' => 'unknown', 'audience' => 'varied', 'engagement' => 'moderate'];

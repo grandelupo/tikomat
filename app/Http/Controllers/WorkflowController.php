@@ -32,7 +32,7 @@ class WorkflowController extends Controller
             ['name' => 'instagram', 'label' => 'Instagram', 'connected' => false],
             ['name' => 'tiktok', 'label' => 'TikTok', 'connected' => false],
             ['name' => 'facebook', 'label' => 'Facebook', 'connected' => false],
-            ['name' => 'twitter', 'label' => 'Twitter', 'connected' => false],
+            ['name' => 'x', 'label' => 'Twitter', 'connected' => false],
             ['name' => 'snapchat', 'label' => 'Snapchat', 'connected' => false],
             ['name' => 'pinterest', 'label' => 'Pinterest', 'connected' => false],
         ]);
@@ -66,9 +66,9 @@ class WorkflowController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:500',
             'channel_id' => 'required|exists:channels,id',
-            'source_platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'source_platform' => 'required|string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
             'target_platforms' => 'required|array|min:1',
-            'target_platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'target_platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
             'is_active' => 'boolean',
         ]);
 
@@ -107,9 +107,9 @@ class WorkflowController extends Controller
             'name' => 'sometimes|string|max:255',
             'description' => 'sometimes|nullable|string|max:500',
             'channel_id' => 'sometimes|exists:channels,id',
-            'source_platform' => 'sometimes|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'source_platform' => 'sometimes|string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
             'target_platforms' => 'sometimes|array|min:1',
-            'target_platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'target_platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
             'is_active' => 'sometimes|boolean',
         ]);
 
@@ -166,7 +166,7 @@ class WorkflowController extends Controller
             ['name' => 'instagram', 'label' => 'Instagram', 'connected' => false],
             ['name' => 'tiktok', 'label' => 'TikTok', 'connected' => false],
             ['name' => 'facebook', 'label' => 'Facebook', 'connected' => false],
-            ['name' => 'twitter', 'label' => 'Twitter', 'connected' => false],
+            ['name' => 'x', 'label' => 'Twitter', 'connected' => false],
             ['name' => 'snapchat', 'label' => 'Snapchat', 'connected' => false],
             ['name' => 'pinterest', 'label' => 'Pinterest', 'connected' => false],
         ]);

@@ -42,7 +42,7 @@ class AIThumbnailOptimizerService
             'optimal_text_size' => 'large',
             'face_prominence' => 'very_high',
         ],
-        'twitter' => [
+        'x' => [
             'width' => 1200,
             'height' => 675,
             'aspect_ratio' => '16:9',
@@ -1108,7 +1108,7 @@ class AIThumbnailOptimizerService
             'youtube' => 'Maximum CTR optimization',
             'tiktok' => 'Vertical format, single focus',
             'instagram' => 'Aesthetic appeal and branding',
-            'twitter' => 'Clear, concise visual message',
+            'x' => 'Clear, concise visual message',
             'facebook' => 'Social sharing optimization',
             default => 'General optimization',
         };

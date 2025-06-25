@@ -32,7 +32,7 @@ class AIPerformanceOptimizationService
             'shares' => 0.3,
             'completion_rate' => 0.1,
         ],
-        'twitter' => [
+        'x' => [
             'views' => 0.2,
             'likes' => 0.2,
             'retweets' => 0.3,
@@ -61,7 +61,7 @@ class AIPerformanceOptimizationService
             'weekdays' => ['06:00', '10:00', '19:00', '20:00', '21:00'],
             'weekends' => ['09:00', '12:00', '13:00', '15:00', '16:00'],
         ],
-        'twitter' => [
+        'x' => [
             'weekdays' => ['08:00', '09:00', '12:00', '13:00', '17:00', '18:00'],
             'weekends' => ['09:00', '10:00', '11:00'],
         ],
@@ -221,7 +221,7 @@ class AIPerformanceOptimizationService
                 'completion_rate' => rand(40, 90), // percentage
                 'profile_clicks' => rand(5, 200) * $baseMultiplier,
             ],
-            'twitter' => [
+            'x' => [
                 'views' => rand(100, 20000) * $baseMultiplier,
                 'likes' => rand(10, 1000) * $baseMultiplier,
                 'retweets' => rand(5, 300) * $baseMultiplier,
@@ -690,7 +690,7 @@ class AIPerformanceOptimizationService
                 'Use trending sounds and effects',
                 'Post consistently during peak hours',
             ],
-            'twitter' => [
+            'x' => [
                 'Tweet at optimal times for your audience',
                 'Use relevant hashtags and mentions',
                 'Engage with comments quickly',
@@ -712,7 +712,7 @@ class AIPerformanceOptimizationService
             'youtube' => 2000,
             'instagram' => 1500,
             'tiktok' => 5000,
-            'twitter' => 800,
+            'x' => 800,
             'facebook' => 1200,
         ];
         

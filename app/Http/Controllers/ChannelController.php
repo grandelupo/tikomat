@@ -60,7 +60,7 @@ class ChannelController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'default_platforms' => 'array',
-            'default_platforms.*' => 'in:youtube,instagram,tiktok,facebook,snapchat,pinterest,twitter',
+            'default_platforms.*' => 'in:youtube,instagram,tiktok,facebook,snapchat,pinterest,x',
         ]);
 
         // Filter platforms based on user's subscription
@@ -108,7 +108,7 @@ class ChannelController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'default_platforms' => 'array',
-            'default_platforms.*' => 'in:youtube,instagram,tiktok,facebook,snapchat,pinterest,twitter',
+            'default_platforms.*' => 'in:youtube,instagram,tiktok,facebook,snapchat,pinterest,x',
         ]);
 
         // Filter platforms based on user's subscription

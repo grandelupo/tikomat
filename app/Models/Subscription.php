@@ -58,7 +58,7 @@ class Subscription extends Model
             return ['youtube']; // Free users only get YouTube
         }
         
-        return ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter']; // Paid users get all platforms
+        return ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x']; // Paid users get all platforms
     }
 
     /**

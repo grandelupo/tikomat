@@ -270,7 +270,7 @@ class OAuthErrorHandler
             }
             
             if (str_contains($message, 'invalid_scope') || str_contains($message, 'insufficient permissions')) {
-                return "Instagram requires business account permissions. Make sure your Instagram account is connected to a Facebook business page and the app has been approved for Instagram Business API access.";
+                return "Instagram requires a Professional account (Business or Creator). Make sure your Instagram account is set to Professional mode in the Instagram app. Personal accounts are not supported with the new Instagram API.";
             }
         }
 

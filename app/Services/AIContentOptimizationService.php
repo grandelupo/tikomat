@@ -29,7 +29,7 @@ class AIContentOptimizationService
             'description_prompt' => 'Write a Facebook description that sparks conversation, includes relevant keywords, and encourages interaction.',
             'tags_prompt' => 'Generate relevant Facebook hashtags and topics that will help with organic reach and community building.',
         ],
-        'twitter' => [
+        'x' => [
             'title_prompt' => 'Create a Twitter/X post that is concise, engaging, and likely to be retweeted. Use trending language and relevant hashtags.',
             'description_prompt' => 'Write a Twitter thread-style description that provides value and encourages engagement in under 280 characters per tweet.',
             'tags_prompt' => 'Generate 3-5 trending Twitter hashtags that are relevant and likely to increase visibility.',
@@ -641,7 +641,7 @@ class AIContentOptimizationService
                 'Post native videos for better reach',
                 'Respond to comments promptly',
             ],
-            'twitter' => [
+            'x' => [
                 'Tweet consistently throughout the day',
                 'Join trending conversations',
                 'Use Twitter Spaces for audio content',
@@ -665,7 +665,7 @@ class AIContentOptimizationService
             'tiktok' => ['#fyp', '#viral', '#trending', '#tiktok'],
             'instagram' => ['#instagram', '#reels', '#content', '#viral'],
             'facebook' => ['#facebook', '#video', '#social', '#content'],
-            'twitter' => ['#twitter', '#video', '#content', '#trending'],
+            'x' => ['#x', '#video', '#content', '#trending'],
         ];
         
         return $fallbacks[$platform] ?? ['#content', '#video', '#social'];

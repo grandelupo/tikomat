@@ -355,7 +355,7 @@ class AIController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:5000',
             'platforms' => 'required|array|min:1',
-            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
         ]);
 
         if ($validator->fails()) {
@@ -403,7 +403,7 @@ class AIController extends Controller
     public function generateHashtags(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
             'content' => 'required|string|max:1000',
             'count' => 'nullable|integer|min:1|max:50',
         ]);
@@ -450,7 +450,7 @@ class AIController extends Controller
     public function suggestPostingTimes(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
             'content' => 'required|string|max:1000',
             'timezone' => 'nullable|string',
         ]);
@@ -501,7 +501,7 @@ class AIController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'required|string|max:1000',
-            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,xhat,pinterest',
         ]);
 
         if ($validator->fails()) {
@@ -548,7 +548,7 @@ class AIController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'required|string|max:1000',
-            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
             'variations' => 'nullable|integer|min:2|max:5',
         ]);
 
@@ -597,7 +597,7 @@ class AIController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'platform' => 'required|string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
         ]);
 
         if ($validator->fails()) {
@@ -650,7 +650,7 @@ class AIController extends Controller
             'videos.*.title' => 'required|string|max:255',
             'videos.*.description' => 'nullable|string|max:1000',
             'platforms' => 'required|array|min:1',
-            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter,snapchat,pinterest',
+            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,x,snapchat,pinterest',
         ]);
 
         if ($validator->fails()) {
@@ -984,7 +984,7 @@ class AIController extends Controller
             'video_id' => 'required|integer|exists:videos,id',
             'title' => 'nullable|string|max:255',
             'platforms' => 'nullable|array',
-            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,twitter',
+            'platforms.*' => 'string|in:youtube,instagram,tiktok,facebook,x',
         ]);
 
         if ($validator->fails()) {
@@ -1068,7 +1068,7 @@ class AIController extends Controller
         $validator = Validator::make($request->all(), [
             'frame_id' => 'required|string',
             'optimizations' => 'required|array',
-            'platform' => 'nullable|string|in:youtube,instagram,tiktok,facebook,twitter',
+            'platform' => 'nullable|string|in:youtube,instagram,tiktok,facebook,x',
         ]);
 
         if ($validator->fails()) {
@@ -1209,7 +1209,7 @@ class AIController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
-            'platform' => 'nullable|string|in:youtube,instagram,tiktok,facebook,twitter',
+            'platform' => 'nullable|string|in:youtube,instagram,tiktok,facebook,x',
         ]);
 
         if ($validator->fails()) {
@@ -1312,7 +1312,7 @@ class AIController extends Controller
         $validator = Validator::make($request->all(), [
             'user_id' => 'nullable|integer|exists:users,id',
             'platforms' => 'nullable|array',
-            'platforms.*' => 'string|in:youtube,instagram,tiktok,twitter,facebook,snapchat,pinterest',
+            'platforms.*' => 'string|in:youtube,instagram,tiktok,x,facebook,snapchat,pinterest',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after:start_date',
             'days' => 'nullable|integer|min:7|max:90',
@@ -4759,7 +4759,7 @@ class AIController extends Controller
         $validator = Validator::make($request->all(), [
             'video_id' => 'required|integer|exists:videos,id',
             'platforms' => 'nullable|array',
-            'platforms.*' => 'string|in:youtube,tiktok,instagram,facebook,twitter,snapchat,pinterest',
+            'platforms.*' => 'string|in:youtube,tiktok,instagram,facebook,x,snapchat,pinterest',
         ]);
 
         if ($validator->fails()) {
@@ -4845,7 +4845,7 @@ class AIController extends Controller
             $optimizedDescriptions = [];
             $platformTags = [];
 
-            $platforms = ['youtube', 'tiktok', 'instagram', 'facebook', 'twitter'];
+            $platforms = ['youtube', 'tiktok', 'instagram', 'facebook', 'x'];
             
             foreach ($platforms as $platform) {
                 // Generate platform-specific optimized content using the service

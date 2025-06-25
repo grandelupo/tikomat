@@ -27,7 +27,7 @@ class AIContentCalendarService
             'weekends' => ['09:00', '12:00', '15:00', '18:00'],
             'peak_days' => ['tuesday', 'thursday', 'friday', 'sunday'],
         ],
-        'twitter' => [
+        'x' => [
             'weekdays' => ['09:00', '12:00', '15:00', '18:00'],
             'weekends' => ['10:00', '13:00', '16:00', '19:00'],
             'peak_days' => ['tuesday', 'wednesday', 'thursday'],
@@ -327,7 +327,7 @@ class AIContentCalendarService
                     'Productivity hacks for remote workers',
                     'Work-life balance strategies',
                 ],
-                'platforms' => ['youtube', 'instagram', 'twitter'],
+                'platforms' => ['youtube', 'instagram', 'x'],
                 'engagement_potential' => 'high',
             ],
             [
@@ -436,7 +436,7 @@ class AIContentCalendarService
         }
 
         // Platform-specific gaps
-        $platforms = ['youtube', 'instagram', 'tiktok', 'twitter', 'facebook'];
+        $platforms = ['youtube', 'instagram', 'tiktok', 'x', 'facebook'];
         foreach ($platforms as $platform) {
             $platformGaps = $this->analyzePlatformSpecificGaps($platform, $userId);
             if (!empty($platformGaps)) {
@@ -764,7 +764,7 @@ class AIContentCalendarService
                 'youtube' => 2, // posts per week
                 'instagram' => 5,
                 'tiktok' => 7,
-                'twitter' => 10,
+                'x' => 10,
                 'facebook' => 3,
                 default => 3,
             };
@@ -798,7 +798,7 @@ class AIContentCalendarService
                 'youtube' => 1000,
                 'instagram' => 500,
                 'tiktok' => 2000,
-                'twitter' => 300,
+                'x' => 300,
                 'facebook' => 400,
                 default => 500,
             };
@@ -1004,7 +1004,7 @@ class AIContentCalendarService
             'youtube' => 0.3, // ~2 per week
             'instagram' => 0.7, // ~5 per week
             'tiktok' => 1.0, // ~7 per week
-            'twitter' => 1.4, // ~10 per week
+            'x' => 1.4, // ~10 per week
             'facebook' => 0.4, // ~3 per week
             default => 0.5,
         };
@@ -1115,7 +1115,7 @@ class AIContentCalendarService
             'youtube' => ['educational', 'entertainment', 'tutorial'],
             'instagram' => ['lifestyle', 'visual', 'story'],
             'tiktok' => ['entertainment', 'trending', 'creative'],
-            'twitter' => ['news', 'opinion', 'discussion'],
+            'x' => ['news', 'opinion', 'discussion'],
             'facebook' => ['community', 'sharing', 'discussion'],
         ];
         
@@ -1252,7 +1252,7 @@ class AIContentCalendarService
             'youtube' => 1,
             'instagram' => 2,
             'tiktok' => 3,
-            'twitter' => 4,
+            'x' => 4,
             'facebook' => 1,
             default => 2,
         };
@@ -1264,7 +1264,7 @@ class AIContentCalendarService
             'youtube' => ['educational' => 40, 'entertainment' => 30, 'promotional' => 20, 'behind-the-scenes' => 10],
             'instagram' => ['lifestyle' => 35, 'promotional' => 25, 'behind-the-scenes' => 25, 'user-generated' => 15],
             'tiktok' => ['entertainment' => 50, 'trending' => 30, 'educational' => 15, 'promotional' => 5],
-            'twitter' => ['news' => 40, 'opinion' => 30, 'promotional' => 20, 'engagement' => 10],
+            'x' => ['news' => 40, 'opinion' => 30, 'promotional' => 20, 'engagement' => 10],
             'facebook' => ['community' => 40, 'promotional' => 30, 'educational' => 20, 'entertainment' => 10],
         ];
         
@@ -1277,7 +1277,7 @@ class AIContentCalendarService
             'youtube' => 5.0,
             'instagram' => 3.5,
             'tiktok' => 8.0,
-            'twitter' => 2.0,
+            'x' => 2.0,
             'facebook' => 2.5,
             default => 3.0,
         };
@@ -1295,7 +1295,7 @@ class AIContentCalendarService
             'youtube' => ['High-quality thumbnails', 'Engaging titles', 'Consistent upload schedule'],
             'instagram' => ['Visual aesthetics', 'Story engagement', 'Hashtag strategy'],
             'tiktok' => ['Trend participation', 'Creative content', 'Consistent posting'],
-            'twitter' => ['Timely content', 'Engagement with community', 'Hashtag usage'],
+            'x' => ['Timely content', 'Engagement with community', 'Hashtag usage'],
             'facebook' => ['Community building', 'Shareable content', 'Consistent posting'],
         ];
         

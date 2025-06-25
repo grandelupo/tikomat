@@ -27,7 +27,6 @@ import {
     Crown,
     Info,
     Facebook,
-    // Twitter imported as XIcon below
     Camera,
     Palette,
     Zap,
@@ -99,7 +98,7 @@ interface Props {
 const platformIcons = {
     youtube: Youtube,
     instagram: Instagram,
-    tiktok: VideoIcon,
+    tiktok: VideoIcon, // Using VideoIcon for consistency across the app
     facebook: Facebook,
     snapchat: Camera,
     pinterest: Palette,

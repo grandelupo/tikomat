@@ -54,7 +54,7 @@ class RemoveVideoFromX implements ShouldQueue
 
             // Get user's Twitter access token
             $socialAccount = SocialAccount::where('user_id', $this->videoTarget->video->user_id)
-                ->where('platform', 'twitter')
+                ->where('platform', 'x')
                 ->first();
 
             if (!$socialAccount) {
@@ -68,7 +68,7 @@ class RemoveVideoFromX implements ShouldQueue
                 
                 Log::info('Twitter video removal completed successfully (simulated)', [
                     'video_target_id' => $this->videoTarget->id,
-                    'twitter_tweet_id' => $this->videoTarget->platform_video_id,
+                    'x_tweet_id' => $this->videoTarget->platform_video_id,
                 ]);
                 return;
             }
@@ -90,7 +90,7 @@ class RemoveVideoFromX implements ShouldQueue
                 if (isset($data['data']['deleted']) && $data['data']['deleted'] === true) {
                     Log::info('Twitter video removal completed successfully', [
                         'video_target_id' => $this->videoTarget->id,
-                        'twitter_tweet_id' => $this->videoTarget->platform_video_id,
+                        'x_tweet_id' => $this->videoTarget->platform_video_id,
                         'video_title' => $this->videoTarget->video->title,
                     ]);
                     return;
@@ -103,7 +103,7 @@ class RemoveVideoFromX implements ShouldQueue
 
             Log::error('Twitter API error during video removal', [
                 'video_target_id' => $this->videoTarget->id,
-                'twitter_tweet_id' => $this->videoTarget->platform_video_id,
+                'x_tweet_id' => $this->videoTarget->platform_video_id,
                 'error_code' => $errorCode,
                 'error_response' => $errorData,
             ]);
@@ -112,7 +112,7 @@ class RemoveVideoFromX implements ShouldQueue
             if ($errorCode === 404) {
                 Log::info('Tweet not found on Twitter (may have been already deleted)', [
                     'video_target_id' => $this->videoTarget->id,
-                    'twitter_tweet_id' => $this->videoTarget->platform_video_id,
+                    'x_tweet_id' => $this->videoTarget->platform_video_id,
                 ]);
                 // Tweet doesn't exist, consider it successfully removed
                 return;
@@ -129,7 +129,7 @@ class RemoveVideoFromX implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('Twitter video removal failed', [
                 'video_target_id' => $this->videoTarget->id,
-                'twitter_tweet_id' => $this->videoTarget->platform_video_id,
+                'x_tweet_id' => $this->videoTarget->platform_video_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'attempt' => $this->attempts(),
@@ -147,7 +147,7 @@ class RemoveVideoFromX implements ShouldQueue
     {
         Log::error('Twitter video removal job failed permanently', [
             'video_target_id' => $this->videoTarget->id,
-            'twitter_tweet_id' => $this->videoTarget->platform_video_id,
+            'x_tweet_id' => $this->videoTarget->platform_video_id,
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);

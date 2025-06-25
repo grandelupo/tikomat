@@ -521,13 +521,15 @@ class SocialAccountController extends Controller
                 ])
                 ->redirect();
         } elseif ($platform === 'instagram') {
-            // Instagram requires content publishing permissions
+            // Instagram API with Instagram Login - NEW SCOPES (replacing deprecated ones)
+            // These replace the old instagram_basic and instagram_content_publish scopes
             return Socialite::driver($driver)
                 ->scopes([
-                    'instagram_content_publish',
-                    'instagram_basic',
-                    'pages_show_list',
-                    'pages_read_engagement'
+                    'instagram_business_basic',          // Replaces instagram_basic
+                    'instagram_business_content_publish', // Replaces instagram_content_publish
+                    'instagram_business_manage_comments', // For comment management
+                    'pages_show_list',                   // Still required for Facebook pages
+                    'pages_read_engagement'              // Still required for engagement data
                 ])
                 ->with([
                     'state' => $state,
@@ -665,8 +667,8 @@ class SocialAccountController extends Controller
                 $actions[] = 'Verify your Facebook account is in good standing';
                 break;
             case 'instagram':
-                $actions[] = 'Ensure your Instagram account is a business or creator account';
-                $actions[] = 'Make sure your Instagram is linked to a Facebook page';
+                $actions[] = 'Ensure your Instagram account is a Professional account (Business or Creator)';
+                $actions[] = 'Personal Instagram accounts are not supported - convert to Professional in Instagram app';
                 break;
         }
 

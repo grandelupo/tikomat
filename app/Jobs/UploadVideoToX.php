@@ -41,7 +41,7 @@ class UploadVideoToX implements ShouldQueue
             // Get user's Twitter access token
             $socialAccount = SocialAccount::where('user_id', $this->videoTarget->video->user_id)
                 ->where('channel_id', $this->videoTarget->video->channel_id)
-                ->where('platform', 'twitter')
+                ->where('platform', 'x')
                 ->first();
 
             if (!$socialAccount) {
@@ -55,7 +55,7 @@ class UploadVideoToX implements ShouldQueue
                 
                 Log::info('Twitter upload completed successfully (simulated)', [
                     'video_target_id' => $this->videoTarget->id,
-                    'twitter_tweet_id' => 'SIMULATED_TWITTER_' . uniqid()
+                    'x_tweet_id' => 'SIMULATED_TWITTER_' . uniqid()
                 ]);
 
                 // Mark as success

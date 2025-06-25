@@ -40,7 +40,7 @@ class AITrendAnalyzerService
             'weight' => 0.35,
             'refresh_rate' => 900, // 15 minutes
         ],
-        'twitter' => [
+        'x' => [
             'search_queries' => [
                 'Twitter trends 2025',
                 'X trending topics January 2025',
@@ -488,7 +488,7 @@ class AITrendAnalyzerService
                 'viral', 'trending', 'dance', 'comedy', 'duet',
                 'transition', 'hack', 'trend', 'challenge', 'meme'
             ],
-            'twitter' => [
+            'x' => [
                 'thread', 'viral tweet', 'trending topic', 'news',
                 'politics', 'sports', 'entertainment', 'tech'
             ],
@@ -693,7 +693,7 @@ class AITrendAnalyzerService
     protected function countPlatformMentions(array $results): int
     {
         $mentions = 0;
-        $platforms = ['youtube', 'instagram', 'tiktok', 'twitter', 'facebook'];
+        $platforms = ['youtube', 'instagram', 'tiktok', 'x', 'facebook'];
         
         foreach ($results as $source => $data) {
             if (in_array($source, $platforms)) {
@@ -1247,7 +1247,7 @@ class AITrendAnalyzerService
             'Authentic Behind-the-Scenes' => ['instagram', 'tiktok', 'youtube'],
             'Interactive Challenge Content' => ['tiktok', 'instagram'],
             'Sustainable Lifestyle Content' => ['instagram', 'youtube', 'tiktok'],
-            'Creator Economy Insights' => ['youtube', 'instagram', 'twitter'],
+            'Creator Economy Insights' => ['youtube', 'instagram', 'x'],
         ];
         
         $optimal = $platformMap[$contentType] ?? $platforms;
@@ -1616,7 +1616,7 @@ class AITrendAnalyzerService
             [
                 'hashtag' => '#AIContent2025',
                 'usage_count' => 127000,
-                'platforms' => ['instagram', 'tiktok', 'youtube', 'twitter'],
+                'platforms' => ['instagram', 'tiktok', 'youtube', 'x'],
                 'trend_velocity' => 2800,
             ],
             [
@@ -1628,7 +1628,7 @@ class AITrendAnalyzerService
             [
                 'hashtag' => '#CreatorEconomy',
                 'usage_count' => 98000,
-                'platforms' => ['instagram', 'youtube', 'twitter'],
+                'platforms' => ['instagram', 'youtube', 'x'],
                 'trend_velocity' => 2100,
             ],
             [

@@ -123,11 +123,11 @@ export default function OAuthError({
                 solutions.push('Check if your Facebook account is in good standing');
                 break;
             case 'instagram':
-                solutions.push('Ensure your Instagram account is a business or creator account');
-                solutions.push('Make sure your Instagram account is linked to a Facebook page');
-                solutions.push('Verify the app is properly configured in Facebook Developer Console');
+                solutions.push('Ensure your Instagram account is a Professional account (Business or Creator)');
+                solutions.push('Personal Instagram accounts are not supported - convert to Professional in the Instagram app');
+                solutions.push('Verify the app is properly configured in Facebook Developer Console for Instagram API with Instagram Login');
                 solutions.push('Check that the redirect URL matches exactly what\'s configured in the Facebook app');
-                solutions.push('Ensure the app has been approved for Instagram Basic Display or Instagram Business API');
+                solutions.push('Ensure the app has been approved for Instagram API with Instagram Login (not Basic Display)');
                 break;
             case 'x':
                 solutions.push('Verify that your X account is in good standing');
