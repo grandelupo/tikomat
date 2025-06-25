@@ -208,7 +208,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'suggestedActions' => $suggestedActions,
             'supportInfo' => [
                 'contactEmail' => config('mail.from.address'),
-                'documentationUrl' => config('app.url') . '/docs/oauth-troubleshooting',
+                'documentationUrl' => request('platform') === 'instagram' 
+                    ? config('app.url') . '/docs/instagram-oauth-troubleshooting'
+                    : config('app.url') . '/docs/oauth-troubleshooting',
             ],
         ]);
     })->name('oauth.error');
@@ -216,6 +218,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Development: Simulate OAuth connection
     Route::post('channels/{channel:slug}/simulate-oauth/{platform}', [SocialAccountController::class, 'simulateConnection'])
         ->name('social.simulate');
+    
+    // Development: OAuth configuration diagnostics
+    Route::get('oauth/debug/{platform}', function ($platform) {
+        if (!app()->environment('local')) {
+            abort(404);
+        }
+        
+        $errorHandler = new \App\Services\OAuthErrorHandler();
+        $configStatus = $errorHandler->getOAuthConfigStatus($platform);
+        
+        $diagnostics = [
+            'platform' => $platform,
+            'config_status' => $configStatus,
+            'environment' => app()->environment(),
+        ];
+        
+        if ($platform === 'instagram') {
+            $diagnostics['instagram_issues'] = $errorHandler->validateInstagramConfiguration();
+        }
+        
+        return response()->json($diagnostics, 200, [], JSON_PRETTY_PRINT);
+    })->name('oauth.debug');
     
     // Subscription routes
     Route::prefix('subscription')->name('subscription.')->group(function () {

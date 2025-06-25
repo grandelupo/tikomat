@@ -25,7 +25,7 @@ The Instant Upload feature now leverages comprehensive AI services to automatica
   - Instagram: Visual appeal strategies, hashtag optimization
   - TikTok: Trend alignment, viral potential assessment
   - Facebook: Audience targeting, privacy optimization
-  - Twitter: Thread optimization, reply settings
+  - X: Thread optimization, reply settings
 
 ### 4. Content Enhancement
 - **AIWatermarkRemoverService**: Automatic watermark detection and removal

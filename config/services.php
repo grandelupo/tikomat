@@ -77,10 +77,10 @@ return [
         'redirect' => rtrim(env('APP_URL'), '/') . '/auth/pinterest/callback',
     ],
 
-    'twitter' => [
-        'client_id' => env('TWITTER_CLIENT_ID'),
-        'client_secret' => env('TWITTER_CLIENT_SECRET'),
-        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/twitter/callback',
+    'x' => [
+        'client_id' => env('X_CLIENT_ID'),
+        'client_secret' => env('X_CLIENT_SECRET'),
+        'redirect' => rtrim(env('APP_URL'), '/') . '/auth/x/callback',
     ],
 
     /*

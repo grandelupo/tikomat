@@ -51,7 +51,7 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
         instagram: '📸',
         tiktok: '🎵',
         facebook: '👥',
-        twitter: '🐦',
+        x: '𝕏',
         snapchat: '👻',
         pinterest: '📌'
     };

@@ -27,7 +27,7 @@ import {
     Crown,
     Info,
     Facebook,
-    Twitter,
+    // Twitter imported as XIcon below
     Camera,
     Palette,
     Zap,
@@ -37,6 +37,7 @@ import {
     Users,
     Brain
 } from 'lucide-react';
+import XIcon from '@/components/ui/icons/x';
 import React, { useState } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
 import InstantUploadDropzone from '@/components/InstantUploadDropzone';
@@ -102,7 +103,7 @@ const platformIcons = {
     facebook: Facebook,
     snapchat: Camera,
     pinterest: Palette,
-    twitter: Twitter,
+    x: XIcon,
 };
 
 const statusColors = {

@@ -32,9 +32,9 @@ import {
     Zap,
     Facebook,
     Camera,
-    Palette,
-    Twitter
+    Palette
 } from 'lucide-react';
+import XIcon from '@/components/ui/icons/x';
 import React, { useState } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
 
@@ -100,7 +100,7 @@ const platformIcons = {
     facebook: Facebook,
     snapchat: Camera,
     pinterest: Palette,
-    twitter: Twitter,
+    x: XIcon,
 };
 
 const statusColors = {
@@ -161,11 +161,11 @@ const platformData = {
         description: 'Share videos on Pinterest',
         color: 'text-red-500'
     },
-    twitter: {
-        name: 'Twitter',
-        icon: Twitter,
-        description: 'Share videos on Twitter',
-        color: 'text-blue-400'
+    x: {
+        name: 'X',
+        icon: XIcon,
+        description: 'Share videos on X',
+        color: 'text-black'
     }
 };
 

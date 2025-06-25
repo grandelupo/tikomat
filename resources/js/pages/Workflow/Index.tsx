@@ -24,10 +24,11 @@ import {
     Zap,
     Info,
     Facebook,
-    Twitter,
+
     Camera,
     Palette
 } from 'lucide-react';
+import XIcon from '@/components/ui/icons/x';
 import { useState } from 'react';
 
 interface Workflow {

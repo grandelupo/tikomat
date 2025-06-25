@@ -25,7 +25,7 @@ All located in `app/Jobs/`:
 - `RemoveVideoFromInstagram.php`
 - `RemoveVideoFromTiktok.php`
 - `RemoveVideoFromFacebook.php`
-- `RemoveVideoFromTwitter.php`
+- `RemoveVideoFromX.php`
 - `RemoveVideoFromSnapchat.php`
 - `RemoveVideoFromPinterest.php`
 

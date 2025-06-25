@@ -60,7 +60,7 @@ const platformIcons = {
     facebook: VideoIcon,
     snapchat: VideoIcon,
     pinterest: VideoIcon,
-    twitter: VideoIcon,
+    x: VideoIcon,
 };
 
 const statusIcons = {
@@ -124,7 +124,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isGeneratingTags, setIsGeneratingTags] = useState(false);
     const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
-    const [availablePlatforms] = useState(['youtube', 'instagram', 'tiktok', 'facebook', 'twitter', 'pinterest', 'snapchat']);
+    const [availablePlatforms] = useState(['youtube', 'instagram', 'tiktok', 'facebook', 'x', 'pinterest', 'snapchat']);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const videoQuality = getVideoQualityStatus(video.width, video.height);

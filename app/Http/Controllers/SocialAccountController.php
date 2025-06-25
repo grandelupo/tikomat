@@ -31,7 +31,7 @@ class SocialAccountController extends Controller
                 abort(403);
             }
 
-            if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
+            if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])) {
                 $this->errorHandler->logConfigurationError($platform, 'Invalid platform selected');
                 return $this->redirectToErrorPage($platform, $channel->slug, 'Invalid platform selected.');
             }
@@ -52,11 +52,21 @@ class SocialAccountController extends Controller
 
             // Check if OAuth credentials are configured
             if (!$this->isOAuthConfigured($platform)) {
-                $this->errorHandler->logConfigurationError($platform, 'OAuth credentials not configured');
+                $configError = 'OAuth credentials not configured';
+                
+                // Special handling for Instagram
+                if ($platform === 'instagram') {
+                    $instagramIssues = $this->errorHandler->validateInstagramConfiguration();
+                    if (!empty($instagramIssues)) {
+                        $configError = 'Instagram configuration issues: ' . implode(', ', $instagramIssues);
+                    }
+                }
+                
+                $this->errorHandler->logConfigurationError($platform, $configError);
                 return $this->redirectToErrorPage(
                     $platform, 
                     $channel->slug, 
-                    'OAuth credentials for ' . ucfirst($platform) . ' are not configured. Please contact support.',
+                    'OAuth credentials for ' . ucfirst($platform) . ' are not configured properly. Please contact support.',
                     'configuration_error'
                 );
             }
@@ -112,7 +122,7 @@ class SocialAccountController extends Controller
                 abort(403);
             }
 
-            if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
+            if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])) {
                 $this->errorHandler->logConfigurationError($platform, 'Invalid platform selected in callback');
                 return $this->redirectToErrorPage($platform, $channel->slug, 'Invalid platform selected.');
             }
@@ -203,7 +213,7 @@ class SocialAccountController extends Controller
             abort(403);
         }
 
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
+        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])) {
             return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
         }
@@ -227,7 +237,7 @@ class SocialAccountController extends Controller
             abort(403);
         }
 
-        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
+        if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])) {
             return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Invalid platform selected.');
         }
@@ -290,7 +300,7 @@ class SocialAccountController extends Controller
             'facebook' => 'facebook',
             'snapchat' => 'snapchat',
             'pinterest' => 'pinterest',
-            'twitter' => 'twitter',
+            'x' => 'x',
             default => throw new \InvalidArgumentException('Unsupported platform: ' . $platform),
         };
     }
@@ -301,7 +311,7 @@ class SocialAccountController extends Controller
     public function generalCallback(string $platform, Request $request): RedirectResponse
     {
         try {
-            if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'twitter'])) {
+            if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])) {
                 $this->errorHandler->logConfigurationError($platform, 'Invalid platform selected in general callback');
                 return $this->redirectToErrorPage($platform, 'unknown', 'Invalid platform selected.');
             }
@@ -577,13 +587,13 @@ class SocialAccountController extends Controller
                     'prompt' => 'select_account consent'
                 ])
                 ->redirect();
-        } elseif ($platform === 'twitter') {
-            // Twitter API v2 with proper scopes using SocialiteProviders
+        } elseif ($platform === 'x') {
+            // X (Twitter) API v2 with proper scopes and PKCE
             return Socialite::driver($driver)
                 ->scopes(['tweet.read', 'tweet.write', 'users.read', 'offline.access'])
                 ->with([
                     'state' => $state,
-                    'force_login' => true, // Force Twitter login prompt
+                    'force_login' => true, // Force X login prompt
                 ])
                 ->redirect();
         }

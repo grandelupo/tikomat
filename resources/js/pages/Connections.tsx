@@ -11,11 +11,11 @@ import {
     Settings,
     Info,
     Facebook,
-    Twitter,
     Camera,
     Palette,
     Plus
 } from 'lucide-react';
+import XIcon from '@/components/ui/icons/x';
 import React from 'react';
 
 interface Channel {
@@ -55,7 +55,7 @@ const platformIcons = {
     facebook: Facebook,
     snapchat: Camera,
     pinterest: Palette,
-    twitter: Twitter,
+    x: XIcon,
 };
 
 const platformColors = {
@@ -65,7 +65,7 @@ const platformColors = {
     facebook: 'text-blue-600',
     snapchat: 'text-yellow-500',
     pinterest: 'text-red-500',
-    twitter: 'text-blue-400',
+    x: 'text-black',
 };
 
 const breadcrumbs = [

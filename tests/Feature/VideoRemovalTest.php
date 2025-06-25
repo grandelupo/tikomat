@@ -112,13 +112,13 @@ class VideoRemovalTest extends TestCase
 
         $uploadService = app(VideoUploadService::class);
 
-        $platforms = ['youtube', 'instagram', 'tiktok', 'facebook', 'twitter', 'snapchat', 'pinterest'];
+        $platforms = ['youtube', 'instagram', 'tiktok', 'facebook', 'x', 'snapchat', 'pinterest'];
         $expectedJobs = [
             'youtube' => \App\Jobs\RemoveVideoFromYoutube::class,
             'instagram' => \App\Jobs\RemoveVideoFromInstagram::class,
             'tiktok' => \App\Jobs\RemoveVideoFromTiktok::class,
             'facebook' => \App\Jobs\RemoveVideoFromFacebook::class,
-            'twitter' => \App\Jobs\RemoveVideoFromTwitter::class,
+            'x' => \App\Jobs\RemoveVideoFromX::class,
             'snapchat' => \App\Jobs\RemoveVideoFromSnapchat::class,
             'pinterest' => \App\Jobs\RemoveVideoFromPinterest::class,
         ];

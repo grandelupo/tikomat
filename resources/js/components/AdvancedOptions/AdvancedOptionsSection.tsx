@@ -7,7 +7,7 @@ import YouTubeOptions from './YouTubeOptions';
 import TikTokOptions from './TikTokOptions';
 import InstagramOptions from './InstagramOptions';
 import FacebookOptions from './FacebookOptions';
-import TwitterOptions from './TwitterOptions';
+import XOptions from './XOptions';
 import SnapchatOptions from './SnapchatOptions';
 import PinterestOptions from './PinterestOptions';
 
@@ -22,7 +22,7 @@ const platformComponents = {
     tiktok: TikTokOptions,
     instagram: InstagramOptions,
     facebook: FacebookOptions,
-    twitter: TwitterOptions,
+    x: XOptions,
     snapchat: SnapchatOptions,
     pinterest: PinterestOptions,
 };

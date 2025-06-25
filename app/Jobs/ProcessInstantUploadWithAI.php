@@ -543,7 +543,7 @@ class ProcessInstantUploadWithAI implements ShouldQueue
                         'audience_targeting' => 'broad',
                     ]);
 
-                case 'twitter':
+                case 'x':
                     return array_merge($aiEnhancedSettings, [
                         'reply_settings' => 'everyone',
                         'thread_optimization' => false,
@@ -597,7 +597,7 @@ class ProcessInstantUploadWithAI implements ShouldQueue
                     'allow_comments' => true,
                 ]);
 
-            case 'twitter':
+            case 'x':
                 return array_merge($baseSettings, [
                     'reply_settings' => 'everyone',
                 ]);

@@ -125,10 +125,13 @@ export default function OAuthError({
             case 'instagram':
                 solutions.push('Ensure your Instagram account is a business or creator account');
                 solutions.push('Make sure your Instagram account is linked to a Facebook page');
+                solutions.push('Verify the app is properly configured in Facebook Developer Console');
+                solutions.push('Check that the redirect URL matches exactly what\'s configured in the Facebook app');
+                solutions.push('Ensure the app has been approved for Instagram Basic Display or Instagram Business API');
                 break;
-            case 'twitter':
-                solutions.push('Verify that your Twitter account is in good standing');
-                solutions.push('Make sure you have the necessary permissions on the Twitter account');
+            case 'x':
+                solutions.push('Verify that your X account is in good standing');
+                solutions.push('Make sure you have the necessary permissions on the X account');
                 break;
         }
 

@@ -184,16 +184,25 @@ class OAuthErrorHandler
     /**
      * Get OAuth configuration status for debugging
      */
-    private function getOAuthConfigStatus(string $platform): array
+    public function getOAuthConfigStatus(string $platform): array
     {
         $driver = $this->mapPlatformToDriver($platform);
-        
-        return [
+        $config = [
             'driver' => $driver,
             'client_id_configured' => !empty(config("services.{$driver}.client_id")),
             'client_secret_configured' => !empty(config("services.{$driver}.client_secret")),
             'redirect_configured' => !empty(config("services.{$driver}.redirect")),
         ];
+
+        // Add platform-specific configuration checks
+        if ($platform === 'instagram') {
+            $config['facebook_client_id_configured'] = !empty(config("services.facebook.client_id"));
+            $config['facebook_client_secret_configured'] = !empty(config("services.facebook.client_secret"));
+            $config['instagram_redirect_url'] = config("services.instagram.redirect");
+            $config['facebook_redirect_url'] = config("services.facebook.redirect");
+        }
+
+        return $config;
     }
 
     /**
@@ -208,7 +217,7 @@ class OAuthErrorHandler
             'facebook' => 'facebook',
             'snapchat' => 'snapchat',
             'pinterest' => 'pinterest',
-            'twitter' => 'twitter',
+            'x' => 'x',
             default => $platform,
         };
     }
@@ -254,7 +263,54 @@ class OAuthErrorHandler
             return "Security validation failed. Please try connecting to {$platform} again.";
         }
 
+        // Platform-specific error handling
+        if ($platform === 'instagram') {
+            if (str_contains($message, 'Invalid platform app') || str_contains($message, 'Nieprawidłowe żądanie')) {
+                return "Instagram app configuration error. This usually means the app is not properly set up in Facebook Developer Console or the redirect URL doesn't match. Please contact support.";
+            }
+            
+            if (str_contains($message, 'invalid_scope') || str_contains($message, 'insufficient permissions')) {
+                return "Instagram requires business account permissions. Make sure your Instagram account is connected to a Facebook business page and the app has been approved for Instagram Business API access.";
+            }
+        }
+
         // Generic fallback
         return "Unable to connect to {$platform}. Please try again or contact support if the issue persists.";
+    }
+
+    /**
+     * Validate Instagram-specific configuration
+     */
+    public function validateInstagramConfiguration(): array
+    {
+        $issues = [];
+
+        // Check Instagram credentials
+        if (empty(config('services.instagram.client_id'))) {
+            $issues[] = 'Instagram Client ID is not configured';
+        }
+
+        if (empty(config('services.instagram.client_secret'))) {
+            $issues[] = 'Instagram Client Secret is not configured';
+        }
+
+        // Check Facebook credentials (often needed for Instagram)
+        if (empty(config('services.facebook.client_id'))) {
+            $issues[] = 'Facebook Client ID is not configured (may be required for Instagram)';
+        }
+
+        if (empty(config('services.facebook.client_secret'))) {
+            $issues[] = 'Facebook Client Secret is not configured (may be required for Instagram)';
+        }
+
+        // Check redirect URLs
+        $instagramRedirect = config('services.instagram.redirect');
+        $facebookRedirect = config('services.facebook.redirect');
+
+        if ($instagramRedirect && $facebookRedirect && $instagramRedirect !== $facebookRedirect) {
+            $issues[] = 'Instagram and Facebook redirect URLs should typically match for Instagram Business API';
+        }
+
+        return $issues;
     }
 } 

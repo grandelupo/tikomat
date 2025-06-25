@@ -17,7 +17,7 @@ import {
     Star,
     Play,
     Facebook,
-    Twitter,
+
     Camera,
     Palette,
     User,
@@ -43,6 +43,7 @@ import {
     Lock,
     Headphones
 } from 'lucide-react';
+import XIcon from '@/components/ui/icons/x';
 
 interface WelcomeProps {
     auth?: {
@@ -114,10 +115,10 @@ export default function Welcome({ auth }: WelcomeProps) {
             color: "text-blue-600"
         },
         {
-            name: "Twitter",
-            icon: Twitter,
-            description: "Post video content to engage your Twitter audience",
-            color: "text-blue-400"
+            name: "X",
+            icon: XIcon,
+            description: "Post video content to engage your X audience",
+            color: "text-black"
         },
         {
             name: "Snapchat",
@@ -137,7 +138,7 @@ export default function Welcome({ auth }: WelcomeProps) {
         {
             name: "Sarah Johnson",
             role: "Content Creator & Influencer",
-            content: "Tikomat saved me 15+ hours every week. I can now focus on creating content instead of manually uploading to each platform. My reach increased by 250%!",
+            content: "Filmate saved me 15+ hours every week. I can now focus on creating content instead of manually uploading to each platform. My reach increased by 250%!",
             rating: 5,
             followers: "150K"
         },
@@ -159,7 +160,7 @@ export default function Welcome({ auth }: WelcomeProps) {
 
     return (
         <>
-            <Head title="Tikomat - Social Media Video Publisher" />
+            <Head title="Filmate - Social Media Video Publisher" />
             
             {/* Header */}
             <header className="border-b bg-white">
@@ -168,7 +169,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                         <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                             <VideoIcon className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-xl font-bold text-gray-900">Tikomat</span>
+                        <span className="text-xl font-bold text-gray-900">Filmate</span>
                     </div>
                     <nav className="hidden md:flex items-center space-x-8">
                         <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
@@ -264,7 +265,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                                         <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-4 mx-auto group-hover:bg-white/30 transition-colors">
                                             <Play className="w-8 h-8 text-white ml-1" />
                                         </div>
-                                        <p className="text-white text-lg font-semibold">See Tikomat in Action</p>
+                                        <p className="text-white text-lg font-semibold">See Filmate in Action</p>
                                         <p className="text-gray-300 text-sm">2-minute product demo</p>
                                     </div>
                                 </div>
@@ -700,7 +701,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                             Loved by 10,000+ Content Creators
                         </h2>
                         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                            Join thousands of creators who have transformed their content strategy with Tikomat
+                            Join thousands of creators who have transformed their content strategy with Filmate
                         </p>
                     </div>
 
@@ -715,7 +716,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                                         ))}
                                     </div>
                                     <blockquote className="text-2xl md:text-3xl font-bold text-gray-900 mb-8 leading-relaxed">
-                                        "Tikomat increased my video views by 400% and saved me 8 hours every week. 
+                                        "Filmate increased my video views by 400% and saved me 8 hours every week. 
                                         It's literally transformed my content business."
                                     </blockquote>
                                     <div className="flex items-center justify-center gap-4">
@@ -798,7 +799,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                             Frequently Asked Questions
                         </h2>
                         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                            Everything you need to know about Tikomat. Can't find what you're looking for? 
+                            Everything you need to know about Filmate. Can't find what you're looking for? 
                             Chat with our friendly team.
                         </p>
                     </div>
@@ -807,12 +808,12 @@ export default function Welcome({ auth }: WelcomeProps) {
                         <div className="space-y-4">
                             {[
                                 {
-                                    question: "How does Tikomat work?",
-                                    answer: "Simply upload your video once, customize the title and description for each platform, and Tikomat will automatically publish to all your connected social media accounts. You can schedule posts or publish immediately."
+                                    question: "How does Filmate work?",
+                                    answer: "Simply upload your video once, customize the title and description for each platform, and Filmate will automatically publish to all your connected social media accounts. You can schedule posts or publish immediately."
                                 },
                                 {
                                     question: "Which platforms are supported?",
-                                    answer: "We currently support YouTube, Instagram, TikTok, Facebook, Twitter, Snapchat, Pinterest, and more. We're constantly adding new platforms based on user requests."
+                                    answer: "We currently support YouTube, Instagram, TikTok, Facebook, X (formerly Twitter), Snapchat, Pinterest, and more. We're constantly adding new platforms based on user requests."
                                 },
                                 {
                                     question: "Is there a free plan?",
@@ -881,7 +882,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                         </span>
                     </h2>
                     <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-4xl mx-auto leading-relaxed">
-                        Join over 10,000 content creators who are already saving 5+ hours per week and increasing their reach by 300% with Tikomat.
+                        Join over 10,000 content creators who are already saving 5+ hours per week and increasing their reach by 300% with Filmate.
                     </p>
                     
                     {/* CTA Benefits */}
@@ -939,7 +940,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                                 <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded flex items-center justify-center">
                                     <VideoIcon className="w-4 h-4 text-white" />
                                 </div>
-                                <span className="text-lg font-bold">Tikomat</span>
+                                <span className="text-lg font-bold">Filmate</span>
                             </div>
                             <p className="text-gray-400">
                                 The easiest way to publish videos across all social media platforms.
@@ -970,7 +971,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                         </div>
                     </div>
                     <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-                        <p>&copy; 2025 Tikomat. All rights reserved.</p>
+                        <p>&copy; 2025 Filmate. All rights reserved.</p>
                     </div>
                 </div>
             </footer>

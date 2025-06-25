@@ -82,7 +82,7 @@ const platformIcons = {
     instagram: Instagram,
     tiktok: VideoIcon,
     facebook: VideoIcon,
-    twitter: VideoIcon,
+    x: VideoIcon,
     snapchat: VideoIcon,
     pinterest: VideoIcon,
 };
@@ -228,7 +228,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                         <SelectItem value="instagram">Instagram</SelectItem>
                                         <SelectItem value="tiktok">TikTok</SelectItem>
                                         <SelectItem value="facebook">Facebook</SelectItem>
-                                        <SelectItem value="twitter">Twitter</SelectItem>
+                                        <SelectItem value="x">X</SelectItem>
                                         <SelectItem value="snapchat">Snapchat</SelectItem>
                                         <SelectItem value="pinterest">Pinterest</SelectItem>
                                     </SelectContent>

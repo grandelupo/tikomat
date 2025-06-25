@@ -243,7 +243,7 @@ Each platform has different rate limits:
 - **Instagram**: 200 calls/hour per user
 - **TikTok**: 1000 requests/day per app
 - **Facebook**: 200 calls/hour per user
-- **Twitter**: 300 requests/15 minutes
+- **X (Twitter)**: 300 requests/15 minutes
 
 The system handles rate limiting by:
 - Spacing out API calls

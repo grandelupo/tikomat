@@ -246,7 +246,7 @@ export default function AITrendAnalyzer({
                             <div>
                                 <label className="block text-sm font-medium mb-2">Platforms</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {['youtube', 'instagram', 'tiktok', 'facebook', 'twitter'].map((platform) => (
+                                    {['youtube', 'instagram', 'tiktok', 'facebook', 'x'].map((platform) => (
                                         <Button
                                             key={platform}
                                             variant={settings.platforms.includes(platform) ? "default" : "outline"}

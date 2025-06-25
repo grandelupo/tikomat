@@ -53,7 +53,7 @@ class PlatformVideoDetectionService
                 return $this->detectTikTokVideos($socialAccount, $lastRunAt);
             case 'facebook':
                 return $this->detectFacebookVideos($socialAccount, $lastRunAt);
-            case 'twitter':
+            case 'x':
                 return $this->detectTwitterVideos($socialAccount, $lastRunAt);
             case 'snapchat':
                 return $this->detectSnapchatVideos($socialAccount, $lastRunAt);

@@ -248,7 +248,7 @@ export default function AIPerformanceOptimizer({
             youtube: '📺',
             instagram: '📷',
             tiktok: '🎵',
-            twitter: '🐦',
+            x: '𝕏',
             facebook: '👥',
         };
         return icons[platform as keyof typeof icons] || '📱';

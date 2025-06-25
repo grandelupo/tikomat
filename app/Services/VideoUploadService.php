@@ -8,14 +8,14 @@ use App\Jobs\UploadVideoToInstagram;
 use App\Jobs\UploadVideoToFacebook;
 use App\Jobs\UploadVideoToSnapchat;
 use App\Jobs\UploadVideoToPinterest;
-use App\Jobs\UploadVideoToTwitter;
+use App\Jobs\UploadVideoToX;
 use App\Jobs\RemoveVideoFromYoutube;
 use App\Jobs\RemoveVideoFromTiktok;
 use App\Jobs\RemoveVideoFromInstagram;
 use App\Jobs\RemoveVideoFromFacebook;
 use App\Jobs\RemoveVideoFromSnapchat;
 use App\Jobs\RemoveVideoFromPinterest;
-use App\Jobs\RemoveVideoFromTwitter;
+use App\Jobs\RemoveVideoFromX;
 use App\Models\VideoTarget;
 use Illuminate\Support\Facades\Log;
 
@@ -80,9 +80,9 @@ class VideoUploadService
                     UploadVideoToPinterest::dispatch($target);
                     break;
 
-                case 'twitter':
-                    Log::info('Dispatching Twitter upload job for target: ' . $target->id);
-                    UploadVideoToTwitter::dispatch($target);
+                case 'x':
+                    Log::info('Dispatching X upload job for target: ' . $target->id);
+                    UploadVideoToX::dispatch($target);
                     break;
 
                 default:
@@ -156,7 +156,7 @@ class VideoUploadService
                     UploadVideoToFacebook::dispatch($target);
                     break;
 
-                case 'twitter':
+                case 'x':
                     Log::info('Twitter does not support metadata updates, skipping target: ' . $target->id);
                     $target->update([
                         'status' => 'success',
@@ -227,9 +227,9 @@ class VideoUploadService
                     RemoveVideoFromFacebook::dispatch($target);
                     break;
 
-                case 'twitter':
-                    Log::info('Dispatching Twitter video removal job for target: ' . $target->id);
-                    RemoveVideoFromTwitter::dispatch($target);
+                case 'x':
+                    Log::info('Dispatching X video removal job for target: ' . $target->id);
+                    RemoveVideoFromX::dispatch($target);
                     break;
 
                 case 'snapchat':

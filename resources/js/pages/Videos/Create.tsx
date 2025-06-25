@@ -10,7 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm, Link } from '@inertiajs/react';
-import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info, Facebook, Twitter, Camera, Palette, Cloud } from 'lucide-react';
+import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info, Facebook, Camera, Palette, Cloud } from 'lucide-react';
+import XIcon from '@/components/ui/icons/x';
 import CloudStorageImport from '@/components/CloudStorageImport';
 import AdvancedOptionsSection from '@/components/AdvancedOptions/AdvancedOptionsSection';
 
@@ -35,7 +36,7 @@ const platformData = {
     facebook: { name: 'Facebook', icon: Facebook, color: 'text-blue-600' },
     snapchat: { name: 'Snapchat', icon: Camera, color: 'text-yellow-500' },
     pinterest: { name: 'Pinterest', icon: Palette, color: 'text-red-500' },
-    twitter: { name: 'Twitter', icon: Twitter, color: 'text-blue-400' },
+    x: { name: 'X', icon: XIcon, color: 'text-black' },
 };
 
 export default function CreateVideo({ 
