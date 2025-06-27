@@ -206,6 +206,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('channels/{channel:slug}/facebook/page-selection', [SocialAccountController::class, 'showFacebookPageSelection'])
         ->name('facebook.page-selection');
     
+    // YouTube channel selection routes
+    Route::get('channels/{channel:slug}/youtube/channel-selection', [SocialAccountController::class, 'showYouTubeChannelSelection'])
+        ->name('youtube.channel-selection');
+    
     // OAuth error page
     Route::get('oauth/error', function () {
         $suggestedActions = request('suggested_actions') ? explode('|', request('suggested_actions')) : [];

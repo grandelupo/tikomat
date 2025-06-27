@@ -1081,7 +1081,7 @@ class SocialAccountController extends Controller
             // Get user's YouTube channels using YouTube Data API v3
             $response = Http::get('https://www.googleapis.com/youtube/v3/channels', [
                 'access_token' => $socialUser->token,
-                'part' => 'id,snippet',
+                'part' => 'id,snippet,statistics',
                 'mine' => 'true',
                 'maxResults' => 100  // Ensure we get all channels
             ]);
@@ -1147,19 +1147,7 @@ class SocialAccountController extends Controller
             ]);
 
             // Redirect to YouTube channel selection page
-            return Inertia::render('SocialAccount/YouTubeChannelSelection', [
-                'channel' => [
-                    'id' => $channel->id,
-                    'name' => $channel->name,
-                    'slug' => $channel->slug,
-                ],
-                'youtubeChannels' => $channels,
-                'userProfile' => [
-                    'name' => $socialUser->name,
-                    'email' => $socialUser->email,
-                    'avatar' => $socialUser->avatar,
-                ],
-            ]);
+            return redirect()->route('youtube.channel-selection', $channel->slug);
 
         } catch (\Exception $e) {
             \Log::error('YouTube channel selection failed', [
@@ -1175,6 +1163,35 @@ class SocialAccountController extends Controller
                 'channel_selection_failed'
             );
         }
+    }
+
+    /**
+     * Show YouTube channel selection page.
+     */
+    public function showYouTubeChannelSelection(Channel $channel, Request $request)
+    {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        // Get OAuth data from session
+        $oauthData = session('youtube_oauth_data');
+        
+        if (!$oauthData || $oauthData['channel_slug'] !== $channel->slug) {
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('error', 'YouTube connection session expired. Please try connecting again.');
+        }
+
+        return Inertia::render('SocialAccount/YouTubeChannelSelection', [
+            'channel' => [
+                'id' => $channel->id,
+                'name' => $channel->name,
+                'slug' => $channel->slug,
+            ],
+            'youtubeChannels' => $oauthData['channels'],
+            'userProfile' => $oauthData['user_profile'],
+        ]);
     }
 
     /**
