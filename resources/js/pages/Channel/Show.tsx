@@ -64,6 +64,7 @@ interface SocialAccount {
     platform_channel_name?: string;
     platform_channel_handle?: string;
     platform_channel_url?: string;
+    platform_channel_thumbnail_url?: string;
     is_platform_channel_specific?: boolean;
 }
 
@@ -385,11 +386,27 @@ export default function ChannelShow({
                                             <div className="flex items-center space-x-3 mb-4">
                                                 <Avatar className="h-10 w-10">
                                                     <AvatarImage 
-                                                        src={account.profile_avatar_url} 
-                                                        alt={account.profile_name || 'Profile'} 
+                                                        src={
+                                                            // For YouTube, use channel thumbnail if available, otherwise fall back to profile avatar
+                                                            account.platform === 'youtube' && account.platform_channel_thumbnail_url
+                                                                ? account.platform_channel_thumbnail_url
+                                                                : account.profile_avatar_url
+                                                        } 
+                                                        alt={
+                                                            // For YouTube, use channel name, for Facebook use page name, otherwise use profile name
+                                                            account.platform === 'youtube' && account.platform_channel_name
+                                                                ? account.platform_channel_name
+                                                                : account.platform === 'facebook' && account.facebook_page_name
+                                                                ? account.facebook_page_name
+                                                                : account.profile_name || 'Profile'
+                                                        } 
                                                     />
                                                     <AvatarFallback className="bg-white">
-                                                        {account.profile_name 
+                                                        {account.platform === 'youtube' && account.platform_channel_name
+                                                            ? getInitials(account.platform_channel_name)
+                                                            : account.platform === 'facebook' && account.facebook_page_name
+                                                            ? getInitials(account.facebook_page_name)
+                                                            : account.profile_name 
                                                             ? getInitials(account.profile_name)
                                                             : <PlatformIcon className="w-4 h-4" />
                                                         }
@@ -398,22 +415,22 @@ export default function ChannelShow({
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center space-x-2 mb-1">
                                                         <PlatformIcon className="w-4 h-4 text-green-600" />
-                                                                                                            <h4 className="font-medium text-sm text-gray-900 capitalize">
-                                                        {account.platform}
-                                                    </h4>
-                                                </div>
-                                                {/* Show platform-specific channel name or fallback to profile name */}
-                                                {(account.platform_channel_name || account.profile_name) && (
-                                                    <p className="text-sm font-medium text-gray-900 truncate">
-                                                        {account.platform_channel_name || account.profile_name}
-                                                    </p>
-                                                )}
-                                                {/* Show platform-specific handle or fallback to profile username */}
-                                                {(account.platform_channel_handle || account.profile_username) && (
-                                                    <p className="text-xs text-gray-600 truncate">
-                                                        {account.platform_channel_handle || `@${account.profile_username}`}
-                                                    </p>
-                                                )}
+                                                        <h4 className="font-medium text-sm text-gray-900 capitalize">
+                                                            {account.platform}
+                                                        </h4>
+                                                    </div>
+                                                    {/* Show platform-specific channel name or fallback to profile name */}
+                                                    {(account.platform_channel_name || account.profile_name) && (
+                                                        <p className="text-sm font-medium text-gray-900 truncate">
+                                                            {account.platform_channel_name || account.profile_name}
+                                                        </p>
+                                                    )}
+                                                    {/* Show platform-specific handle or fallback to profile username */}
+                                                    {(account.platform_channel_handle || account.profile_username) && (
+                                                        <p className="text-xs text-gray-600 truncate">
+                                                            {account.platform_channel_handle || `@${account.profile_username}`}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -437,23 +454,6 @@ export default function ChannelShow({
                                                         Reconnect
                                                     </Button>
                                                 </div>
-                                                {/* Show Facebook page info under buttons */}
-                                                {account.platform === 'facebook' && account.facebook_page_name && (
-                                                    <div className="text-center">
-                                                        <p className="text-xs text-gray-500 font-medium">
-                                                            📄 {account.facebook_page_name}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                                {/* Show YouTube channel info under buttons */}
-                                                {account.platform === 'youtube' && account.platform_channel_name && (
-                                                    <div className="text-center">
-                                                        <p className="text-xs text-gray-500 font-medium">
-                                                            🎥 {account.platform_channel_name}
-                                                            {account.platform_channel_handle && ` (${account.platform_channel_handle})`}
-                                                        </p>
-                                                    </div>
-                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>

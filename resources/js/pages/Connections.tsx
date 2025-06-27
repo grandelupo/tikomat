@@ -42,6 +42,7 @@ interface SocialAccount {
     platform_channel_name?: string;
     platform_channel_handle?: string;
     platform_channel_url?: string;
+    platform_channel_thumbnail_url?: string;
     platform_channel_specific?: boolean;
     is_platform_channel_specific?: boolean;
 }
@@ -169,11 +170,27 @@ export default function Connections({
                                                         <div className="flex items-center space-x-3 flex-1">
                                                             <Avatar className="h-8 w-8">
                                                                 <AvatarImage 
-                                                                    src={account.profile_avatar_url} 
-                                                                    alt={account.profile_name || account.channel_name} 
+                                                                    src={
+                                                                        // For YouTube, use channel thumbnail if available, otherwise fall back to profile avatar
+                                                                        account.platform === 'youtube' && account.platform_channel_thumbnail_url
+                                                                            ? account.platform_channel_thumbnail_url
+                                                                            : account.profile_avatar_url
+                                                                    } 
+                                                                    alt={
+                                                                        // For YouTube, use channel name, for Facebook use page name, otherwise use profile name
+                                                                        account.platform === 'youtube' && account.platform_channel_name
+                                                                            ? account.platform_channel_name
+                                                                            : account.platform === 'facebook' && account.facebook_page_name
+                                                                            ? account.facebook_page_name
+                                                                            : account.profile_name || account.channel_name
+                                                                    } 
                                                                 />
                                                                 <AvatarFallback className="text-xs bg-white">
-                                                                    {account.profile_name 
+                                                                    {account.platform === 'youtube' && account.platform_channel_name
+                                                                        ? getInitials(account.platform_channel_name)
+                                                                        : account.platform === 'facebook' && account.facebook_page_name
+                                                                        ? getInitials(account.facebook_page_name)
+                                                                        : account.profile_name 
                                                                         ? getInitials(account.profile_name)
                                                                         : getInitials(account.channel_name)
                                                                     }

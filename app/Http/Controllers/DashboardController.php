@@ -155,6 +155,27 @@ class DashboardController extends Controller
                     $data['profile_username'] = $account->profile_username;
                 }
 
+                // Add platform-specific channel information
+                if (!empty($account->platform_channel_name)) {
+                    $data['platform_channel_name'] = $account->platform_channel_name;
+                }
+                if (!empty($account->platform_channel_handle)) {
+                    $data['platform_channel_handle'] = $account->platform_channel_handle;
+                }
+                if (!empty($account->platform_channel_url)) {
+                    $data['platform_channel_url'] = $account->platform_channel_url;
+                }
+                
+                // Add YouTube channel thumbnail URL if available
+                if ($account->platform === 'youtube' && !empty($account->platform_channel_data)) {
+                    $channelData = is_array($account->platform_channel_data) ? $account->platform_channel_data : json_decode($account->platform_channel_data, true);
+                    if (!empty($channelData['thumbnail_url'])) {
+                        $data['platform_channel_thumbnail_url'] = $channelData['thumbnail_url'];
+                    }
+                }
+                
+                $data['platform_channel_specific'] = $account->is_platform_channel_specific ?? false;
+
                 return $data;
             });
 
