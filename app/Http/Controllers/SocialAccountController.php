@@ -162,7 +162,13 @@ class SocialAccountController extends Controller
                     ['warning' => 'refresh_token_missing']
                 );
                 
-                // This is a warning, not a failure - continue with the connection
+                // Force a fresh OAuth flow to get refresh token
+                return $this->redirectToErrorPage(
+                    $platform,
+                    $channel->slug,
+                    'Unable to maintain long-term access to YouTube. Please try connecting again and ensure you grant all requested permissions.',
+                    'refresh_token_missing'
+                );
             }
 
             // Handle Facebook page selection if platform is Facebook
@@ -399,7 +405,13 @@ class SocialAccountController extends Controller
                     ['warning' => 'refresh_token_missing']
                 );
                 
-                // This is a warning, not a failure - continue with the connection
+                // Force a fresh OAuth flow to get refresh token
+                return $this->redirectToErrorPage(
+                    $platform,
+                    $channel->slug,
+                    'Unable to maintain long-term access to YouTube. Please try connecting again and ensure you grant all requested permissions.',
+                    'refresh_token_missing'
+                );
             }
 
             // Store or update social account
@@ -483,6 +495,17 @@ class SocialAccountController extends Controller
             abort(403);
         }
 
+        // For YouTube/Google, revoke existing permissions first
+        if ($platform === 'youtube') {
+            $this->revokeGooglePermissions(Auth::id(), $channel->id);
+        }
+
+        // Delete existing social account for this platform
+        SocialAccount::where('user_id', Auth::id())
+            ->where('channel_id', $channel->id)
+            ->where('platform', $platform)
+            ->delete();
+
         // Redirect to regular OAuth with force=true parameter
         return redirect()->route('social.redirect', [
             'channel' => $channel->slug,
@@ -496,6 +519,10 @@ class SocialAccountController extends Controller
      */
     protected function buildOAuthRedirect(string $driver, string $platform, string $state): RedirectResponse
     {
+        // Extract state data to check for force parameter
+        $stateData = json_decode(base64_decode($state), true);
+        $forceReconnect = $stateData['force'] ?? false;
+        
         // Request appropriate scopes based on platform
         if ($platform === 'youtube') {
             // YouTube requires specific scopes for video uploading
@@ -509,7 +536,7 @@ class SocialAccountController extends Controller
                 ->with([
                     'state' => $state,
                     'access_type' => 'offline',        // Required for refresh token
-                    'prompt' => 'select_account consent', // Force account selection and consent
+                    'prompt' => $forceReconnect ? 'select_account consent' : 'consent', // Force account selection on reconnect
                     'include_granted_scopes' => 'true'  // Include previously granted scopes
                 ])
                 ->redirect();
@@ -526,7 +553,8 @@ class SocialAccountController extends Controller
                 ])
                 ->with([
                     'state' => $state,
-                    'prompt' => 'select_account consent' // Force account selection
+                    'prompt' => 'select_account consent', // Force account selection
+                    'auth_type' => 'rerequest',          // Force re-authorization for page selection
                 ])
                 ->redirect();
         } elseif ($platform === 'tiktok') {
@@ -553,7 +581,10 @@ class SocialAccountController extends Controller
                 ])
                 ->with([
                     'state' => $state,
-                    'prompt' => 'select_account consent'
+                    'auth_type' => 'rerequest',              // Force re-authorization to show page selection
+                    'prompt' => 'select_account consent',    // Force account selection
+                    'response_type' => 'code',               // Ensure we get authorization code
+                    'config_id' => null,                    // Force business selection dialog
                 ])
                 ->redirect();
         } elseif ($platform === 'snapchat') {
@@ -636,6 +667,12 @@ class SocialAccountController extends Controller
             case 'access_denied':
                 $actions[] = 'Click "Allow" or "Authorize" when prompted by ' . ucfirst($platform);
                 $actions[] = 'Make sure you have the necessary permissions on your ' . ucfirst($platform) . ' account';
+                break;
+            case 'refresh_token_missing':
+                $actions[] = 'Click "Allow" on ALL permission screens (don\'t skip any)';
+                $actions[] = 'Make sure to grant offline access when prompted';
+                $actions[] = 'If you see "This app wants to access your account", click Allow';
+                $actions[] = 'Try disconnecting any existing connections and reconnect';
                 break;
             case 'configuration_error':
                 $actions[] = 'Contact support to resolve the configuration issue';
