@@ -14,6 +14,7 @@ class Video extends Model
         'channel_id',
         'title',
         'description',
+        'tags',
         'original_file_path',
         'thumbnail_path',
         'thumbnail_time',
@@ -39,6 +40,7 @@ class Video extends Model
     ];
 
     protected $casts = [
+        'tags' => 'array',
         'subtitle_data' => 'array',
         'subtitles_generated_at' => 'datetime',
         'duration' => 'integer',

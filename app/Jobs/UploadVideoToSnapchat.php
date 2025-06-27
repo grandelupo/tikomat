@@ -138,6 +138,15 @@ class UploadVideoToSnapchat implements ShouldQueue
                 ? implode(' ', $options['hashtags']) 
                 : $options['hashtags'];
             $mediaData['media'][0]['caption'] = ($mediaData['media'][0]['caption'] ?? '') . "\n\n" . $hashtags;
+        } elseif (!empty($this->videoTarget->video->tags)) {
+            // Use tags from video database field if no advanced options hashtags
+            $videoTags = $this->videoTarget->video->tags;
+            if (is_array($videoTags) && !empty($videoTags)) {
+                $hashtags = implode(' ', array_map(function($tag) {
+                    return '#' . str_replace('#', '', $tag);
+                }, $videoTags));
+                $mediaData['media'][0]['caption'] = ($mediaData['media'][0]['caption'] ?? '') . "\n\n" . $hashtags;
+            }
         }
 
         // Validate and filter hashtags in caption

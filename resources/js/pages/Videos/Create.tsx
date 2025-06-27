@@ -96,6 +96,7 @@ export default function CreateVideo({
         video: null as File | null,
         title: '',
         description: '',
+        tags: [] as string[],
         platforms: safeDefaultPlatforms,
         publish_type: 'now',
         publish_at: '',
@@ -418,6 +419,26 @@ export default function CreateVideo({
                                 />
                                 {(errors.description || clientErrors.description) && (
                                     <p className="text-sm text-red-600">{errors.description || clientErrors.description}</p>
+                                )}
+                            </div>
+
+                            {/* Tags */}
+                            <div className="space-y-2">
+                                <Label htmlFor="tags">Tags (Optional)</Label>
+                                <Input
+                                    id="tags"
+                                    value={data.tags.join(', ')}
+                                    onChange={(e) => {
+                                        const tags = e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+                                        setData('tags', tags);
+                                    }}
+                                    placeholder="Enter tags separated by commas (e.g., video, content, viral)"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Add relevant tags to help with discoverability
+                                </p>
+                                {(errors.tags || clientErrors.tags) && (
+                                    <p className="text-sm text-red-600">{errors.tags || clientErrors.tags}</p>
                                 )}
                             </div>
 

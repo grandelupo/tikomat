@@ -4475,6 +4475,9 @@ class AIController extends Controller
             });
             $tags = array_slice(array_values($tags), 0, 12); // Limit to 12 tags
 
+            // Save tags to the video's database field
+            $video->update(['tags' => $tags]);
+
             $processingTime = round(microtime(true) - $startTime, 2);
 
             Log::info('Video tags analyzed successfully', [

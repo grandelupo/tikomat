@@ -26,6 +26,7 @@ interface Video {
     duration: number;
     formatted_duration: string;
     created_at: string;
+    tags?: string[];
     thumbnail_path: string | null;
     video_width: number | null;
     video_height: number | null;
@@ -297,6 +298,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                         <TableHead className="w-20">Thumbnail</TableHead>
                                         <TableHead>Title</TableHead>
                                         <TableHead>Channel</TableHead>
+                                        <TableHead>Tags</TableHead>
                                         <TableHead>Duration</TableHead>
                                         <TableHead>Platforms</TableHead>
                                         <TableHead>Upload Date</TableHead>
@@ -336,6 +338,24 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                                 ) : (
                                                     <span className="text-muted-foreground">No Channel</span>
                                                 )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {video.tags && video.tags.length > 0 ? (
+                                                        video.tags.slice(0, 3).map((tag) => (
+                                                            <Badge key={tag} variant="secondary" className="text-xs">
+                                                                {tag}
+                                                            </Badge>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-xs">No tags</span>
+                                                    )}
+                                                    {video.tags && video.tags.length > 3 && (
+                                                        <Badge variant="outline" className="text-xs">
+                                                            +{video.tags.length - 3}
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                             <TableCell>{video.formatted_duration}</TableCell>
                                             <TableCell>

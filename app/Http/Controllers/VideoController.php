@@ -141,6 +141,8 @@ class VideoController extends Controller
             'video' => 'required|file|mimes:mp4,mov,avi,wmv,webm|max:102400', // 100MB max
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
+            'tags' => 'nullable|array',
+            'tags.*' => 'string|max:50',
             'platforms' => 'required|array|min:1',
             'platforms.*' => 'in:youtube,instagram,tiktok,facebook,snapchat,pinterest,x',
             'publish_type' => 'required|in:now,scheduled',
@@ -230,6 +232,7 @@ class VideoController extends Controller
                     'channel_id' => $channel->id,
                     'title' => $request->title,
                     'description' => $request->description,
+                    'tags' => $request->tags ?? [],
                     'original_file_path' => $videoInfo['path'],
                     'duration' => $videoInfo['duration'],
                     'thumbnail_path' => $videoInfo['thumbnail_path'] ?? null,

@@ -230,12 +230,14 @@ class ProcessInstantUploadWithAI implements ShouldQueue
             $this->video->update([
                 'title' => $optimizedContent['title'],
                 'description' => $optimizedContent['description'],
+                'tags' => $optimizedContent['tags'],
             ]);
 
             Log::info('Video metadata updated with AI content', [
                 'video_id' => $this->video->id,
                 'title' => $optimizedContent['title'],
                 'description_length' => strlen($optimizedContent['description']),
+                'tags_count' => count($optimizedContent['tags']),
             ]);
 
             // Step 8: Create video targets for each platform with AI-optimized settings
@@ -758,6 +760,7 @@ class ProcessInstantUploadWithAI implements ShouldQueue
             $this->video->update([
                 'title' => $title,
                 'description' => $description,
+                'tags' => ['video', 'content', 'ai-generated'],
             ]);
 
             // Still create video targets for publishing with AI-generated content
@@ -790,6 +793,7 @@ class ProcessInstantUploadWithAI implements ShouldQueue
             $this->video->update([
                 'title' => 'New Video Upload',
                 'description' => 'Check out this amazing video content! #video #content #viral',
+                'tags' => ['video', 'content', 'viral'],
             ]);
 
             foreach ($this->platforms as $platform) {

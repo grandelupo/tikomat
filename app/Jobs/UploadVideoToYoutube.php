@@ -191,7 +191,17 @@ class UploadVideoToYoutube implements ShouldQueue
             $snippet = new YouTube\VideoSnippet();
             $snippet->setTitle($this->videoTarget->video->title);
             $snippet->setDescription($this->videoTarget->video->description);
-            $snippet->setTags(['social media', 'video']);
+            
+            // Use tags from video database field
+            $tags = ['social media', 'video']; // Default tags
+            if (!empty($this->videoTarget->video->tags)) {
+                $videoTags = $this->videoTarget->video->tags;
+                if (is_array($videoTags) && !empty($videoTags)) {
+                    $tags = array_merge($tags, $videoTags);
+                }
+            }
+            $snippet->setTags($tags);
+            
             $snippet->setCategoryId('22'); // People & Blogs category
 
             // Add advanced options if available

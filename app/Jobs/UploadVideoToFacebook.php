@@ -564,6 +564,31 @@ class UploadVideoToFacebook implements ShouldQueue
                 'video_target_id' => $this->videoTarget->id,
                 'tags' => $tags,
             ]);
+        } elseif (!empty($this->videoTarget->video->tags)) {
+            // Use tags from video database field if no advanced options tags
+            $videoTags = $this->videoTarget->video->tags;
+            if (is_array($videoTags) && !empty($videoTags)) {
+                $tagsString = implode(' ', array_map(function($tag) {
+                    return '#' . str_replace('#', '', $tag);
+                }, $videoTags));
+                
+                $tagValidation = $this->hashtagValidator->validateAndFilterHashtags('facebook', $tagsString);
+                $filteredTags = $tagValidation['filtered_content'];
+                
+                if ($tagValidation['has_changes']) {
+                    Log::info('Facebook video tags filtered', [
+                        'video_target_id' => $this->videoTarget->id,
+                        'removed_hashtags' => $tagValidation['removed_hashtags'],
+                        'warnings' => $tagValidation['warnings'],
+                    ]);
+                }
+                
+                $videoData['tags'] = $filteredTags;
+                Log::info('Facebook video tags applied', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'tags' => $filteredTags,
+                ]);
+            }
         }
 
         // Add branded content settings

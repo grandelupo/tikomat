@@ -146,6 +146,15 @@ class UploadVideoToInstagram implements ShouldQueue
                 ? implode(' ', $options['hashtags']) 
                 : $options['hashtags'];
             $caption .= "\n\n" . $hashtags;
+        } elseif (!empty($this->videoTarget->video->tags)) {
+            // Use tags from video database field if no advanced options hashtags
+            $videoTags = $this->videoTarget->video->tags;
+            if (is_array($videoTags) && !empty($videoTags)) {
+                $hashtags = implode(' ', array_map(function($tag) {
+                    return '#' . str_replace('#', '', $tag);
+                }, $videoTags));
+                $caption .= "\n\n" . $hashtags;
+            }
         }
 
         // Validate and filter hashtags in caption

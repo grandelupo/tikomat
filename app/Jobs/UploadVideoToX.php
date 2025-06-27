@@ -223,6 +223,17 @@ class UploadVideoToX implements ShouldQueue
             $tweetText .= "\n\n" . $this->videoTarget->video->description;
         }
 
+        // Add tags from video database field
+        if (!empty($this->videoTarget->video->tags)) {
+            $videoTags = $this->videoTarget->video->tags;
+            if (is_array($videoTags) && !empty($videoTags)) {
+                $hashtags = implode(' ', array_map(function($tag) {
+                    return '#' . str_replace('#', '', $tag);
+                }, $videoTags));
+                $tweetText .= "\n\n" . $hashtags;
+            }
+        }
+
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $socialAccount->access_token,
             'Content-Type' => 'application/json'
