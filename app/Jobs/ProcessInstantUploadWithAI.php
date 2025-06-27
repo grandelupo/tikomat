@@ -50,10 +50,20 @@ class ProcessInstantUploadWithAI implements ShouldQueue
             // Get video file path
             $videoPath = Storage::path($this->video->original_file_path);
             
+            Log::info('Video path details', [
+                'video_id' => $this->video->id,
+                'original_file_path' => $this->video->original_file_path,
+                'resolved_path' => $videoPath,
+                'file_exists' => file_exists($videoPath),
+                'is_readable' => is_readable($videoPath),
+                'file_size' => file_exists($videoPath) ? filesize($videoPath) : 'N/A',
+            ]);
+            
             if (!file_exists($videoPath)) {
                 Log::error('Video file not found for AI processing', [
                     'video_id' => $this->video->id,
                     'file_path' => $videoPath,
+                    'original_file_path' => $this->video->original_file_path,
                 ]);
                 $this->handleProcessingFailure('Video file not found');
                 return;
@@ -208,18 +218,20 @@ class ProcessInstantUploadWithAI implements ShouldQueue
                     ]);
 
                     $subtitleResult = $subtitleGenerator->generateSubtitles(
-                        $this->video->id,
+                        $processedVideoPath,
                         [
+                            'video_id' => $this->video->id,
                             'language' => 'auto',
                             'style' => $this->getOptimalSubtitleStyle($analysis),
                             'position' => 'bottom',
                         ]
                     );
 
-                    if ($subtitleResult['success']) {
-                        Log::info('Subtitles generated successfully', [
+                    if ($subtitleResult['processing_status'] === 'processing' || $subtitleResult['processing_status'] === 'completed') {
+                        Log::info('Subtitles generation started successfully', [
                             'video_id' => $this->video->id,
                             'generation_id' => $subtitleResult['generation_id'] ?? 'unknown',
+                            'status' => $subtitleResult['processing_status'],
                         ]);
                     }
                 } catch (\Exception $e) {

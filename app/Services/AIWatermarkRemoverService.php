@@ -359,10 +359,25 @@ class AIWatermarkRemoverService
         $watermarks = [];
         
         try {
+            // Validate video file exists and is readable
+            if (!file_exists($videoPath)) {
+                throw new \Exception('Video file not found: ' . $videoPath);
+            }
+            
+            if (!is_readable($videoPath)) {
+                throw new \Exception('Video file not readable: ' . $videoPath);
+            }
+
             // Create temporary directory for frame extraction
             $tempDir = storage_path('app/temp/watermark_detection_' . uniqid());
             if (!is_dir($tempDir)) {
                 mkdir($tempDir, 0755, true);
+            }
+
+            // Check if FFmpeg is available
+            $ffmpegCheck = Process::run(['which', 'ffmpeg']);
+            if (!$ffmpegCheck->successful()) {
+                throw new \Exception('FFmpeg not found on system. Please install FFmpeg to enable watermark detection.');
             }
 
             // Extract frames for analysis (sample every 2 seconds)
@@ -388,6 +403,10 @@ class AIWatermarkRemoverService
             // Get extracted frame files
             $frameFiles = glob($tempDir . '/frame_*.png');
             sort($frameFiles);
+
+            if (empty($frameFiles)) {
+                throw new \Exception('No frames were extracted from the video');
+            }
 
             // Analyze frames for watermarks using enhanced detection
             foreach ($frameFiles as $frameFile) {
@@ -417,8 +436,18 @@ class AIWatermarkRemoverService
 
         } catch (\Exception $e) {
             Log::error('Enhanced frame-based watermark detection failed: ' . $e->getMessage());
-            // Fallback: detect common watermark areas
-            $watermarks = $this->detectCommonWatermarkAreas($videoPath);
+            
+            // Try fallback detection method
+            try {
+                $watermarks = $this->detectCommonWatermarkAreas($videoPath);
+                Log::info('Fallback watermark detection completed', [
+                    'watermarks_found' => count($watermarks)
+                ]);
+            } catch (\Exception $fallbackError) {
+                Log::error('Fallback watermark detection also failed: ' . $fallbackError->getMessage());
+                // Return empty array - no watermarks detected
+                $watermarks = [];
+            }
         }
 
         return $watermarks;
@@ -478,10 +507,13 @@ class AIWatermarkRemoverService
                     ];
 
                     // Check for text patterns
-                    $textConfidence = $this->detectTextPatterns($image, $region, $typeData['patterns']);
+                    $textConfidence = $this->detectTextPatterns($image, $region, $typeData['patterns'] ?? []);
                     
                     // Check for logo patterns
-                    $logoConfidence = $this->detectLogoPatterns($image, $region, $typeData['logo_patterns']);
+                    $logoConfidence = 0;
+                    if (isset($typeData['logo_patterns']) && is_array($typeData['logo_patterns'])) {
+                        $logoConfidence = $this->detectLogoPatterns($image, $region, $typeData['logo_patterns']);
+                    }
                     
                     // Calculate overall confidence
                     $overallConfidence = max($textConfidence, $logoConfidence);
@@ -639,8 +671,8 @@ class AIWatermarkRemoverService
 
     private function analyzeSizeRange(array $region, array $sizeRange): int
     {
-        $imageWidth = $region['width'];
-        $imageHeight = $region['height'];
+        $imageWidth = $region['w'] ?? 0;
+        $imageHeight = $region['h'] ?? 0;
         $totalPixels = $imageWidth * $imageHeight;
         
         // Calculate size ratio relative to image dimensions
@@ -763,28 +795,28 @@ class AIWatermarkRemoverService
 
     private function mergeSimilarWatermarks(array $watermarks): array
     {
-        $merged = [];
+        $mergedWatermarks = [];
         
         foreach ($watermarks as $watermark) {
-            $merged = false;
+            $found = false;
             
-            foreach ($merged as &$existingWatermark) {
+            foreach ($mergedWatermarks as &$existingWatermark) {
                 if ($this->areSimilarWatermarks($watermark, $existingWatermark)) {
                     // Merge watermarks
                     $existingWatermark['frames_detected'] += $watermark['frames_detected'];
                     $existingWatermark['confidence'] = max($existingWatermark['confidence'], $watermark['confidence']);
                     $existingWatermark['temporal_consistency'] = min(100, $existingWatermark['temporal_consistency'] + 5);
-                    $merged = true;
+                    $found = true;
                     break;
                 }
             }
             
-            if (!$merged) {
-                $merged[] = $watermark;
+            if (!$found) {
+                $mergedWatermarks[] = $watermark;
             }
         }
         
-        return $merged;
+        return $mergedWatermarks;
     }
 
     private function getVideoFrameRate(string $videoPath): float
@@ -1594,5 +1626,42 @@ class AIWatermarkRemoverService
         }
 
         return $stats;
+    }
+
+    private function analyzeRegionForWatermark($image, array $region): int
+    {
+        // Analyze edge density and color variance to determine if region contains a watermark
+        $edgeDensity = $this->calculateEdgeDensity($image, $region);
+        $colorVariance = $this->calculateColorVariance($image, $region);
+        
+        // High edge density and low color variance typically indicate text or logo watermarks
+        $confidence = 0;
+        
+        if ($edgeDensity > 0.4) {
+            $confidence += 40; // High edge density suggests text or logo
+        } elseif ($edgeDensity > 0.2) {
+            $confidence += 20; // Moderate edge density
+        }
+        
+        if ($colorVariance < 30) {
+            $confidence += 30; // Low color variance suggests consistent watermark
+        } elseif ($colorVariance < 60) {
+            $confidence += 15; // Moderate color variance
+        }
+        
+        // Additional analysis based on region position (corners and edges are common watermark locations)
+        $imageWidth = imagesx($image);
+        $imageHeight = imagesy($image);
+        
+        $isCorner = ($region['x'] < $imageWidth * 0.1 && $region['y'] < $imageHeight * 0.1) ||
+                   ($region['x'] > $imageWidth * 0.9 && $region['y'] < $imageHeight * 0.1) ||
+                   ($region['x'] < $imageWidth * 0.1 && $region['y'] > $imageHeight * 0.9) ||
+                   ($region['x'] > $imageWidth * 0.9 && $region['y'] > $imageHeight * 0.9);
+        
+        if ($isCorner) {
+            $confidence += 20; // Corners are common watermark locations
+        }
+        
+        return min(100, $confidence);
     }
 } 
