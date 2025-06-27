@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Music, Hash, Users, MessageCircle } from 'lucide-react';
+import { Music, Hash, Users, MessageCircle, Share2 } from 'lucide-react';
+import HashtagValidationWarning from '@/components/HashtagValidationWarning';
 
 interface TikTokOptionsProps {
     options: any;
@@ -15,27 +16,48 @@ interface TikTokOptionsProps {
 }
 
 export default function TikTokOptions({ options, onChange }: TikTokOptionsProps) {
+    const safeOptions = options || {};
+
     const updateOption = (key: string, value: any) => {
-        onChange({ ...options, [key]: value });
+        onChange({ ...safeOptions, [key]: value });
     };
 
     const videoSettings = [
-        { id: 'PUBLIC_TO_EVERYONE', name: 'Everyone', description: 'Your video will be public' },
-        { id: 'MUTUAL_FOLLOW_FRIEND', name: 'Friends', description: 'Only friends can see your video' },
-        { id: 'SELF_ONLY', name: 'Only me', description: 'Private video' },
+        { id: 'PUBLIC_TO_EVERYONE', name: 'Public', description: 'Anyone can see your video' },
+        { id: 'FRIENDS', name: 'Friends', description: 'Only your friends can see your video' },
+        { id: 'SELF_ONLY', name: 'Private', description: 'Only you can see your video' }
     ];
+
+    // Get content for hashtag validation
+    const getContentForValidation = () => {
+        let content = '';
+        if (safeOptions.caption) {
+            content += safeOptions.caption + ' ';
+        }
+        if (safeOptions.hashtags) {
+            const hashtags = Array.isArray(safeOptions.hashtags) 
+                ? safeOptions.hashtags.join(' ') 
+                : safeOptions.hashtags;
+            content += hashtags;
+        }
+        return content;
+    };
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center">
-                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 10.692 6.33 6.33 0 0 0 10.857-4.424V8.687a8.182 8.182 0 0 0 4.773 1.526V6.79a4.831 4.831 0 0 1-1.003-.104z"/>
-                    </svg>
-                    TikTok Advanced Options
+                <CardTitle className="flex items-center gap-2">
+                    <Hash className="w-5 h-5" />
+                    TikTok Options
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+                {/* Hashtag Validation Warning */}
+                <HashtagValidationWarning
+                    platform="tiktok"
+                    content={getContentForValidation()}
+                />
+
                 {/* Privacy Settings */}
                 <div className="space-y-3">
                     <Label className="text-base font-medium">Privacy Settings</Label>
@@ -72,47 +94,40 @@ export default function TikTokOptions({ options, onChange }: TikTokOptionsProps)
                     <p className="text-xs text-muted-foreground">
                         {(options.caption || '').length}/2200 characters
                     </p>
+                    <p className="text-xs text-amber-600">
+                        Note: Platform-specific hashtags like #facebook, #instagram, #youtube will be automatically removed
+                    </p>
                 </div>
 
                 {/* Music Selection */}
                 <div className="space-y-2">
                     <Label htmlFor="music" className="flex items-center">
                         <Music className="w-4 h-4 mr-1" />
-                        Background Music
+                        Music/Sound
                     </Label>
                     <Input
                         id="music"
-                        value={options.musicId || ''}
-                        onChange={(e) => updateOption('musicId', e.target.value)}
-                        placeholder="Music ID (optional)"
+                        value={options.music || ''}
+                        onChange={(e) => updateOption('music', e.target.value)}
+                        placeholder="Add trending music or sound"
                     />
-                    <p className="text-xs text-muted-foreground">
-                        Leave empty to use original audio or search TikTok's music library
-                    </p>
                 </div>
 
-                {/* Video Cover */}
-                <div className="space-y-2">
-                    <Label htmlFor="coverTime">Video Cover Time (seconds)</Label>
-                    <Input
-                        id="coverTime"
-                        type="number"
-                        min="0"
-                        max="60"
-                        step="0.1"
-                        value={options.coverTime || 0}
-                        onChange={(e) => updateOption('coverTime', parseFloat(e.target.value))}
-                        placeholder="0"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                        Choose which second of your video to use as the cover
-                    </p>
-                </div>
-
-                {/* Content Settings */}
+                {/* Interaction Settings */}
                 <div className="space-y-3">
-                    <Label className="text-base font-medium">Content Settings</Label>
+                    <Label className="text-base font-medium">Interaction Settings</Label>
                     <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="allowDuet"
+                                checked={options.allowDuet !== false}
+                                onCheckedChange={(checked) => updateOption('allowDuet', checked)}
+                            />
+                            <Label htmlFor="allowDuet" className="flex items-center">
+                                <Users className="w-4 h-4 mr-1" />
+                                Allow duets
+                            </Label>
+                        </div>
                         <div className="flex items-center space-x-2">
                             <Checkbox
                                 id="allowComments"
@@ -126,21 +141,33 @@ export default function TikTokOptions({ options, onChange }: TikTokOptionsProps)
                         </div>
                         <div className="flex items-center space-x-2">
                             <Checkbox
-                                id="allowDuet"
-                                checked={options.allowDuet !== false}
-                                onCheckedChange={(checked) => updateOption('allowDuet', checked)}
-                            />
-                            <Label htmlFor="allowDuet">Allow Duet</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
                                 id="allowStitch"
                                 checked={options.allowStitch !== false}
                                 onCheckedChange={(checked) => updateOption('allowStitch', checked)}
                             />
-                            <Label htmlFor="allowStitch">Allow Stitch</Label>
+                            <Label htmlFor="allowStitch" className="flex items-center">
+                                <Share2 className="w-4 h-4 mr-1" />
+                                Allow stitch
+                            </Label>
                         </div>
                     </div>
+                </div>
+
+                {/* Cover Image */}
+                <div className="space-y-2">
+                    <Label htmlFor="coverTimestamp">Cover Image Time</Label>
+                    <Input
+                        id="coverTimestamp"
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={options.coverTimestamp || 1}
+                        onChange={(e) => updateOption('coverTimestamp', parseInt(e.target.value) || 1)}
+                        placeholder="Seconds from start"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        Select which frame to use as the cover image (1-60 seconds)
+                    </p>
                 </div>
 
                 {/* Content Disclosure */}

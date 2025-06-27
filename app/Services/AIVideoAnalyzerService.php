@@ -718,20 +718,36 @@ class AIVideoAnalyzerService
      */
     protected function getFailsafeAnalysis(string $videoPath): array
     {
-        return [
-            'basic_info' => $this->getBasicVideoInfo($videoPath),
-            'transcript' => ['success' => false, 'text' => '', 'error' => 'Transcription failed'],
-            'scenes' => ['scenes' => [], 'error' => 'Scene detection failed'],
-            'mood_analysis' => ['dominant_mood' => 'neutral', 'confidence' => 0.1],
-            'content_category' => ['primary_category' => 'general', 'confidence' => 0.1],
-            'quality_score' => ['overall_score' => 50, 'suggestions' => ['Unable to analyze quality']],
-            'suggested_thumbnails' => ['error' => 'Thumbnail analysis failed'],
-            'auto_chapters' => [],
-            'content_tags' => [],
-            'engagement_predictions' => ['engagement_score' => 50, 'virality_potential' => 'Unknown'],
-            'status' => 'partial_analysis',
-            'errors' => ['Full analysis failed, returning basic information only'],
-        ];
+        // Instead of returning mock data, try to get at least basic video information
+        try {
+            $basicInfo = $this->getBasicVideoInfo($videoPath);
+            
+            // If we can get basic info, return a minimal but real analysis
+            if (!isset($basicInfo['error'])) {
+                return [
+                    'basic_info' => $basicInfo,
+                    'transcript' => ['success' => false, 'text' => '', 'error' => 'Transcription failed'],
+                    'scenes' => ['scenes' => [], 'error' => 'Scene detection failed'],
+                    'mood_analysis' => ['dominant_mood' => 'neutral', 'confidence' => 0.1],
+                    'content_category' => ['primary_category' => 'general', 'confidence' => 0.1],
+                    'quality_score' => $this->assessVideoQuality($videoPath),
+                    'suggested_thumbnails' => ['error' => 'Thumbnail analysis failed'],
+                    'auto_chapters' => [],
+                    'content_tags' => [],
+                    'engagement_predictions' => ['engagement_score' => 50, 'virality_potential' => 'Unknown'],
+                    'status' => 'partial_analysis',
+                    'errors' => ['Full analysis failed, returning basic information only'],
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::error('Even basic video analysis failed', [
+                'error' => $e->getMessage(),
+                'path' => $videoPath,
+            ]);
+        }
+        
+        // If we can't even get basic info, throw an exception
+        throw new \Exception('Video analysis completely failed - unable to extract any meaningful information from the video file');
     }
 
     /**

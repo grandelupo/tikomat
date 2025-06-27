@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Hash, Users, MessageCircle, Image } from 'lucide-react';
+import { MapPin, Hash, Users, MessageCircle, Image, Eye } from 'lucide-react';
+import HashtagValidationWarning from '@/components/HashtagValidationWarning';
 
 interface InstagramOptionsProps {
     options: any;
@@ -25,6 +26,21 @@ export default function InstagramOptions({ options, onChange }: InstagramOptions
         { id: 'STORY', name: 'Instagram Story', description: '24-hour temporary content' },
     ];
 
+    // Get content for hashtag validation
+    const getContentForValidation = () => {
+        let content = '';
+        if (options.caption) {
+            content += options.caption + ' ';
+        }
+        if (options.hashtags) {
+            const hashtags = Array.isArray(options.hashtags) 
+                ? options.hashtags.join(' ') 
+                : options.hashtags;
+            content += hashtags;
+        }
+        return content;
+    };
+
     return (
         <Card>
             <CardHeader>
@@ -36,6 +52,12 @@ export default function InstagramOptions({ options, onChange }: InstagramOptions
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+                {/* Hashtag Validation Warning */}
+                <HashtagValidationWarning
+                    platform="instagram"
+                    content={getContentForValidation()}
+                />
+
                 {/* Video Type */}
                 <div className="space-y-3">
                     <Label className="text-base font-medium">Video Type</Label>
@@ -71,6 +93,9 @@ export default function InstagramOptions({ options, onChange }: InstagramOptions
                     />
                     <p className="text-xs text-muted-foreground">
                         {(options.caption || '').length}/2200 characters
+                    </p>
+                    <p className="text-xs text-amber-600">
+                        Note: Platform-specific hashtags like #facebook, #tiktok, #youtube will be automatically removed
                     </p>
                 </div>
 

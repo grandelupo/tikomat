@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\VideoTarget;
 use App\Models\SocialAccount;
+use App\Services\HashtagValidationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,6 +19,7 @@ class UploadVideoToSnapchat implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected VideoTarget $videoTarget;
+    protected HashtagValidationService $hashtagValidator;
 
     /**
      * Create a new job instance.
@@ -25,6 +27,7 @@ class UploadVideoToSnapchat implements ShouldQueue
     public function __construct(VideoTarget $videoTarget)
     {
         $this->videoTarget = $videoTarget;
+        $this->hashtagValidator = app(HashtagValidationService::class);
     }
 
     /**
@@ -135,6 +138,24 @@ class UploadVideoToSnapchat implements ShouldQueue
                 ? implode(' ', $options['hashtags']) 
                 : $options['hashtags'];
             $mediaData['media'][0]['caption'] = ($mediaData['media'][0]['caption'] ?? '') . "\n\n" . $hashtags;
+        }
+
+        // Validate and filter hashtags in caption
+        if (!empty($mediaData['media'][0]['caption'])) {
+            $validationResult = $this->hashtagValidator->validateAndFilterHashtags('snapchat', $mediaData['media'][0]['caption']);
+            $filteredCaption = $validationResult['filtered_content'];
+            
+            if ($validationResult['has_changes']) {
+                Log::info('Snapchat hashtags filtered', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'removed_hashtags' => $validationResult['removed_hashtags'],
+                    'warnings' => $validationResult['warnings'],
+                    'original_length' => strlen($mediaData['media'][0]['caption']),
+                    'filtered_length' => strlen($filteredCaption),
+                ]);
+            }
+            
+            $mediaData['media'][0]['caption'] = $filteredCaption;
         }
 
         // Step 1: Create media upload session

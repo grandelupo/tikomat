@@ -80,6 +80,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('optimization-suggestions', [AIController::class, 'getOptimizationSuggestions'])->name('optimization-suggestions');
         Route::post('batch-optimize', [AIController::class, 'batchOptimizeContent'])->name('batch-optimize');
         
+        // Hashtag Validation
+        Route::post('validate-hashtags', [App\Http\Controllers\HashtagValidationController::class, 'validateHashtags'])->name('validate-hashtags');
+        Route::post('get-forbidden-hashtags', [App\Http\Controllers\HashtagValidationController::class, 'getForbiddenHashtags'])->name('get-forbidden-hashtags');
+        Route::post('check-hashtag', [App\Http\Controllers\HashtagValidationController::class, 'checkHashtag'])->name('check-hashtag');
+        Route::post('validate-advanced-options', [App\Http\Controllers\HashtagValidationController::class, 'validateAdvancedOptions'])->name('validate-advanced-options');
+        
         // Video Analysis
         Route::post('analyze-video', [AIController::class, 'analyzeVideo'])->name('analyze-video');
         Route::post('assess-video-quality', [AIController::class, 'assessVideoQuality'])->name('assess-video-quality');

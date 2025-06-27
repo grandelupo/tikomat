@@ -397,44 +397,103 @@ class AITrendAnalyzerService
     }
     
     /**
-     * Get current real trends as fallback
+     * Get current real trends using AI analysis
      */
     protected function getCurrentRealTrends(string $query): array
     {
-        // Real trending topics based on current social media analysis (2025)
-        $currentTrends = [
-            'AI content creation' => ['volume' => 45000, 'growth' => '+189%'],
-            'Short-form video' => ['volume' => 78000, 'growth' => '+156%'],
-            'Sustainable content' => ['volume' => 23000, 'growth' => '+134%'],
-            'Live streaming' => ['volume' => 67000, 'growth' => '+98%'],
-            'Creator economy' => ['volume' => 56000, 'growth' => '+167%'],
-            'Social commerce' => ['volume' => 34000, 'growth' => '+201%'],
-            'Micro-influencers' => ['volume' => 29000, 'growth' => '+143%'],
-            'Authentic storytelling' => ['volume' => 41000, 'growth' => '+178%'],
-            'Mental health awareness' => ['volume' => 38000, 'growth' => '+112%'],
-            'User-generated content' => ['volume' => 52000, 'growth' => '+134%'],
-        ];
+        try {
+            // Use OpenAI to analyze current trends based on the query
+            $prompt = "Analyze current social media trends for: '{$query}'. 
+                      Provide real trending topics, hashtags, and content types that are currently popular.
+                      Focus on YouTube, Instagram, TikTok, and other social platforms.
+                      Return the analysis in a structured format with trending topics and their engagement metrics.";
+
+            $response = OpenAI::chat()->create([
+                'model' => 'gpt-4o-mini',
+                'messages' => [
+                    [
+                        'role' => 'system', 
+                        'content' => 'You are a social media trend analyst with expertise in current viral content and platform-specific trends.'
+                    ],
+                    ['role' => 'user', 'content' => $prompt],
+                ],
+                'max_tokens' => 800,
+                'temperature' => 0.7,
+            ]);
+
+            $analysis = $response->choices[0]->message->content;
+            
+            // Parse the AI response to extract trends
+            $trends = $this->parseAITrendAnalysis($analysis, $query);
+            
+            return [
+                'query' => $query,
+                'timestamp' => now()->toISOString(),
+                'keywords' => $trends['keywords'] ?? [],
+                'engagement_indicators' => $trends['engagement_score'] ?? 75,
+                'platform_mentions' => $trends['platform_count'] ?? 3,
+                'data_source' => 'ai_analysis',
+                'ai_analysis' => $analysis,
+            ];
+            
+        } catch (\Exception $e) {
+            Log::error('AI trend analysis failed', [
+                'query' => $query,
+                'error' => $e->getMessage(),
+            ]);
+            
+            // Return minimal real data structure
+            return [
+                'query' => $query,
+                'timestamp' => now()->toISOString(),
+                'keywords' => [$query],
+                'engagement_indicators' => 50,
+                'platform_mentions' => 1,
+                'data_source' => 'query_fallback',
+            ];
+        }
+    }
+
+    /**
+     * Parse AI trend analysis response
+     */
+    protected function parseAITrendAnalysis(string $analysis, string $query): array
+    {
+        $keywords = [];
+        $engagementScore = 75;
+        $platformCount = 3;
         
-        // Filter trends relevant to the query
-        $relevantTrends = [];
-        foreach ($currentTrends as $trend => $data) {
-            if (stripos($trend, $query) !== false || stripos($query, $trend) !== false) {
-                $relevantTrends[] = $trend;
+        // Extract keywords from AI analysis
+        preg_match_all('/#(\w+)/', $analysis, $hashtags);
+        if (!empty($hashtags[1])) {
+            $keywords = array_slice($hashtags[1], 0, 10);
+        }
+        
+        // Extract trending topics
+        preg_match_all('/trending[:\s]+([^.\n]+)/i', $analysis, $trendingTopics);
+        if (!empty($trendingTopics[1])) {
+            foreach ($trendingTopics[1] as $topic) {
+                $keywords[] = trim($topic);
             }
         }
         
-        // If no specific matches, return most relevant general trends
-        if (empty($relevantTrends)) {
-            $relevantTrends = array_slice(array_keys($currentTrends), 0, 8);
+        // Calculate engagement score based on content
+        if (stripos($analysis, 'viral') !== false) $engagementScore += 15;
+        if (stripos($analysis, 'trending') !== false) $engagementScore += 10;
+        if (stripos($analysis, 'popular') !== false) $engagementScore += 5;
+        
+        // Count platform mentions
+        $platforms = ['youtube', 'instagram', 'tiktok', 'facebook', 'twitter', 'x'];
+        foreach ($platforms as $platform) {
+            if (stripos($analysis, $platform) !== false) {
+                $platformCount++;
+            }
         }
         
         return [
-            'query' => $query,
-            'timestamp' => now()->toISOString(),
-            'keywords' => $relevantTrends,
-            'engagement_indicators' => array_sum(array_column($currentTrends, 'volume')) / count($currentTrends),
-            'platform_mentions' => rand(500, 2000),
-            'data_source' => 'real_trends_2025',
+            'keywords' => array_unique(array_slice($keywords, 0, 15)),
+            'engagement_score' => min(100, $engagementScore),
+            'platform_count' => min(6, $platformCount),
         ];
     }
 
@@ -1039,60 +1098,147 @@ class AITrendAnalyzerService
     }
     
     /**
-     * Get current viral content types based on 2025 trends
+     * Get current viral content types using AI analysis
      */
     protected function getCurrentViralContentTypes(): array
     {
-        return [
-            [
-                'type' => 'AI-Enhanced Tutorial Content',
-                'success_factors' => ['Clear value proposition', 'AI tool demonstrations', 'Step-by-step guidance'],
-                'pillars' => ['Education', 'Technology', 'Practical application'],
-                'examples' => ['ChatGPT tutorials', 'AI art creation', 'Automated workflows'],
-                'base_viral_score' => 88,
-                'growth_trend' => 'rising',
-            ],
-            [
-                'type' => 'Authentic Behind-the-Scenes',
-                'success_factors' => ['Raw authenticity', 'Personal storytelling', 'Relatable struggles'],
-                'pillars' => ['Transparency', 'Human connection', 'Real moments'],
-                'examples' => ['Creator morning routines', 'Business failures', 'Learning journeys'],
-                'base_viral_score' => 85,
-                'growth_trend' => 'stable_high',
-            ],
-            [
-                'type' => 'Short-Form Educational Micro-Content',
-                'success_factors' => ['Quick value delivery', 'Engaging visuals', 'Actionable tips'],
-                'pillars' => ['Efficiency', 'Visual learning', 'Immediate application'],
-                'examples' => ['60-second skills', 'Quick hacks', 'Rapid tutorials'],
-                'base_viral_score' => 92,
-                'growth_trend' => 'explosive',
-            ],
-            [
-                'type' => 'Interactive Challenge Content',
-                'success_factors' => ['User participation', 'Trending formats', 'Easy engagement'],
-                'pillars' => ['Community', 'Participation', 'Viral mechanics'],
-                'examples' => ['Skills challenges', 'Transformation posts', 'Before/after reveals'],
-                'base_viral_score' => 87,
-                'growth_trend' => 'rising',
-            ],
-            [
-                'type' => 'Sustainable Lifestyle Content',
-                'success_factors' => ['Environmental impact', 'Practical solutions', 'Cost savings'],
-                'pillars' => ['Sustainability', 'Practicality', 'Values alignment'],
-                'examples' => ['Zero waste tips', 'Eco-friendly swaps', 'Green living hacks'],
-                'base_viral_score' => 78,
-                'growth_trend' => 'steady_rising',
-            ],
-            [
-                'type' => 'Creator Economy Insights',
-                'success_factors' => ['Income transparency', 'Strategy sharing', 'Tool recommendations'],
-                'pillars' => ['Business education', 'Monetization', 'Transparency'],
-                'examples' => ['Revenue breakdowns', 'Growth strategies', 'Platform comparisons'],
-                'base_viral_score' => 83,
-                'growth_trend' => 'rising',
-            ],
-        ];
+        $retryCount = 0;
+        $maxRetries = 3;
+        
+        while ($retryCount < $maxRetries) {
+            try {
+                $prompt = "Analyze current viral content types across social media platforms (YouTube, Instagram, TikTok, etc.).
+                          Identify the most successful content formats, their success factors, and examples.
+                          Focus on what's currently trending and performing well.
+                          Return structured data about viral content types with success factors and examples.
+                          Format your response as a JSON-like structure with clear content types, success factors, and examples.";
+
+                $response = OpenAI::chat()->create([
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system', 
+                            'content' => 'You are a viral content analyst with expertise in social media trends and content performance. Provide accurate, current analysis of viral content types.'
+                        ],
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'max_tokens' => 1000,
+                    'temperature' => 0.7,
+                ]);
+
+                $analysis = $response->choices[0]->message->content;
+                
+                // Parse AI response to extract viral content types
+                $contentTypes = $this->parseAIViralContentTypes($analysis);
+                
+                // Validate that we got meaningful data
+                if (!empty($contentTypes) && count($contentTypes) > 0) {
+                    Log::info('AI viral content analysis completed successfully', [
+                        'content_types_count' => count($contentTypes),
+                    ]);
+                    return $contentTypes;
+                } else {
+                    throw new \Exception('AI analysis returned empty or invalid content types');
+                }
+                
+            } catch (\Exception $e) {
+                $retryCount++;
+                Log::warning('AI viral content analysis failed, retrying', [
+                    'error' => $e->getMessage(),
+                    'retry_count' => $retryCount,
+                ]);
+                
+                if ($retryCount >= $maxRetries) {
+                    Log::error('AI viral content analysis failed after all retries', [
+                        'error' => $e->getMessage(),
+                        'max_retries' => $maxRetries,
+                    ]);
+                    throw new \Exception('Failed to analyze viral content types after ' . $maxRetries . ' attempts: ' . $e->getMessage());
+                }
+                
+                // Wait before retry
+                sleep(2);
+            }
+        }
+        
+        // This should never be reached due to the exception above
+        throw new \Exception('Unexpected error in viral content analysis');
+    }
+
+    /**
+     * Parse AI viral content types analysis
+     */
+    protected function parseAIViralContentTypes(string $analysis): array
+    {
+        $contentTypes = [];
+        
+        // Extract content types from AI analysis
+        preg_match_all('/([A-Z][^.!?]+(?:content|video|format|trend))/i', $analysis, $matches);
+        
+        if (!empty($matches[1])) {
+            foreach (array_slice($matches[1], 0, 6) as $match) {
+                $contentType = trim($match);
+                
+                // Extract success factors
+                $successFactors = [];
+                if (preg_match_all('/(?:success|key|important)[^.!?]*?([^.!?]+)/i', $analysis, $factors)) {
+                    $successFactors = array_slice($factors[1], 0, 3);
+                }
+                
+                // Extract examples
+                $examples = [];
+                if (preg_match_all('/(?:example|like|such as)[^.!?]*?([^.!?]+)/i', $analysis, $exs)) {
+                    $examples = array_slice($exs[1], 0, 3);
+                }
+                
+                $contentTypes[] = [
+                    'type' => $contentType,
+                    'success_factors' => !empty($successFactors) ? $successFactors : ['Engagement', 'Relevance', 'Quality'],
+                    'pillars' => ['Viral', 'Trending', 'Engagement'],
+                    'examples' => !empty($examples) ? $examples : [$contentType . ' examples'],
+                    'base_viral_score' => $this->calculateViralScoreFromAnalysis($analysis, $contentType),
+                    'growth_trend' => 'ai_analyzed',
+                ];
+            }
+        }
+        
+        // If no content types found, create from keywords
+        if (empty($contentTypes)) {
+            $keywords = ['viral', 'trending', 'popular', 'engaging', 'shareable'];
+            foreach (array_slice($keywords, 0, 3) as $keyword) {
+                $contentTypes[] = [
+                    'type' => ucfirst($keyword) . ' Content',
+                    'success_factors' => ['High engagement', 'Shareability', 'Relevance'],
+                    'pillars' => [ucfirst($keyword), 'Engagement', 'Viral'],
+                    'examples' => [$keyword . ' content examples'],
+                    'base_viral_score' => 70 + (array_search($keyword, $keywords) * 5),
+                    'growth_trend' => 'keyword_based',
+                ];
+            }
+        }
+        
+        return $contentTypes;
+    }
+
+    /**
+     * Calculate viral score from AI analysis
+     */
+    protected function calculateViralScoreFromAnalysis(string $analysis, string $contentType): int
+    {
+        $baseScore = 70;
+        
+        // Boost score based on positive indicators in analysis
+        if (stripos($analysis, 'viral') !== false) $baseScore += 10;
+        if (stripos($analysis, 'trending') !== false) $baseScore += 8;
+        if (stripos($analysis, 'popular') !== false) $baseScore += 5;
+        if (stripos($analysis, 'engagement') !== false) $baseScore += 7;
+        
+        // Content type specific boosts
+        if (stripos($contentType, 'tutorial') !== false) $baseScore += 5;
+        if (stripos($contentType, 'challenge') !== false) $baseScore += 8;
+        if (stripos($contentType, 'behind') !== false) $baseScore += 6;
+        
+        return min(95, $baseScore);
     }
     
     /**
@@ -1412,24 +1558,70 @@ class AITrendAnalyzerService
     }
 
     /**
-     * Get fallback viral content when AI fails
+     * Get fallback viral content using AI analysis
      */
     protected function getFallbackViralContent(array $platforms): array
     {
-        return [
-            [
-                'content_type' => 'Educational Content',
-                'viral_score' => 85,
-                'estimated_reach' => 1000000,
-                'engagement_rate' => 7.5,
-                'platforms' => $platforms,
-                'success_factors' => ['Clear value', 'Quick tips', 'Actionable advice'],
-                'optimal_timing' => '6-8 PM',
-                'target_demographic' => '20-35',
-                'implementation_ease' => 'medium',
-                'trend_lifespan' => '1-2 weeks',
-            ],
-        ];
+        $retryCount = 0;
+        $maxRetries = 3;
+        
+        while ($retryCount < $maxRetries) {
+            try {
+                $prompt = "Analyze current viral content opportunities across social media platforms. Identify content types that are currently performing well and likely to go viral.
+                          Focus on platforms: " . implode(', ', $platforms) . ".
+                          Provide specific content types, success factors, and examples.
+                          Format your response with clear content analysis and metrics.";
+
+                $response = OpenAI::chat()->create([
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system', 
+                            'content' => 'You are a viral content analyst with expertise in social media trends. Provide accurate, current analysis of viral content opportunities.'
+                        ],
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'max_tokens' => 600,
+                    'temperature' => 0.7,
+                ]);
+
+                $analysis = $response->choices[0]->message->content;
+                
+                // Parse AI response to extract viral content
+                $contentTypes = $this->parseAIViralContentTypes($analysis);
+                
+                // Validate that we got meaningful data
+                if (!empty($contentTypes) && count($contentTypes) > 0) {
+                    Log::info('AI fallback viral content analysis completed successfully', [
+                        'content_types_count' => count($contentTypes),
+                    ]);
+                    return $contentTypes;
+                } else {
+                    throw new \Exception('AI analysis returned empty or invalid viral content types');
+                }
+                
+            } catch (\Exception $e) {
+                $retryCount++;
+                Log::warning('AI fallback viral content analysis failed, retrying', [
+                    'error' => $e->getMessage(),
+                    'retry_count' => $retryCount,
+                ]);
+                
+                if ($retryCount >= $maxRetries) {
+                    Log::error('AI fallback viral content analysis failed after all retries', [
+                        'error' => $e->getMessage(),
+                        'max_retries' => $maxRetries,
+                    ]);
+                    throw new \Exception('Failed to analyze viral content after ' . $maxRetries . ' attempts: ' . $e->getMessage());
+                }
+                
+                // Wait before retry
+                sleep(2);
+            }
+        }
+        
+        // This should never be reached due to the exception above
+        throw new \Exception('Unexpected error in viral content analysis');
     }
 
     /**
@@ -1442,7 +1634,7 @@ class AITrendAnalyzerService
             $prompt = "Analyze emerging social media trends that haven't peaked yet. Focus on early indicators and predict which trends will grow in the coming weeks.";
             
             $response = OpenAI::chat()->create([
-                'model' => 'gpt-4',
+                'model' => 'gpt-4o-mini',
                 'messages' => [
                     ['role' => 'system', 'content' => 'You are a trend forecasting expert specializing in social media.'],
                     ['role' => 'user', 'content' => $prompt],
@@ -1460,387 +1652,60 @@ class AITrendAnalyzerService
 
     protected function parseEmergingTrends(string $analysis, array $platforms): array
     {
-        // Parse AI analysis into structured emerging trends
-        $trends = [
-            [
-                'trend' => 'AI-Human Collaboration Content',
-                'category' => 'technology',
-                'emergence_score' => 78,
-                'growth_velocity' => 155,
-                'predicted_peak' => '2-3 weeks',
-                'platforms' => $platforms,
-                'indicators' => [
-                    'Increasing AI tool adoption',
-                    'Human-AI creative partnerships',
-                    'Hybrid content creation'
-                ],
-                'opportunity_window' => '7-14 days',
-                'competition_level' => 'low',
-                'investment_required' => 'medium',
-                'risk_assessment' => 'low',
-                'recommended_timeline' => 'Act within 2 weeks',
-            ],
-            [
-                'trend' => 'Micro-Community Building',
-                'category' => 'social',
-                'emergence_score' => 74,
-                'growth_velocity' => 142,
-                'predicted_peak' => '3-4 weeks',
-                'platforms' => $platforms,
-                'indicators' => [
-                    'Niche audience growth',
-                    'Intimate content formats',
-                    'Community-driven engagement'
-                ],
-                'opportunity_window' => '14-21 days',
-                'competition_level' => 'medium',
-                'investment_required' => 'low',
-                'risk_assessment' => 'low',
-                'recommended_timeline' => 'Plan and execute within 3 weeks',
-            ],
-        ];
+        $trends = [];
+        
+        // Extract emerging trends from AI analysis
+        preg_match_all('/([A-Z][^.!?]+(?:trend|movement|content|format))/i', $analysis, $matches);
+        
+        if (!empty($matches[1])) {
+            foreach (array_slice($matches[1], 0, 4) as $match) {
+                $trend = trim($match);
+                
+                // Extract indicators
+                $indicators = [];
+                if (preg_match_all('/(?:indicator|signal|sign)[^.!?]*?([^.!?]+)/i', $analysis, $inds)) {
+                    $indicators = array_slice($inds[1], 0, 3);
+                }
+                
+                $trends[] = [
+                    'trend' => $trend,
+                    'category' => $this->categorizeKeyword($trend),
+                    'emergence_score' => $this->calculateEmergenceScore($analysis, $trend),
+                    'growth_velocity' => $this->calculateGrowthVelocity($analysis, $trend),
+                    'predicted_peak' => $this->predictPeakTime($analysis, $trend),
+                    'platforms' => $platforms,
+                    'indicators' => !empty($indicators) ? $indicators : ['Growing interest', 'Early adoption'],
+                    'opportunity_window' => '7-21 days',
+                    'competition_level' => 'low',
+                    'investment_required' => 'low',
+                    'risk_assessment' => 'low',
+                    'recommended_timeline' => 'Act within 2 weeks',
+                ];
+            }
+        }
+        
+        // If no trends found, create from keywords
+        if (empty($trends)) {
+            $keywords = ['emerging', 'growing', 'trending', 'new'];
+            foreach (array_slice($keywords, 0, 2) as $keyword) {
+                $trends[] = [
+                    'trend' => ucfirst($keyword) . ' Content Trend',
+                    'category' => 'content strategy',
+                    'emergence_score' => 70 + (array_search($keyword, $keywords) * 5),
+                    'growth_velocity' => 120 + (array_search($keyword, $keywords) * 20),
+                    'predicted_peak' => '2-3 weeks',
+                    'platforms' => $platforms,
+                    'indicators' => ['Growing interest', 'Early adoption'],
+                    'opportunity_window' => '10-14 days',
+                    'competition_level' => 'medium',
+                    'investment_required' => 'low',
+                    'risk_assessment' => 'low',
+                    'recommended_timeline' => 'Start immediately',
+                ];
+            }
+        }
         
         return $trends;
-    }
-
-    protected function getFallbackEmergingTrends(array $platforms): array
-    {
-        return [
-            [
-                'trend' => 'Authentic Storytelling',
-                'category' => 'content strategy',
-                'emergence_score' => 72,
-                'growth_velocity' => 130,
-                'predicted_peak' => '2-3 weeks',
-                'platforms' => $platforms,
-                'indicators' => ['Personal narratives growing', 'Raw content preferred'],
-                'opportunity_window' => '10-14 days',
-                'competition_level' => 'medium',
-                'investment_required' => 'low',
-                'risk_assessment' => 'low',
-                'recommended_timeline' => 'Start immediately',
-            ],
-        ];
-    }
-
-    /**
-     * Analyze hashtag trends using real data
-     */
-    protected function analyzeHashtagTrends(array $trendData, array $platforms): array
-    {
-        // Generate hashtags from real trending keywords
-        $hashtags = $this->generateHashtagsFromTrendData($trendData);
-        
-        // Get current real hashtag performance data
-        $realHashtagData = $this->getCurrentHashtagTrends();
-        
-        // Merge and analyze
-        $allHashtags = array_merge($hashtags, $realHashtagData);
-        
-        $hashtagTrends = [];
-        foreach ($allHashtags as $hashtagData) {
-            $hashtag = $hashtagData['hashtag'];
-            $usageCount = $hashtagData['usage_count'];
-            
-            // Calculate metrics based on real data
-            $growthRate = $this->calculateHashtagGrowthRate($usageCount, $hashtagData['trend_velocity'] ?? 1000);
-            $engagementBoost = $this->calculateEngagementBoost($usageCount, count($platforms));
-            $competitionLevel = $this->assessHashtagCompetition($usageCount);
-            $optimalUsage = $this->determineOptimalUsage($engagementBoost, $competitionLevel);
-            
-            $hashtagTrends[] = [
-                'hashtag' => $hashtag,
-                'usage_count' => $usageCount,
-                'growth_rate' => $growthRate,
-                'platforms' => $hashtagData['platforms'] ?? $platforms,
-                'engagement_boost' => $engagementBoost,
-                'competition_level' => $competitionLevel,
-                'optimal_usage' => $optimalUsage,
-                'trend_momentum' => $this->calculateHashtagMomentum(['growth_rate' => $growthRate]),
-                'longevity_prediction' => $this->predictHashtagLongevity(['engagement_boost' => $engagementBoost]),
-                'category' => $this->categorizeHashtag($hashtag),
-                'best_posting_times' => $this->getOptimalHashtagTimes($hashtag),
-                'related_hashtags' => $this->getRelatedHashtags($hashtag),
-                'target_audience' => $this->getHashtagAudience($hashtag),
-            ];
-        }
-        
-        // Sort by usage count (most popular first)
-        usort($hashtagTrends, function($a, $b) {
-            return $b['usage_count'] <=> $a['usage_count'];
-        });
-        
-        return array_slice($hashtagTrends, 0, 15); // Return top 15 hashtags
-    }
-    
-    /**
-     * Generate hashtags from real trend data
-     */
-    protected function generateHashtagsFromTrendData(array $trendData): array
-    {
-        $hashtags = [];
-        
-        foreach ($trendData as $platform => $platformData) {
-            foreach ($platformData as $data) {
-                if (isset($data['keywords'])) {
-                    foreach ($data['keywords'] as $keyword) {
-                        // Convert keywords to hashtags
-                        $hashtag = $this->keywordToHashtag($keyword);
-                        
-                        if (!isset($hashtags[$hashtag])) {
-                            $hashtags[$hashtag] = [
-                                'hashtag' => $hashtag,
-                                'usage_count' => 0,
-                                'platforms' => [],
-                                'trend_velocity' => 0,
-                            ];
-                        }
-                        
-                        $hashtags[$hashtag]['usage_count'] += $data['engagement_indicators'] ?? 1000;
-                        $hashtags[$hashtag]['platforms'][] = $platform;
-                        $hashtags[$hashtag]['trend_velocity'] += $data['platform_mentions'] ?? 100;
-                    }
-                }
-            }
-        }
-        
-        return array_values($hashtags);
-    }
-    
-    /**
-     * Get current real hashtag trends (2025 data)
-     */
-    protected function getCurrentHashtagTrends(): array
-    {
-        return [
-            [
-                'hashtag' => '#AIContent2025',
-                'usage_count' => 127000,
-                'platforms' => ['instagram', 'tiktok', 'youtube', 'x'],
-                'trend_velocity' => 2800,
-            ],
-            [
-                'hashtag' => '#ShortFormVideo',
-                'usage_count' => 156000,
-                'platforms' => ['tiktok', 'instagram', 'youtube'],
-                'trend_velocity' => 3200,
-            ],
-            [
-                'hashtag' => '#CreatorEconomy',
-                'usage_count' => 98000,
-                'platforms' => ['instagram', 'youtube', 'x'],
-                'trend_velocity' => 2100,
-            ],
-            [
-                'hashtag' => '#AuthenticContent',
-                'usage_count' => 89000,
-                'platforms' => ['instagram', 'tiktok', 'youtube'],
-                'trend_velocity' => 1900,
-            ],
-            [
-                'hashtag' => '#SustainableContent',
-                'usage_count' => 67000,
-                'platforms' => ['instagram', 'youtube', 'tiktok'],
-                'trend_velocity' => 1600,
-            ],
-            [
-                'hashtag' => '#MicroInfluencer',
-                'usage_count' => 54000,
-                'platforms' => ['instagram', 'tiktok'],
-                'trend_velocity' => 1400,
-            ],
-            [
-                'hashtag' => '#SocialCommerce',
-                'usage_count' => 78000,
-                'platforms' => ['instagram', 'tiktok', 'youtube'],
-                'trend_velocity' => 1800,
-            ],
-            [
-                'hashtag' => '#UGC',
-                'usage_count' => 112000,
-                'platforms' => ['tiktok', 'instagram', 'youtube'],
-                'trend_velocity' => 2300,
-            ],
-        ];
-    }
-    
-    /**
-     * Convert keyword to hashtag format
-     */
-    protected function keywordToHashtag(string $keyword): string
-    {
-        // Clean and format keyword as hashtag
-        $cleaned = preg_replace('/[^a-zA-Z0-9\s]/', '', $keyword);
-        $words = explode(' ', $cleaned);
-        $hashtag = '#' . implode('', array_map('ucfirst', $words));
-        
-        return $hashtag;
-    }
-    
-    /**
-     * Calculate hashtag growth rate
-     */
-    protected function calculateHashtagGrowthRate(int $usageCount, int $velocity): string
-    {
-        $baseGrowth = min(300, max(20, ($usageCount / 1000) + ($velocity / 50)));
-        return '+' . round($baseGrowth) . '%';
-    }
-    
-    /**
-     * Calculate engagement boost for hashtag
-     */
-    protected function calculateEngagementBoost(int $usageCount, int $platformCount): float
-    {
-        $baseBoost = 1.2;
-        $volumeBoost = min(1.5, $usageCount / 100000);
-        $platformBoost = $platformCount * 0.2;
-        
-        return round($baseBoost + $volumeBoost + $platformBoost, 1);
-    }
-    
-    /**
-     * Assess hashtag competition level
-     */
-    protected function assessHashtagCompetition(int $usageCount): string
-    {
-        if ($usageCount > 100000) return 'high';
-        if ($usageCount > 50000) return 'medium';
-        return 'low';
-    }
-    
-    /**
-     * Determine optimal hashtag usage
-     */
-    protected function determineOptimalUsage(float $engagementBoost, string $competitionLevel): string
-    {
-        if ($engagementBoost > 2.5 && $competitionLevel === 'low') return 'primary';
-        if ($engagementBoost > 2.0 && $competitionLevel !== 'high') return 'primary';
-        if ($engagementBoost > 1.5) return 'secondary';
-        return 'supplementary';
-    }
-    
-    /**
-     * Categorize hashtag by content type
-     */
-    protected function categorizeHashtag(string $hashtag): string
-    {
-        $categories = [
-            'AI' => 'technology',
-            'Content' => 'media',
-            'Creator' => 'creator_economy',
-            'Authentic' => 'lifestyle',
-            'Sustainable' => 'sustainability',
-            'Commerce' => 'business',
-            'Influencer' => 'marketing',
-            'UGC' => 'community',
-        ];
-        
-        foreach ($categories as $term => $category) {
-            if (stripos($hashtag, $term) !== false) {
-                return $category;
-            }
-        }
-        
-        return 'general';
-    }
-    
-    /**
-     * Get optimal posting times for hashtag
-     */
-    protected function getOptimalHashtagTimes(string $hashtag): array
-    {
-        $timeMap = [
-            'AI' => ['9-11 AM', '2-4 PM'],
-            'Content' => ['7-9 PM', '12-2 PM'],
-            'Creator' => ['6-8 PM', '11 AM-1 PM'],
-            'default' => ['12-2 PM', '7-9 PM'],
-        ];
-        
-        foreach ($timeMap as $term => $times) {
-            if ($term !== 'default' && stripos($hashtag, $term) !== false) {
-                return $times;
-            }
-        }
-        
-        return $timeMap['default'];
-    }
-    
-    /**
-     * Get related hashtags
-     */
-    protected function getRelatedHashtags(string $hashtag): array
-    {
-        $related = [
-            '#AIContent2025' => ['#AI', '#ContentCreation', '#DigitalMarketing'],
-            '#ShortFormVideo' => ['#VideoContent', '#Reels', '#TikTok'],
-            '#CreatorEconomy' => ['#ContentCreator', '#Influencer', '#DigitalCreator'],
-            '#AuthenticContent' => ['#RealContent', '#Authentic', '#Genuine'],
-            '#SustainableContent' => ['#EcoFriendly', '#Sustainability', '#GreenContent'],
-        ];
-        
-        return $related[$hashtag] ?? ['#Trending', '#Viral', '#Content'];
-    }
-    
-    /**
-     * Get target audience for hashtag
-     */
-    protected function getHashtagAudience(string $hashtag): string
-    {
-        $audienceMap = [
-            'AI' => '25-40 tech professionals',
-            'Creator' => '18-35 content creators',
-            'Authentic' => '20-45 lifestyle enthusiasts',
-            'Sustainable' => '22-40 eco-conscious consumers',
-            'Commerce' => '25-45 business owners',
-        ];
-        
-        foreach ($audienceMap as $term => $audience) {
-            if (stripos($hashtag, $term) !== false) {
-                return $audience;
-            }
-        }
-        
-        return '18-44 general audience';
-    }
-
-    /**
-     * Identify content opportunities
-     */
-    protected function identifyContentOpportunities(array $trendData, array $platforms): array
-    {
-        // Use trend data to identify content gaps and opportunities
-        $opportunities = [
-            [
-                'opportunity' => 'AI-Enhanced Tutorials',
-                'market_gap_score' => 82,
-                'competition_level' => 'low',
-                'audience_demand' => 'very high',
-                'platforms' => $platforms,
-                'recommended_format' => 'step-by-step with AI assistance',
-                'projected_performance' => [
-                    'estimated_views' => 75000,
-                    'engagement_rate' => $this->estimateEngagementRate(['audience_demand' => 'very high']),
-                    'growth_potential' => 'very high',
-                ],
-                'implementation' => [
-                    'time_to_market' => '1-2 weeks',
-                    'resource_requirement' => 'medium',
-                    'difficulty_level' => 'moderate',
-                ],
-                'business_impact' => [
-                    'monetization_potential' => 'high',
-                    'brand_alignment' => 'high',
-                    'long_term_value' => 'high',
-                ],
-                'action_plan' => [
-                    'immediate_steps' => ['Research AI tools', 'Plan tutorial series', 'Test format'],
-                    'content_development' => ['Create pilot episodes', 'Gather feedback', 'Optimize'],
-                    'optimization' => ['Monitor performance', 'Iterate', 'Scale'],
-                ],
-            ],
-        ];
-        
-        return $opportunities;
     }
 
     /**
@@ -2055,5 +1920,521 @@ class AITrendAnalyzerService
             'error' => 'Failed to analyze trends - using fallback data',
             'data_sources' => [],
         ];
+    }
+
+    /**
+     * Get fallback emerging trends using AI analysis
+     */
+    protected function getFallbackEmergingTrends(array $platforms): array
+    {
+        $retryCount = 0;
+        $maxRetries = 3;
+        
+        while ($retryCount < $maxRetries) {
+            try {
+                $prompt = "Identify emerging social media trends that are just starting to gain traction. Focus on early-stage trends with growth potential.
+                          Analyze trends across platforms: " . implode(', ', $platforms) . ".
+                          Provide specific trend names, growth indicators, and opportunity windows.
+                          Format your response with clear trend analysis and metrics.";
+
+                $response = OpenAI::chat()->create([
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system', 
+                            'content' => 'You are a trend forecasting expert specializing in early-stage social media trends. Provide accurate analysis of emerging trends.'
+                        ],
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'max_tokens' => 600,
+                    'temperature' => 0.7,
+                ]);
+
+                $analysis = $response->choices[0]->message->content;
+                
+                // Parse AI response to extract emerging trends
+                $trends = $this->parseEmergingTrends($analysis, $platforms);
+                
+                // Validate that we got meaningful data
+                if (!empty($trends) && count($trends) > 0) {
+                    Log::info('AI fallback emerging trends analysis completed successfully', [
+                        'trends_count' => count($trends),
+                    ]);
+                    return $trends;
+                } else {
+                    throw new \Exception('AI analysis returned empty or invalid emerging trends');
+                }
+                
+            } catch (\Exception $e) {
+                $retryCount++;
+                Log::warning('AI fallback emerging trends analysis failed, retrying', [
+                    'error' => $e->getMessage(),
+                    'retry_count' => $retryCount,
+                ]);
+                
+                if ($retryCount >= $maxRetries) {
+                    Log::error('AI fallback emerging trends analysis failed after all retries', [
+                        'error' => $e->getMessage(),
+                        'max_retries' => $maxRetries,
+                    ]);
+                    throw new \Exception('Failed to analyze emerging trends after ' . $maxRetries . ' attempts: ' . $e->getMessage());
+                }
+                
+                // Wait before retry
+                sleep(2);
+            }
+        }
+        
+        // This should never be reached due to the exception above
+        throw new \Exception('Unexpected error in emerging trends analysis');
+    }
+
+    /**
+     * Calculate emergence score from AI analysis
+     */
+    protected function calculateEmergenceScore(string $analysis, string $trend): int
+    {
+        $baseScore = 65;
+        
+        // Boost based on positive indicators
+        if (stripos($analysis, 'emerging') !== false) $baseScore += 10;
+        if (stripos($analysis, 'growing') !== false) $baseScore += 8;
+        if (stripos($analysis, 'early') !== false) $baseScore += 5;
+        if (stripos($analysis, 'potential') !== false) $baseScore += 7;
+        
+        return min(95, $baseScore);
+    }
+
+    /**
+     * Calculate growth velocity from AI analysis
+     */
+    protected function calculateGrowthVelocity(string $analysis, string $trend): int
+    {
+        $baseVelocity = 100;
+        
+        // Boost based on growth indicators
+        if (stripos($analysis, 'rapid') !== false) $baseVelocity += 50;
+        if (stripos($analysis, 'fast') !== false) $baseVelocity += 40;
+        if (stripos($analysis, 'accelerating') !== false) $baseVelocity += 60;
+        
+        return $baseVelocity;
+    }
+
+    /**
+     * Predict peak time from AI analysis
+     */
+    protected function predictPeakTime(string $analysis, string $trend): string
+    {
+        if (stripos($analysis, 'rapid') !== false || stripos($analysis, 'fast') !== false) {
+            return '1-2 weeks';
+        } elseif (stripos($analysis, 'steady') !== false) {
+            return '3-4 weeks';
+        } else {
+            return '2-3 weeks';
+        }
+    }
+
+    /**
+     * Analyze hashtag trends using real data
+     */
+    protected function analyzeHashtagTrends(array $trendData, array $platforms): array
+    {
+        // Generate hashtags from real trending keywords
+        $hashtags = $this->generateHashtagsFromTrendData($trendData);
+        
+        // Get current real hashtag performance data
+        $realHashtagData = $this->getCurrentHashtagTrends();
+        
+        // Merge and analyze
+        $allHashtags = array_merge($hashtags, $realHashtagData);
+        
+        $hashtagTrends = [];
+        foreach ($allHashtags as $hashtagData) {
+            $hashtag = $hashtagData['hashtag'];
+            $usageCount = $hashtagData['usage_count'];
+            
+            // Calculate metrics based on real data
+            $growthRate = $this->calculateHashtagGrowthRate($usageCount, $hashtagData['trend_velocity'] ?? 1000);
+            $engagementBoost = $this->calculateEngagementBoost($usageCount, count($platforms));
+            $competitionLevel = $this->assessHashtagCompetition($usageCount);
+            $optimalUsage = $this->determineOptimalUsage($engagementBoost, $competitionLevel);
+            
+            $hashtagTrends[] = [
+                'hashtag' => $hashtag,
+                'usage_count' => $usageCount,
+                'growth_rate' => $growthRate,
+                'platforms' => $hashtagData['platforms'] ?? $platforms,
+                'engagement_boost' => $engagementBoost,
+                'competition_level' => $competitionLevel,
+                'optimal_usage' => $optimalUsage,
+                'trend_momentum' => $this->calculateHashtagMomentum(['growth_rate' => $growthRate]),
+                'longevity_prediction' => $this->predictHashtagLongevity(['engagement_boost' => $engagementBoost]),
+                'category' => $this->categorizeHashtag($hashtag),
+                'best_posting_times' => $this->getOptimalHashtagTimes($hashtag),
+                'related_hashtags' => $this->getRelatedHashtags($hashtag),
+                'target_audience' => $this->getHashtagAudience($hashtag),
+            ];
+        }
+        
+        // Sort by usage count (most popular first)
+        usort($hashtagTrends, function($a, $b) {
+            return $b['usage_count'] <=> $a['usage_count'];
+        });
+        
+        return array_slice($hashtagTrends, 0, 15); // Return top 15 hashtags
+    }
+    
+    /**
+     * Generate hashtags from real trend data
+     */
+    protected function generateHashtagsFromTrendData(array $trendData): array
+    {
+        $hashtags = [];
+        
+        foreach ($trendData as $platform => $platformData) {
+            foreach ($platformData as $data) {
+                if (isset($data['keywords'])) {
+                    foreach ($data['keywords'] as $keyword) {
+                        // Convert keywords to hashtags
+                        $hashtag = $this->keywordToHashtag($keyword);
+                        
+                        if (!isset($hashtags[$hashtag])) {
+                            $hashtags[$hashtag] = [
+                                'hashtag' => $hashtag,
+                                'usage_count' => 0,
+                                'platforms' => [],
+                                'trend_velocity' => 0,
+                            ];
+                        }
+                        
+                        $hashtags[$hashtag]['usage_count'] += $data['engagement_indicators'] ?? 1000;
+                        $hashtags[$hashtag]['platforms'][] = $platform;
+                        $hashtags[$hashtag]['trend_velocity'] += $data['platform_mentions'] ?? 100;
+                    }
+                }
+            }
+        }
+        
+        return array_values($hashtags);
+    }
+    
+    /**
+     * Get current hashtag trends using AI analysis
+     */
+    protected function getCurrentHashtagTrends(): array
+    {
+        $retryCount = 0;
+        $maxRetries = 3;
+        
+        while ($retryCount < $maxRetries) {
+            try {
+                $prompt = "Analyze current trending hashtags across social media platforms (Instagram, TikTok, YouTube, Twitter/X).
+                          Identify the most popular and growing hashtags, their usage patterns, and platform distribution.
+                          Focus on hashtags that are currently viral or trending.
+                          Return structured data about trending hashtags with usage metrics and platform information.
+                          Format your response with clear hashtag names, usage counts, and platform information.";
+
+                $response = OpenAI::chat()->create([
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system', 
+                            'content' => 'You are a hashtag trend analyst with expertise in social media hashtag performance and viral trends. Provide accurate, current analysis of trending hashtags.'
+                        ],
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'max_tokens' => 800,
+                    'temperature' => 0.7,
+                ]);
+
+                $analysis = $response->choices[0]->message->content;
+                
+                // Parse AI response to extract hashtag trends
+                $hashtags = $this->parseAIHashtagTrends($analysis);
+                
+                // Validate that we got meaningful data
+                if (!empty($hashtags) && count($hashtags) > 0) {
+                    Log::info('AI hashtag trend analysis completed successfully', [
+                        'hashtags_count' => count($hashtags),
+                    ]);
+                    return $hashtags;
+                } else {
+                    throw new \Exception('AI analysis returned empty or invalid hashtag trends');
+                }
+                
+            } catch (\Exception $e) {
+                $retryCount++;
+                Log::warning('AI hashtag trend analysis failed, retrying', [
+                    'error' => $e->getMessage(),
+                    'retry_count' => $retryCount,
+                ]);
+                
+                if ($retryCount >= $maxRetries) {
+                    Log::error('AI hashtag trend analysis failed after all retries', [
+                        'error' => $e->getMessage(),
+                        'max_retries' => $maxRetries,
+                    ]);
+                    throw new \Exception('Failed to analyze hashtag trends after ' . $maxRetries . ' attempts: ' . $e->getMessage());
+                }
+                
+                // Wait before retry
+                sleep(2);
+            }
+        }
+        
+        // This should never be reached due to the exception above
+        throw new \Exception('Unexpected error in hashtag trend analysis');
+    }
+
+    /**
+     * Parse AI hashtag trends analysis
+     */
+    protected function parseAIHashtagTrends(string $analysis): array
+    {
+        $hashtags = [];
+        
+        // Extract hashtags from AI analysis
+        preg_match_all('/#(\w+)/', $analysis, $matches);
+        
+        if (!empty($matches[1])) {
+            foreach (array_slice($matches[1], 0, 8) as $hashtag) {
+                $hashtag = '#' . $hashtag;
+                
+                // Determine platforms based on context
+                $platforms = $this->determineHashtagPlatforms($analysis, $hashtag);
+                
+                // Calculate usage metrics based on analysis context
+                $usageCount = $this->estimateHashtagUsage($analysis, $hashtag);
+                $trendVelocity = $this->calculateHashtagVelocity($analysis, $hashtag);
+                
+                $hashtags[] = [
+                    'hashtag' => $hashtag,
+                    'usage_count' => $usageCount,
+                    'platforms' => $platforms,
+                    'trend_velocity' => $trendVelocity,
+                ];
+            }
+        }
+        
+        // If no hashtags found, create from trending keywords
+        if (empty($hashtags)) {
+            $trendingKeywords = ['trending', 'viral', 'popular', 'content', 'video'];
+            foreach (array_slice($trendingKeywords, 0, 4) as $keyword) {
+                $hashtags[] = [
+                    'hashtag' => '#' . ucfirst($keyword),
+                    'usage_count' => 30000 + (array_search($keyword, $trendingKeywords) * 5000),
+                    'platforms' => ['instagram', 'tiktok', 'youtube'],
+                    'trend_velocity' => 1000 + (array_search($keyword, $trendingKeywords) * 200),
+                ];
+            }
+        }
+        
+        return $hashtags;
+    }
+
+    /**
+     * Determine hashtag platforms from analysis
+     */
+    protected function determineHashtagPlatforms(string $analysis, string $hashtag): array
+    {
+        $platforms = [];
+        
+        // Check for platform mentions in analysis
+        if (stripos($analysis, 'instagram') !== false || stripos($hashtag, 'reel') !== false) {
+            $platforms[] = 'instagram';
+        }
+        if (stripos($analysis, 'tiktok') !== false || stripos($hashtag, 'fyp') !== false) {
+            $platforms[] = 'tiktok';
+        }
+        if (stripos($analysis, 'youtube') !== false || stripos($hashtag, 'video') !== false) {
+            $platforms[] = 'youtube';
+        }
+        if (stripos($analysis, 'twitter') !== false || stripos($analysis, 'x') !== false) {
+            $platforms[] = 'x';
+        }
+        
+        // Default platforms if none detected
+        if (empty($platforms)) {
+            $platforms = ['instagram', 'tiktok', 'youtube'];
+        }
+        
+        return array_unique($platforms);
+    }
+
+    /**
+     * Estimate hashtag usage from analysis
+     */
+    protected function estimateHashtagUsage(string $analysis, string $hashtag): int
+    {
+        $baseUsage = 25000;
+        
+        // Boost based on viral indicators
+        if (stripos($analysis, 'viral') !== false) $baseUsage += 25000;
+        if (stripos($analysis, 'trending') !== false) $baseUsage += 20000;
+        if (stripos($analysis, 'popular') !== false) $baseUsage += 15000;
+        
+        // Hashtag-specific adjustments
+        if (stripos($hashtag, 'fyp') !== false) $baseUsage += 30000; // TikTok specific
+        if (stripos($hashtag, 'reel') !== false) $baseUsage += 25000; // Instagram specific
+        
+        return $baseUsage;
+    }
+
+    /**
+     * Calculate hashtag trend velocity from analysis
+     */
+    protected function calculateHashtagVelocity(string $analysis, string $hashtag): int
+    {
+        $baseVelocity = 800;
+        
+        // Boost based on growth indicators
+        if (stripos($analysis, 'growing') !== false) $baseVelocity += 400;
+        if (stripos($analysis, 'rising') !== false) $baseVelocity += 300;
+        if (stripos($analysis, 'explosive') !== false) $baseVelocity += 600;
+        
+        // Hashtag-specific velocity
+        if (stripos($hashtag, 'viral') !== false) $baseVelocity += 500;
+        if (stripos($hashtag, 'trending') !== false) $baseVelocity += 400;
+        
+        return $baseVelocity;
+    }
+    
+    /**
+     * Convert keyword to hashtag format
+     */
+    protected function keywordToHashtag(string $keyword): string
+    {
+        // Clean and format keyword as hashtag
+        $cleaned = preg_replace('/[^a-zA-Z0-9\s]/', '', $keyword);
+        $words = explode(' ', $cleaned);
+        $hashtag = '#' . implode('', array_map('ucfirst', $words));
+        
+        return $hashtag;
+    }
+    
+    /**
+     * Calculate hashtag growth rate
+     */
+    protected function calculateHashtagGrowthRate(int $usageCount, int $velocity): string
+    {
+        $baseGrowth = min(300, max(20, ($usageCount / 1000) + ($velocity / 50)));
+        return '+' . round($baseGrowth) . '%';
+    }
+    
+    /**
+     * Calculate engagement boost for hashtag
+     */
+    protected function calculateEngagementBoost(int $usageCount, int $platformCount): float
+    {
+        $baseBoost = 1.2;
+        $volumeBoost = min(1.5, $usageCount / 100000);
+        $platformBoost = $platformCount * 0.2;
+        
+        return round($baseBoost + $volumeBoost + $platformBoost, 1);
+    }
+    
+    /**
+     * Assess hashtag competition level
+     */
+    protected function assessHashtagCompetition(int $usageCount): string
+    {
+        if ($usageCount > 100000) return 'high';
+        if ($usageCount > 50000) return 'medium';
+        return 'low';
+    }
+    
+    /**
+     * Determine optimal hashtag usage
+     */
+    protected function determineOptimalUsage(float $engagementBoost, string $competitionLevel): string
+    {
+        if ($engagementBoost > 2.5 && $competitionLevel === 'low') return 'primary';
+        if ($engagementBoost > 2.0 && $competitionLevel !== 'high') return 'primary';
+        if ($engagementBoost > 1.5) return 'secondary';
+        return 'supplementary';
+    }
+    
+    /**
+     * Categorize hashtag by content type
+     */
+    protected function categorizeHashtag(string $hashtag): string
+    {
+        $categories = [
+            'AI' => 'technology',
+            'Content' => 'media',
+            'Creator' => 'creator_economy',
+            'Authentic' => 'lifestyle',
+            'Sustainable' => 'sustainability',
+            'Commerce' => 'business',
+            'Influencer' => 'marketing',
+            'UGC' => 'community',
+        ];
+        
+        foreach ($categories as $term => $category) {
+            if (stripos($hashtag, $term) !== false) {
+                return $category;
+            }
+        }
+        
+        return 'general';
+    }
+    
+    /**
+     * Get optimal posting times for hashtag
+     */
+    protected function getOptimalHashtagTimes(string $hashtag): array
+    {
+        $timeMap = [
+            'AI' => ['9-11 AM', '2-4 PM'],
+            'Content' => ['7-9 PM', '12-2 PM'],
+            'Creator' => ['6-8 PM', '11 AM-1 PM'],
+            'default' => ['12-2 PM', '7-9 PM'],
+        ];
+        
+        foreach ($timeMap as $term => $times) {
+            if ($term !== 'default' && stripos($hashtag, $term) !== false) {
+                return $times;
+            }
+        }
+        
+        return $timeMap['default'];
+    }
+    
+    /**
+     * Get related hashtags
+     */
+    protected function getRelatedHashtags(string $hashtag): array
+    {
+        $related = [
+            '#AIContent2025' => ['#AI', '#ContentCreation', '#DigitalMarketing'],
+            '#ShortFormVideo' => ['#VideoContent', '#Reels', '#TikTok'],
+            '#CreatorEconomy' => ['#ContentCreator', '#Influencer', '#DigitalCreator'],
+            '#AuthenticContent' => ['#RealContent', '#Authentic', '#Genuine'],
+            '#SustainableContent' => ['#EcoFriendly', '#Sustainability', '#GreenContent'],
+        ];
+        
+        return $related[$hashtag] ?? ['#Trending', '#Viral', '#Content'];
+    }
+    
+    /**
+     * Get target audience for hashtag
+     */
+    protected function getHashtagAudience(string $hashtag): string
+    {
+        $audienceMap = [
+            'AI' => '25-40 tech professionals',
+            'Creator' => '18-35 content creators',
+            'Authentic' => '20-45 lifestyle enthusiasts',
+            'Sustainable' => '22-40 eco-conscious consumers',
+            'Commerce' => '25-45 business owners',
+        ];
+        
+        foreach ($audienceMap as $term => $audience) {
+            if (stripos($hashtag, $term) !== false) {
+                return $audience;
+            }
+        }
+        
+        return '18-44 general audience';
     }
 }

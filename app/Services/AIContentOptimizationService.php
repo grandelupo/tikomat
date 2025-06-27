@@ -654,21 +654,131 @@ class AIContentOptimizationService
 
     private function generateFallbackTags(string $category): array
     {
-        $fallbackTags = $this->contentCategories[$category] ?? 'general, content, video, social media';
-        return array_map('trim', explode(', ', $fallbackTags));
+        $retryCount = 0;
+        $maxRetries = 3;
+        
+        while ($retryCount < $maxRetries) {
+            try {
+                $prompt = "Generate 5-8 relevant hashtags for {$category} content that are currently trending and would help with discoverability.
+                          Focus on hashtags that are relevant to the content category and currently popular.
+                          Return only the hashtags in a comma-separated list, with # symbols.";
+
+                $response = OpenAI::chat()->create([
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system', 
+                            'content' => "You are a social media hashtag specialist. Provide accurate, relevant hashtags for {$category} content."
+                        ],
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'max_tokens' => 100,
+                    'temperature' => 0.7,
+                ]);
+
+                $hashtags = explode(',', $response->choices[0]->message->content);
+                $hashtags = array_map('trim', array_filter($hashtags));
+                
+                // Validate that we got meaningful data
+                if (!empty($hashtags) && count($hashtags) > 0) {
+                    Log::info('AI fallback tag generation completed successfully', [
+                        'category' => $category,
+                        'tags_count' => count($hashtags),
+                    ]);
+                    return $hashtags;
+                } else {
+                    throw new \Exception('AI analysis returned empty or invalid tags');
+                }
+                
+            } catch (\Exception $e) {
+                $retryCount++;
+                Log::warning('AI fallback tag generation failed, retrying', [
+                    'category' => $category,
+                    'error' => $e->getMessage(),
+                    'retry_count' => $retryCount,
+                ]);
+                
+                if ($retryCount >= $maxRetries) {
+                    Log::error('AI fallback tag generation failed after all retries', [
+                        'category' => $category,
+                        'error' => $e->getMessage(),
+                        'max_retries' => $maxRetries,
+                    ]);
+                    throw new \Exception('Failed to generate fallback tags for ' . $category . ' after ' . $maxRetries . ' attempts: ' . $e->getMessage());
+                }
+                
+                // Wait before retry
+                sleep(2);
+            }
+        }
+        
+        // This should never be reached due to the exception above
+        throw new \Exception('Unexpected error in fallback tag generation');
     }
 
     private function getFallbackHashtags(string $platform): array
     {
-        $fallbacks = [
-            'youtube' => ['#youtube', '#video', '#content', '#trending'],
-            'tiktok' => ['#fyp', '#viral', '#trending', '#tiktok'],
-            'instagram' => ['#instagram', '#reels', '#content', '#viral'],
-            'facebook' => ['#facebook', '#video', '#social', '#content'],
-            'x' => ['#x', '#video', '#content', '#trending'],
-        ];
+        $retryCount = 0;
+        $maxRetries = 3;
         
-        return $fallbacks[$platform] ?? ['#content', '#video', '#social'];
+        while ($retryCount < $maxRetries) {
+            try {
+                // Use AI to generate fallback hashtags
+                $prompt = "Generate 5 trending hashtags for {$platform} that are currently popular and relevant for general content.
+                          Focus on hashtags that are currently viral or trending.
+                          Return only the hashtags in a comma-separated list, with # symbols.";
+                
+                $response = OpenAI::chat()->create([
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system', 
+                            'content' => "You are a social media hashtag specialist for {$platform}. Provide accurate, current trending hashtags."
+                        ],
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'max_tokens' => 100,
+                    'temperature' => 0.7,
+                ]);
+
+                $hashtags = explode(',', $response->choices[0]->message->content);
+                $hashtags = array_map('trim', array_filter($hashtags));
+                
+                // Validate that we got meaningful data
+                if (!empty($hashtags) && count($hashtags) > 0) {
+                    Log::info('AI fallback hashtag generation completed successfully', [
+                        'platform' => $platform,
+                        'hashtags_count' => count($hashtags),
+                    ]);
+                    return $hashtags;
+                } else {
+                    throw new \Exception('AI analysis returned empty or invalid hashtags');
+                }
+                
+            } catch (\Exception $e) {
+                $retryCount++;
+                Log::warning('AI fallback hashtag generation failed, retrying', [
+                    'platform' => $platform,
+                    'error' => $e->getMessage(),
+                    'retry_count' => $retryCount,
+                ]);
+                
+                if ($retryCount >= $maxRetries) {
+                    Log::error('AI fallback hashtag generation failed after all retries', [
+                        'platform' => $platform,
+                        'error' => $e->getMessage(),
+                        'max_retries' => $maxRetries,
+                    ]);
+                    throw new \Exception('Failed to generate fallback hashtags for ' . $platform . ' after ' . $maxRetries . ' attempts: ' . $e->getMessage());
+                }
+                
+                // Wait before retry
+                sleep(2);
+            }
+        }
+        
+        // This should never be reached due to the exception above
+        throw new \Exception('Unexpected error in fallback hashtag generation');
     }
 
     private function parsePostingTimes(string $content): array

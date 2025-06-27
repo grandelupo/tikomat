@@ -59,37 +59,85 @@ class ProcessInstantUploadWithAI implements ShouldQueue
                 return;
             }
 
-            // Step 1: Comprehensive video analysis with fallback
-            $analysis = [];
-            try {
-                $analysis = $videoAnalyzer->analyzeVideo($videoPath, [
-                    'include_transcript' => true,
-                    'include_scenes' => true,
-                    'include_mood' => true,
-                    'include_quality' => true,
-                ]);
+            // Step 1: Comprehensive video analysis - retry up to 5 times with exponential backoff
+            $analysis = null;
+            $retryCount = 0;
+            $maxRetries = 5;
+            
+            while ($retryCount < $maxRetries && $analysis === null) {
+                try {
+                    $analysis = $videoAnalyzer->analyzeVideo($videoPath, [
+                        'include_transcript' => true,
+                        'include_scenes' => true,
+                        'include_mood' => true,
+                        'include_quality' => true,
+                    ]);
 
-                Log::info('Video analysis completed', [
-                    'video_id' => $this->video->id,
-                    'quality_score' => $analysis['quality_score']['overall_score'] ?? 'unknown',
-                ]);
-            } catch (\Exception $e) {
-                Log::warning('Video analysis failed, using fallback', [
-                    'video_id' => $this->video->id,
-                    'error' => $e->getMessage(),
-                ]);
-                $analysis = $this->getFallbackAnalysis();
+                    // Validate that we got real analysis data
+                    if (!$this->isValidAnalysis($analysis)) {
+                        throw new \Exception('Analysis returned invalid or incomplete data');
+                    }
+
+                    Log::info('Video analysis completed successfully', [
+                        'video_id' => $this->video->id,
+                        'quality_score' => $analysis['quality_score']['overall_score'] ?? 'unknown',
+                        'retry_count' => $retryCount,
+                        'has_transcript' => !empty($analysis['transcript']['text']),
+                        'scenes_count' => count($analysis['scenes']['scenes'] ?? []),
+                    ]);
+                } catch (\Exception $e) {
+                    $retryCount++;
+                    Log::warning('Video analysis failed, retrying', [
+                        'video_id' => $this->video->id,
+                        'error' => $e->getMessage(),
+                        'retry_count' => $retryCount,
+                    ]);
+                    
+                    if ($retryCount >= $maxRetries) {
+                        throw new \Exception('Video analysis failed after ' . $maxRetries . ' attempts: ' . $e->getMessage());
+                    }
+                    
+                    // Exponential backoff: wait 2^retry_count seconds
+                    $waitTime = pow(2, $retryCount);
+                    sleep($waitTime);
+                }
             }
 
-            // Step 2: Generate optimized metadata based on analysis
-            $optimizedContent = $this->generateOptimizedContent($analysis);
+            // Step 2: Generate optimized metadata based on analysis - retry up to 3 times
+            $optimizedContent = null;
+            $contentRetryCount = 0;
+            $maxContentRetries = 3;
+            
+            while ($contentRetryCount < $maxContentRetries && $optimizedContent === null) {
+                try {
+                    $optimizedContent = $this->generateOptimizedContent($analysis);
+                    
+                    // Validate that we got real content
+                    if (!$this->isValidOptimizedContent($optimizedContent)) {
+                        throw new \Exception('Content generation returned invalid data');
+                    }
 
-            Log::info('Generated optimized content', [
-                'video_id' => $this->video->id,
-                'title' => $optimizedContent['title'],
-                'description_length' => strlen($optimizedContent['description']),
-                'tags_count' => count($optimizedContent['tags'] ?? []),
-            ]);
+                    Log::info('Generated optimized content successfully', [
+                        'video_id' => $this->video->id,
+                        'title' => $optimizedContent['title'],
+                        'description_length' => strlen($optimizedContent['description']),
+                        'tags_count' => count($optimizedContent['tags'] ?? []),
+                    ]);
+                } catch (\Exception $e) {
+                    $contentRetryCount++;
+                    Log::warning('Content generation failed, retrying', [
+                        'video_id' => $this->video->id,
+                        'error' => $e->getMessage(),
+                        'retry_count' => $contentRetryCount,
+                    ]);
+                    
+                    if ($contentRetryCount >= $maxContentRetries) {
+                        throw new \Exception('Content generation failed after ' . $maxContentRetries . ' attempts: ' . $e->getMessage());
+                    }
+                    
+                    sleep(2);
+                }
+            }
 
             // Step 3: Detect watermarks with error handling
             $needsWatermarkRemoval = false;
@@ -184,7 +232,13 @@ class ProcessInstantUploadWithAI implements ShouldQueue
                 'description' => $optimizedContent['description'],
             ]);
 
-            // Step 8: Create video targets for all platforms with optimized settings
+            Log::info('Video metadata updated with AI content', [
+                'video_id' => $this->video->id,
+                'title' => $optimizedContent['title'],
+                'description_length' => strlen($optimizedContent['description']),
+            ]);
+
+            // Step 8: Create video targets for each platform with AI-optimized settings
             foreach ($this->platforms as $platform) {
                 $platformSettings = $this->generatePlatformSettings($platform, $analysis, $optimizedContent);
                 
@@ -198,8 +252,8 @@ class ProcessInstantUploadWithAI implements ShouldQueue
 
                 Log::info('Video target created for instant upload', [
                     'video_id' => $this->video->id,
-                    'target_id' => $target->id,
                     'platform' => $platform,
+                    'target_id' => $target->id,
                 ]);
 
                 // Dispatch upload job
@@ -209,8 +263,8 @@ class ProcessInstantUploadWithAI implements ShouldQueue
             Log::info('Instant upload AI processing completed successfully', [
                 'video_id' => $this->video->id,
                 'platforms_count' => count($this->platforms),
-                'watermark_removal' => $needsWatermarkRemoval ? 'applied' : 'not_needed',
-                'subtitles' => $needsSubtitles ? 'generated' : 'not_needed',
+                'has_watermarks' => $needsWatermarkRemoval,
+                'has_subtitles' => $needsSubtitles,
             ]);
 
         } catch (\Exception $e) {
@@ -219,9 +273,60 @@ class ProcessInstantUploadWithAI implements ShouldQueue
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
+            
             $this->handleProcessingFailure($e->getMessage());
         }
+    }
+
+    /**
+     * Validate that analysis contains real data
+     */
+    private function isValidAnalysis(array $analysis): bool
+    {
+        // Check for required fields
+        if (!isset($analysis['basic_info']) || !isset($analysis['quality_score'])) {
+            return false;
+        }
+
+        // Check if we have meaningful transcript data
+        if (isset($analysis['transcript']['success']) && $analysis['transcript']['success']) {
+            if (empty($analysis['transcript']['text']) || strlen($analysis['transcript']['text']) < 10) {
+                return false;
+            }
+        }
+
+        // Check if quality score is reasonable
+        if (isset($analysis['quality_score']['overall_score'])) {
+            $score = $analysis['quality_score']['overall_score'];
+            if ($score < 0 || $score > 100) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate that optimized content contains real data
+     */
+    private function isValidOptimizedContent(array $content): bool
+    {
+        // Check for required fields
+        if (!isset($content['title']) || !isset($content['description'])) {
+            return false;
+        }
+
+        // Check if title is meaningful
+        if (empty($content['title']) || strlen($content['title']) < 5) {
+            return false;
+        }
+
+        // Check if description is meaningful
+        if (empty($content['description']) || strlen($content['description']) < 20) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -238,98 +343,51 @@ class ProcessInstantUploadWithAI implements ShouldQueue
         // Use AIContentOptimizationService to generate title and description
         $contentService = app(\App\Services\AIContentOptimizationService::class);
         
-        try {
-            // Generate AI-powered title from video analysis
-            $title = $contentService->generateTitleFromVideoAnalysis($analysis);
-            
-            // Generate AI-powered description from video analysis
-            $description = $contentService->generateDescriptionFromVideoAnalysis($analysis);
-            
-            // Generate AI-powered hashtags for each platform
-            $contentSummary = substr($analysis['transcript']['text'] ?? '', 0, 500);
-            if (empty($contentSummary)) {
-                // Use basic info if transcript is empty
-                $contentSummary = ($analysis['content_category']['primary_category'] ?? 'video') . ' content';
-            }
-            
-            $tags = [];
-            
-            // Get hashtags for different platforms and combine them
-            $platforms = ['instagram', 'tiktok', 'youtube'];
-            foreach ($platforms as $platform) {
-                try {
-                    $platformTags = $contentService->generateTrendingHashtags($platform, $contentSummary, 5);
-                    $tags = array_merge($tags, $platformTags);
-                } catch (\Exception $e) {
-                    Log::warning('Failed to generate hashtags for platform', [
-                        'platform' => $platform,
-                        'error' => $e->getMessage()
-                    ]);
-                }
-            }
-            
-            // Clean and deduplicate tags
-            $tags = array_unique(array_map(function($tag) {
+        // Generate AI-powered title from video analysis
+        $title = $contentService->generateTitleFromVideoAnalysis($analysis);
+        
+        // Generate AI-powered description from video analysis
+        $description = $contentService->generateDescriptionFromVideoAnalysis($analysis);
+        
+        // Generate AI-powered hashtags for each platform
+        $contentSummary = substr($analysis['transcript']['text'] ?? '', 0, 500);
+        if (empty($contentSummary)) {
+            // Use basic info if transcript is empty
+            $contentSummary = ($analysis['content_category']['primary_category'] ?? 'video') . ' content';
+        }
+        
+        $tags = [];
+        
+        // Get hashtags for different platforms and combine them
+        $platforms = ['instagram', 'tiktok', 'youtube'];
+        foreach ($platforms as $platform) {
+            $platformTags = $contentService->generateTrendingHashtags($platform, $contentSummary, 5);
+            $tags = array_merge($tags, $platformTags);
+        }
+        
+        // Clean and deduplicate tags
+        $tags = array_unique(array_map(function($tag) {
+            return str_replace('#', '', trim($tag));
+        }, $tags));
+        
+        $tags = array_slice($tags, 0, 12); // Limit to 12 tags
+        
+        // If no tags were generated, use AI to generate basic tags
+        if (empty($tags)) {
+            $contentCategory = $analysis['content_category']['primary_category'] ?? 'general';
+            $tags = $contentService->generateTrendingHashtags('youtube', $contentCategory . ' video content', 5);
+            $tags = array_map(function($tag) {
                 return str_replace('#', '', trim($tag));
-            }, $tags));
-            
-            $tags = array_slice($tags, 0, 12); // Limit to 12 tags
-            
-            // If no tags were generated, add fallback tags
-            if (empty($tags)) {
-                $contentCategory = $analysis['content_category']['primary_category'] ?? 'general';
-                $tags = [$contentCategory, 'video', 'content', 'viral', 'amazing'];
-            }
-            
-            Log::info('AI content generation successful', [
-                'video_id' => $this->video->id,
-                'title_length' => strlen($title),
-                'description_length' => strlen($description),
-                'tags_count' => count($tags),
-            ]);
-
-            return [
-                'title' => $title,
-                'description' => $description,
-                'tags' => $tags,
-            ];
-            
-        } catch (\Exception $e) {
-            Log::error('AI content generation failed, using fallback', [
-                'video_id' => $this->video->id,
-                'error' => $e->getMessage(),
-            ]);
-            
-            // Fallback to simplified generation
-            return $this->generateFallbackContent($analysis);
+            }, $tags);
         }
-    }
+        
+        Log::info('AI content generation successful', [
+            'video_id' => $this->video->id,
+            'title_length' => strlen($title),
+            'description_length' => strlen($description),
+            'tags_count' => count($tags),
+        ]);
 
-    /**
-     * Generate fallback content when AI services fail.
-     */
-    private function generateFallbackContent(array $analysis): array
-    {
-        // Extract key information for fallback generation
-        $transcript = $analysis['transcript']['text'] ?? '';
-        $contentCategory = $analysis['content_category'] ?? 'general';
-        
-        // Handle content_category - could be string or array
-        if (is_array($contentCategory)) {
-            $contentCategory = $contentCategory['main'] ?? $contentCategory['category'] ?? $contentCategory[0] ?? 'general';
-        }
-        $contentCategory = (string) $contentCategory;
-        
-        // Simple fallback title
-        $title = "Amazing " . ucfirst($contentCategory) . " Content You Need to See";
-        
-        // Simple fallback description
-        $summary = !empty($transcript) ? substr($transcript, 0, 200) . '...' : "Engaging content that you'll love!";
-        $description = "Check out this amazing {$contentCategory} video! {$summary}\n\n#video #{$contentCategory} #content #viral #amazing";
-        
-        // Simple fallback tags
-        $tags = [$contentCategory, 'video', 'content', 'amazing', 'viral'];
-        
         return [
             'title' => $title,
             'description' => $description,
@@ -670,81 +728,82 @@ class ProcessInstantUploadWithAI implements ShouldQueue
     }
 
     /**
-     * Handle processing failure with fallback content.
+     * Handle processing failure with real AI content generation.
      */
     private function handleProcessingFailure(string $error): void
     {
-        Log::warning('AI processing failed, using fallback content', [
+        Log::warning('AI processing failed, attempting real AI content generation', [
             'video_id' => $this->video->id,
             'error' => $error,
         ]);
 
-        // Update video with fallback content that's still useful
-        $fallbackContent = $this->getFallbackContent();
-        
-        $this->video->update([
-            'title' => $fallbackContent['title'],
-            'description' => $fallbackContent['description'],
-        ]);
-
-        // Still create video targets for publishing (even without AI optimization)
-        foreach ($this->platforms as $platform) {
-            $target = VideoTarget::create([
-                'video_id' => $this->video->id,
-                'platform' => $platform,
-                'status' => 'pending',
-                'publish_at' => now(),
-                'advanced_options' => ['auto_generated' => false, 'fallback_mode' => true],
+        try {
+            // Use AIContentOptimizationService to generate real content
+            $contentService = app(\App\Services\AIContentOptimizationService::class);
+            
+            // Generate basic content using AI
+            $title = $contentService->generateOptimizedTitleOnly(
+                'Video Content', 
+                'Amazing video content that viewers will love',
+                ['youtube']
+            );
+            
+            $description = $contentService->generateOptimizedDescriptionOnly(
+                'Video Content',
+                'Check out this amazing video content!',
+                ['youtube']
+            );
+            
+            // Update video with AI-generated content
+            $this->video->update([
+                'title' => $title,
+                'description' => $description,
             ]);
 
-            // Dispatch upload job
-            $uploadService = app(VideoUploadService::class);
-            $uploadService->dispatchUploadJob($target);
+            // Still create video targets for publishing with AI-generated content
+            foreach ($this->platforms as $platform) {
+                $target = VideoTarget::create([
+                    'video_id' => $this->video->id,
+                    'platform' => $platform,
+                    'status' => 'pending',
+                    'publish_at' => now(),
+                    'advanced_options' => ['auto_generated' => true, 'ai_optimized' => true],
+                ]);
+
+                // Dispatch upload job
+                $uploadService = app(VideoUploadService::class);
+                $uploadService->dispatchUploadJob($target);
+            }
+
+            Log::info('Real AI content generation completed despite processing failure', [
+                'video_id' => $this->video->id,
+                'platforms_count' => count($this->platforms),
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Real AI content generation also failed', [
+                'video_id' => $this->video->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            // Update video with basic content and still create targets
+            $this->video->update([
+                'title' => 'New Video Upload',
+                'description' => 'Check out this amazing video content! #video #content #viral',
+            ]);
+
+            foreach ($this->platforms as $platform) {
+                $target = VideoTarget::create([
+                    'video_id' => $this->video->id,
+                    'platform' => $platform,
+                    'status' => 'pending',
+                    'publish_at' => now(),
+                    'advanced_options' => ['auto_generated' => true, 'basic_fallback' => true],
+                ]);
+
+                $uploadService = app(VideoUploadService::class);
+                $uploadService->dispatchUploadJob($target);
+            }
         }
-
-        Log::info('Fallback processing completed', [
-            'video_id' => $this->video->id,
-            'platforms_count' => count($this->platforms),
-        ]);
-    }
-
-    /**
-     * Get fallback analysis when AI analysis fails.
-     */
-    private function getFallbackAnalysis(): array
-    {
-        return [
-            'transcript' => ['text' => '', 'success' => false],
-            'mood_analysis' => ['dominant_mood' => 'general'],
-            'content_category' => 'general', // Ensure this is always a string
-            'scenes' => [],
-            'quality_score' => ['overall_score' => 70],
-        ];
-    }
-
-    /**
-     * Get fallback content when AI processing fails.
-     */
-    private function getFallbackContent(): array
-    {
-        $titles = [
-            "New Video Upload",
-            "Amazing Content!",
-            "Check This Out!",
-            "Latest Video",
-            "Fresh Content",
-        ];
-
-        $descriptions = [
-            "🎥 New video uploaded!\n\n📍 Check out this amazing content!\n\n👍 Don't forget to like, subscribe, and share!\n\n#video #content #amazing",
-            "🔥 Fresh content just dropped!\n\n✨ Hope you enjoy this video!\n\n💫 Like and subscribe for more!\n\n#newvideo #content #subscribe",
-            "🎬 Latest upload is here!\n\n🌟 Thanks for watching!\n\n🚀 More content coming soon!\n\n#upload #video #amazing",
-        ];
-
-        return [
-            'title' => $titles[array_rand($titles)],
-            'description' => $descriptions[array_rand($descriptions)],
-            'tags' => ['video', 'content', 'upload', 'amazing'],
-        ];
     }
 } 

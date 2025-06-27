@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\VideoTarget;
 use App\Models\SocialAccount;
+use App\Services\HashtagValidationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,6 +19,7 @@ class UploadVideoToInstagram implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected VideoTarget $videoTarget;
+    protected HashtagValidationService $hashtagValidator;
 
     /**
      * Create a new job instance.
@@ -25,6 +27,7 @@ class UploadVideoToInstagram implements ShouldQueue
     public function __construct(VideoTarget $videoTarget)
     {
         $this->videoTarget = $videoTarget;
+        $this->hashtagValidator = app(HashtagValidationService::class);
     }
 
     /**
@@ -145,11 +148,25 @@ class UploadVideoToInstagram implements ShouldQueue
             $caption .= "\n\n" . $hashtags;
         }
 
+        // Validate and filter hashtags in caption
+        $validationResult = $this->hashtagValidator->validateAndFilterHashtags('instagram', $caption);
+        $filteredCaption = $validationResult['filtered_content'];
+        
+        if ($validationResult['has_changes']) {
+            Log::info('Instagram hashtags filtered', [
+                'video_target_id' => $this->videoTarget->id,
+                'removed_hashtags' => $validationResult['removed_hashtags'],
+                'warnings' => $validationResult['warnings'],
+                'original_length' => strlen($caption),
+                'filtered_length' => strlen($filteredCaption),
+            ]);
+        }
+
         // Prepare media data
         $mediaData = [
             'media_type' => $options['videoType'] ?? 'REELS',
             'video_url' => $videoUrl,
-            'caption' => $caption,
+            'caption' => $filteredCaption,
             'access_token' => $socialAccount->access_token
         ];
 

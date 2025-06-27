@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\VideoTarget;
 use App\Models\SocialAccount;
+use App\Services\HashtagValidationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,6 +19,7 @@ class UploadVideoToTiktok implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected VideoTarget $videoTarget;
+    protected HashtagValidationService $hashtagValidator;
 
     /**
      * Create a new job instance.
@@ -25,6 +27,7 @@ class UploadVideoToTiktok implements ShouldQueue
     public function __construct(VideoTarget $videoTarget)
     {
         $this->videoTarget = $videoTarget;
+        $this->hashtagValidator = app(HashtagValidationService::class);
     }
 
     /**
@@ -75,12 +78,10 @@ class UploadVideoToTiktok implements ShouldQueue
             }
 
             // Step 1: Initialize video upload
-            $initResponse = $this->initializeVideoUpload($socialAccount);
-            $uploadUrl = $initResponse['upload_url'];
-            $publishId = $initResponse['publish_id'];
+            $publishId = $this->initializeTikTokUpload($socialAccount);
 
             // Step 2: Upload video file
-            $this->uploadVideoFile($uploadUrl, $videoPath);
+            $this->uploadVideoFile($publishId, $videoPath);
 
             // Step 3: Publish the video
             $this->publishVideo($socialAccount, $publishId);
@@ -106,9 +107,9 @@ class UploadVideoToTiktok implements ShouldQueue
     }
 
     /**
-     * Initialize video upload with TikTok API.
+     * Initialize TikTok upload.
      */
-    protected function initializeVideoUpload(SocialAccount $socialAccount): array
+    protected function initializeTikTokUpload(SocialAccount $socialAccount): string
     {
         // Get advanced options for this platform
         $options = $this->videoTarget->advanced_options ?? [];
@@ -131,6 +132,22 @@ class UploadVideoToTiktok implements ShouldQueue
                 : $options['hashtags'];
             $postInfo['description'] .= "\n\n" . $hashtags;
         }
+
+        // Validate and filter hashtags in description
+        $validationResult = $this->hashtagValidator->validateAndFilterHashtags('tiktok', $postInfo['description']);
+        $filteredDescription = $validationResult['filtered_content'];
+        
+        if ($validationResult['has_changes']) {
+            Log::info('TikTok hashtags filtered', [
+                'video_target_id' => $this->videoTarget->id,
+                'removed_hashtags' => $validationResult['removed_hashtags'],
+                'warnings' => $validationResult['warnings'],
+                'original_length' => strlen($postInfo['description']),
+                'filtered_length' => strlen($filteredDescription),
+            ]);
+        }
+
+        $postInfo['description'] = $filteredDescription;
 
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $socialAccount->access_token,
@@ -155,22 +172,19 @@ class UploadVideoToTiktok implements ShouldQueue
             throw new \Exception('TikTok API error: ' . $data['error']['message']);
         }
 
-        return [
-            'upload_url' => $data['data']['upload_url'],
-            'publish_id' => $data['data']['publish_id']
-        ];
+        return $data['data']['publish_id'];
     }
 
     /**
      * Upload video file to TikTok.
      */
-    protected function uploadVideoFile(string $uploadUrl, string $videoPath): void
+    protected function uploadVideoFile(string $publishId, string $videoPath): void
     {
         $response = Http::withHeaders([
             'Content-Range' => 'bytes 0-' . (filesize($videoPath) - 1) . '/' . filesize($videoPath),
             'Content-Length' => (string) filesize($videoPath)
         ])->attach('video', file_get_contents($videoPath), 'video.mp4')
-          ->put($uploadUrl);
+          ->put('https://open.tiktokapis.com/v2/post/publish/video/init/' . $publishId);
 
         if (!$response->successful()) {
             throw new \Exception('Failed to upload video to TikTok: ' . $response->body());
@@ -185,9 +199,7 @@ class UploadVideoToTiktok implements ShouldQueue
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $socialAccount->access_token,
             'Content-Type' => 'application/json'
-        ])->post('https://open.tiktokapis.com/v2/post/publish/video/init/', [
-            'publish_id' => $publishId
-        ]);
+        ])->post('https://open.tiktokapis.com/v2/post/publish/video/init/' . $publishId);
 
         if (!$response->successful()) {
             throw new \Exception('Failed to publish video on TikTok: ' . $response->body());

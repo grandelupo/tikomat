@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, MapPin, Tag, MessageCircle } from 'lucide-react';
+import { Users, MapPin, Tag, MessageCircle, Hash, Shield } from 'lucide-react';
+import HashtagValidationWarning from '@/components/HashtagValidationWarning';
 
 interface FacebookOptionsProps {
     options: any;
@@ -38,6 +39,21 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
 
     const safeOptions = options || {};
 
+    // Get content for hashtag validation
+    const getContentForValidation = () => {
+        let content = '';
+        if (safeOptions.message) {
+            content += safeOptions.message + ' ';
+        }
+        if (safeOptions.tags) {
+            const tags = Array.isArray(safeOptions.tags) 
+                ? safeOptions.tags.join(' ') 
+                : safeOptions.tags;
+            content += tags;
+        }
+        return content;
+    };
+
     return (
         <Card>
             <CardHeader>
@@ -49,6 +65,12 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+                {/* Hashtag Validation Warning */}
+                <HashtagValidationWarning
+                    platform="facebook"
+                    content={getContentForValidation()}
+                />
+
                 {/* Privacy Settings */}
                 <div className="space-y-3">
                     <Label className="text-base font-medium">Privacy Settings</Label>
@@ -100,6 +122,9 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
                     />
                     <p className="text-xs text-muted-foreground">
                         {(safeOptions.message || '').length}/63206 characters
+                    </p>
+                    <p className="text-xs text-amber-600">
+                        Note: Platform-specific hashtags like #instagram, #tiktok, #youtube will be automatically removed
                     </p>
                 </div>
 

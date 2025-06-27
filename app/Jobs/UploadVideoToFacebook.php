@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\VideoTarget;
 use App\Models\SocialAccount;
+use App\Services\HashtagValidationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,6 +19,7 @@ class UploadVideoToFacebook implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected VideoTarget $videoTarget;
+    protected HashtagValidationService $hashtagValidator;
 
     /**
      * Create a new job instance.
@@ -25,6 +27,7 @@ class UploadVideoToFacebook implements ShouldQueue
     public function __construct(VideoTarget $videoTarget)
     {
         $this->videoTarget = $videoTarget;
+        $this->hashtagValidator = app(HashtagValidationService::class);
     }
 
     /**
@@ -495,11 +498,28 @@ class UploadVideoToFacebook implements ShouldQueue
             'page_access_token_length' => strlen($pageAccessToken),
         ]);
 
+        // Prepare description with hashtag validation
+        $description = $options['message'] ?? $this->videoTarget->video->description;
+        
+        // Validate and filter hashtags in description
+        $validationResult = $this->hashtagValidator->validateAndFilterHashtags('facebook', $description);
+        $filteredDescription = $validationResult['filtered_content'];
+        
+        if ($validationResult['has_changes']) {
+            Log::info('Facebook hashtags filtered', [
+                'video_target_id' => $this->videoTarget->id,
+                'removed_hashtags' => $validationResult['removed_hashtags'],
+                'warnings' => $validationResult['warnings'],
+                'original_length' => strlen($description),
+                'filtered_length' => strlen($filteredDescription),
+            ]);
+        }
+
         // Prepare video data with advanced options
         $videoData = [
             'file_url' => $videoUrl,
             'title' => $this->videoTarget->video->title,
-            'description' => $options['message'] ?? $this->videoTarget->video->description,
+            'description' => $filteredDescription,
             'access_token' => $pageAccessToken
         ];
 
@@ -521,12 +541,28 @@ class UploadVideoToFacebook implements ShouldQueue
             ]);
         }
 
-        // Add tags if provided
+        // Add tags if provided (validate hashtags in tags as well)
         if (!empty($options['tags'])) {
-            $videoData['tags'] = $options['tags'];
+            $tags = $options['tags'];
+            
+            // If tags is a string, validate it
+            if (is_string($tags)) {
+                $tagValidation = $this->hashtagValidator->validateAndFilterHashtags('facebook', $tags);
+                $tags = $tagValidation['filtered_content'];
+                
+                if ($tagValidation['has_changes']) {
+                    Log::info('Facebook tags filtered', [
+                        'video_target_id' => $this->videoTarget->id,
+                        'removed_hashtags' => $tagValidation['removed_hashtags'],
+                        'warnings' => $tagValidation['warnings'],
+                    ]);
+                }
+            }
+            
+            $videoData['tags'] = $tags;
             Log::info('Facebook tags setting applied', [
                 'video_target_id' => $this->videoTarget->id,
-                'tags' => $options['tags'],
+                'tags' => $tags,
             ]);
         }
 
