@@ -41,7 +41,9 @@ interface SocialAccount {
     profile_username?: string;
     platform_channel_name?: string;
     platform_channel_handle?: string;
+    platform_channel_url?: string;
     platform_channel_specific?: boolean;
+    is_platform_channel_specific?: boolean;
 }
 
 interface Platform {
@@ -183,10 +185,12 @@ export default function Connections({
                                                                         {account.channel_name}
                                                                     </span>
                                                                 </div>
-                                                                {account.profile_name && (
+                                                                {/* Show platform-specific connection info */}
+                                                                {(account.platform_channel_name || account.profile_name) && (
                                                                     <p className="text-xs text-gray-600 truncate">
-                                                                        Connected as: {account.profile_name}
-                                                                        {account.profile_username && ` (@${account.profile_username})`}
+                                                                        Connected as: {account.platform_channel_name || account.profile_name}
+                                                                        {(account.platform_channel_handle || account.profile_username) && 
+                                                                            ` (${account.platform_channel_handle || `@${account.profile_username}`})`}
                                                                     </p>
                                                                 )}
                                                                 {account.platform === 'facebook' && account.facebook_page_name && (
