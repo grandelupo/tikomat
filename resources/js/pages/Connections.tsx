@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
     Youtube, 
     Instagram, 
@@ -16,6 +17,7 @@ import {
     Plus
 } from 'lucide-react';
 import XIcon from '@/components/ui/icons/x';
+import { useInitials } from '@/hooks/use-initials';
 import React from 'react';
 
 interface Channel {
@@ -32,6 +34,11 @@ interface SocialAccount {
     channel_id: number;
     channel_name: string;
     created_at: string;
+    facebook_page_name?: string;
+    facebook_page_id?: string;
+    profile_name?: string;
+    profile_avatar_url?: string;
+    profile_username?: string;
 }
 
 interface Platform {
@@ -85,6 +92,7 @@ export default function Connections({
     availablePlatforms, 
     allowedPlatforms 
 }: Props) {
+    const getInitials = useInitials();
     const handleConnectPlatform = (platform: string, channelSlug: string) => {
         // Use window.location for OAuth to handle redirects properly
         window.location.href = `/channels/${channelSlug}/auth/${platform}`;
@@ -152,8 +160,39 @@ export default function Connections({
                                             <div className="space-y-2">
                                                 <p className="text-sm font-medium">Connected Channels:</p>
                                                 {connectedChannels.map((account) => (
-                                                    <div key={account.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                                        <span className="text-sm">{account.channel_name}</span>
+                                                    <div key={account.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                        <div className="flex items-center space-x-3 flex-1">
+                                                            <Avatar className="h-8 w-8">
+                                                                <AvatarImage 
+                                                                    src={account.profile_avatar_url} 
+                                                                    alt={account.profile_name || account.channel_name} 
+                                                                />
+                                                                <AvatarFallback className="text-xs bg-white">
+                                                                    {account.profile_name 
+                                                                        ? getInitials(account.profile_name)
+                                                                        : getInitials(account.channel_name)
+                                                                    }
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span className="text-sm font-medium text-gray-900">
+                                                                        {account.channel_name}
+                                                                    </span>
+                                                                </div>
+                                                                {account.profile_name && (
+                                                                    <p className="text-xs text-gray-600 truncate">
+                                                                        Connected as: {account.profile_name}
+                                                                        {account.profile_username && ` (@${account.profile_username})`}
+                                                                    </p>
+                                                                )}
+                                                                {account.platform === 'facebook' && account.facebook_page_name && (
+                                                                    <p className="text-xs text-gray-500 truncate">
+                                                                        Facebook Page: {account.facebook_page_name}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
@@ -163,7 +202,7 @@ export default function Connections({
                                                                     handleDisconnectPlatform(platform.name, channel.slug);
                                                                 }
                                                             }}
-                                                            className="text-xs h-6"
+                                                            className="text-xs h-7 ml-2"
                                                         >
                                                             Disconnect
                                                         </Button>

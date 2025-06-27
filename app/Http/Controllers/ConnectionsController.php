@@ -37,13 +37,32 @@ class ConnectionsController extends Controller
             ->with('channel:id,name')
             ->get()
             ->map(function ($account) {
-                return [
+                $data = [
                     'id' => $account->id,
                     'platform' => $account->platform,
                     'channel_id' => $account->channel_id,
                     'channel_name' => $account->channel->name ?? 'Unknown Channel',
                     'created_at' => $account->created_at,
                 ];
+
+                // Add Facebook page information if available
+                if ($account->platform === 'facebook' && !empty($account->facebook_page_name)) {
+                    $data['facebook_page_name'] = $account->facebook_page_name;
+                    $data['facebook_page_id'] = $account->facebook_page_id;
+                }
+
+                // Add profile information for all platforms
+                if (!empty($account->profile_name)) {
+                    $data['profile_name'] = $account->profile_name;
+                }
+                if (!empty($account->profile_avatar_url)) {
+                    $data['profile_avatar_url'] = $account->profile_avatar_url;
+                }
+                if (!empty($account->profile_username)) {
+                    $data['profile_username'] = $account->profile_username;
+                }
+
+                return $data;
             });
 
         // Available platforms based on subscription

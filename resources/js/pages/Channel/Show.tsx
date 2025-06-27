@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
     Dialog,
@@ -37,6 +38,7 @@ import {
     Brain
 } from 'lucide-react';
 import XIcon from '@/components/ui/icons/x';
+import { useInitials } from '@/hooks/use-initials';
 import React, { useState } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
 import InstantUploadDropzone from '@/components/InstantUploadDropzone';
@@ -54,6 +56,11 @@ interface SocialAccount {
     id: number;
     platform: string;
     created_at: string;
+    profile_name?: string;
+    profile_avatar_url?: string;
+    profile_username?: string;
+    facebook_page_name?: string;
+    facebook_page_id?: string;
 }
 
 interface Video {
@@ -126,6 +133,7 @@ export default function ChannelShow({
     availablePlatforms, 
     allowedPlatforms 
 }: Props) {
+    const getInitials = useInitials();
     const [isConnectPlatformsOpen, setIsConnectPlatformsOpen] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [deleteVideoId, setDeleteVideoId] = useState<number | null>(null);
@@ -360,41 +368,69 @@ export default function ChannelShow({
                         </Dialog>
                     </div>
 
-                    {/* Show only connected platforms */}
-                    {availablePlatforms.filter(p => p.connected).length > 0 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                            {availablePlatforms.filter(p => p.connected).map((platform) => {
-                                const PlatformIcon = platformIcons[platform.name as keyof typeof platformIcons];
+                    {/* Show connected social accounts with profile information */}
+                    {socialAccounts.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {socialAccounts.map((account) => {
+                                const PlatformIcon = platformIcons[account.platform as keyof typeof platformIcons];
                                 
                                 return (
-                                    <Card key={platform.name} className="border-green-200 bg-green-50">
-                                        <CardContent className="p-4 h-full flex flex-col">
-                                            {/* Platform Icon and Name */}
-                                            <div className="flex flex-col items-center text-center space-y-3 flex-1">
-                                                <div className="p-3 rounded-lg bg-green-100">
-                                                    <PlatformIcon className="w-6 h-6 text-green-600" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-medium text-sm">{platform.label}</h4>
-                                                    <p className="text-xs text-green-600 mt-1">Connected</p>
+                                    <Card key={account.id} className="border-green-200 bg-green-50">
+                                        <CardContent className="p-4">
+                                            {/* Profile Header */}
+                                            <div className="flex items-center space-x-3 mb-4">
+                                                <Avatar className="h-10 w-10">
+                                                    <AvatarImage 
+                                                        src={account.profile_avatar_url} 
+                                                        alt={account.profile_name || 'Profile'} 
+                                                    />
+                                                    <AvatarFallback className="bg-white">
+                                                        {account.profile_name 
+                                                            ? getInitials(account.profile_name)
+                                                            : <PlatformIcon className="w-4 h-4" />
+                                                        }
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center space-x-2 mb-1">
+                                                        <PlatformIcon className="w-4 h-4 text-green-600" />
+                                                        <h4 className="font-medium text-sm text-gray-900 capitalize">
+                                                            {account.platform}
+                                                        </h4>
+                                                    </div>
+                                                    {account.profile_name && (
+                                                        <p className="text-sm font-medium text-gray-900 truncate">
+                                                            {account.profile_name}
+                                                        </p>
+                                                    )}
+                                                    {account.profile_username && (
+                                                        <p className="text-xs text-gray-600 truncate">
+                                                            @{account.profile_username}
+                                                        </p>
+                                                    )}
+                                                    {account.platform === 'facebook' && account.facebook_page_name && (
+                                                        <p className="text-xs text-gray-500 truncate">
+                                                            Page: {account.facebook_page_name}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
 
                                             {/* Action Buttons */}
-                                            <div className="flex flex-col space-y-2 mt-4">
+                                            <div className="flex space-x-2">
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    onClick={() => handleDisconnectPlatform(platform.name)}
-                                                    className="text-red-600 hover:text-red-700 w-full"
+                                                    onClick={() => handleDisconnectPlatform(account.platform)}
+                                                    className="text-red-600 hover:text-red-700 flex-1"
                                                 >
                                                     Disconnect
                                                 </Button>
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
-                                                    onClick={() => handleForceReconnectPlatform(platform.name)}
-                                                    className="text-xs h-auto p-1 w-full"
+                                                    onClick={() => handleForceReconnectPlatform(account.platform)}
+                                                    className="text-xs flex-1"
                                                 >
                                                     Reconnect
                                                 </Button>

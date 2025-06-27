@@ -110,6 +110,12 @@ class UploadVideoToFacebook implements ShouldQueue
      */
     protected function getFacebookPageId(SocialAccount $socialAccount): string
     {
+        // Use the stored Facebook page ID if available
+        if (!empty($socialAccount->facebook_page_id)) {
+            return $socialAccount->facebook_page_id;
+        }
+
+        // Fallback to the old method for backwards compatibility
         $response = Http::get('https://graph.facebook.com/v18.0/me/accounts', [
             'access_token' => $socialAccount->access_token
         ]);
@@ -124,7 +130,7 @@ class UploadVideoToFacebook implements ShouldQueue
             throw new \Exception('No Facebook pages found. Please ensure you have a Facebook page to post to.');
         }
 
-        // Use the first page
+        // Use the first page as fallback
         return $data['data'][0]['id'];
     }
 
@@ -136,12 +142,17 @@ class UploadVideoToFacebook implements ShouldQueue
         // Get advanced options for this platform
         $options = $this->videoTarget->advanced_options ?? [];
 
+        // Use page-specific access token if available, otherwise use user token
+        $accessToken = !empty($socialAccount->facebook_page_access_token) 
+            ? $socialAccount->facebook_page_access_token 
+            : $socialAccount->access_token;
+
         // Prepare video data with advanced options
         $videoData = [
             'file_url' => $videoUrl,
             'title' => $this->videoTarget->video->title,
             'description' => $options['message'] ?? $this->videoTarget->video->description,
-            'access_token' => $socialAccount->access_token
+            'access_token' => $accessToken
         ];
 
         // Add privacy settings if provided

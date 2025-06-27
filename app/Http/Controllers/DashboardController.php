@@ -132,11 +132,30 @@ class DashboardController extends Controller
         $socialAccounts = $channel->socialAccounts()
             ->get()
             ->map(function ($account) {
-                return [
+                $data = [
                     'id' => $account->id,
                     'platform' => $account->platform,
                     'created_at' => $account->created_at,
                 ];
+
+                // Add Facebook page information if available
+                if ($account->platform === 'facebook' && !empty($account->facebook_page_name)) {
+                    $data['facebook_page_name'] = $account->facebook_page_name;
+                    $data['facebook_page_id'] = $account->facebook_page_id;
+                }
+
+                // Add profile information for all platforms
+                if (!empty($account->profile_name)) {
+                    $data['profile_name'] = $account->profile_name;
+                }
+                if (!empty($account->profile_avatar_url)) {
+                    $data['profile_avatar_url'] = $account->profile_avatar_url;
+                }
+                if (!empty($account->profile_username)) {
+                    $data['profile_username'] = $account->profile_username;
+                }
+
+                return $data;
             });
 
         // Get videos for this channel

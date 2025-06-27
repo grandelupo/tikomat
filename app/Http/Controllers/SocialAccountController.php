@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 
 class SocialAccountController extends Controller
@@ -164,6 +165,11 @@ class SocialAccountController extends Controller
                 // This is a warning, not a failure - continue with the connection
             }
 
+            // Handle Facebook page selection if platform is Facebook
+            if ($platform === 'facebook') {
+                return $this->handleFacebookPageSelection($channel, $socialUser);
+            }
+
             // Store or update social account
             // First, delete any existing social account for this user+platform combination
             // to avoid conflicts with the old unique constraint
@@ -172,15 +178,7 @@ class SocialAccountController extends Controller
                 ->delete();
             
             // Now create the new social account
-            $socialAccount = SocialAccount::create([
-                'user_id' => Auth::id(),
-                'channel_id' => $channel->id,
-                'platform' => $platform,
-                'access_token' => $socialUser->token,
-                'refresh_token' => $socialUser->refreshToken,
-                'token_expires_at' => $socialUser->expiresIn ? 
-                    now()->addSeconds($socialUser->expiresIn) : null,
-            ]);
+            $socialAccount = $this->createSocialAccount($channel->id, $platform, $socialUser);
 
             $this->errorHandler->logConnectionSuccess($platform, $channel->slug, [
                 'social_account_id' => $socialAccount->id,
@@ -269,6 +267,9 @@ class SocialAccountController extends Controller
             'access_token' => 'fake_token_for_development',
             'refresh_token' => 'fake_refresh_token',
             'token_expires_at' => now()->addDays(30),
+            'profile_name' => 'Test ' . ucfirst($platform) . ' Account',
+            'profile_avatar_url' => 'https://via.placeholder.com/100x100?text=' . strtoupper(substr($platform, 0, 2)),
+            'profile_username' => 'test_' . $platform . '_user',
         ]);
 
         return redirect()->route('channels.show', $channel->slug)
@@ -409,15 +410,7 @@ class SocialAccountController extends Controller
                 ->delete();
             
             // Now create the new social account
-            $socialAccount = SocialAccount::create([
-                'user_id' => Auth::id(),
-                'channel_id' => $channel->id,
-                'platform' => $platform,
-                'access_token' => $socialUser->token,
-                'refresh_token' => $socialUser->refreshToken,
-                'token_expires_at' => $socialUser->expiresIn ? 
-                    now()->addSeconds($socialUser->expiresIn) : null,
-            ]);
+            $socialAccount = $this->createSocialAccount($channel->id, $platform, $socialUser);
 
             $this->errorHandler->logConnectionSuccess($platform, $channel->slug, [
                 'social_account_id' => $socialAccount->id,
@@ -673,5 +666,202 @@ class SocialAccountController extends Controller
         }
 
         return array_unique($actions);
+    }
+
+    /**
+     * Create social account with profile information.
+     */
+    protected function createSocialAccount(int $channelId, string $platform, $socialUser): SocialAccount
+    {
+        return SocialAccount::create([
+            'user_id' => Auth::id(),
+            'channel_id' => $channelId,
+            'platform' => $platform,
+            'access_token' => $socialUser->token,
+            'refresh_token' => $socialUser->refreshToken,
+            'token_expires_at' => $socialUser->expiresIn ? 
+                now()->addSeconds($socialUser->expiresIn) : null,
+            'profile_name' => $socialUser->name ?? $socialUser->nickname ?? null,
+            'profile_avatar_url' => $socialUser->avatar ?? null,
+            'profile_username' => $socialUser->nickname ?? null,
+        ]);
+    }
+
+    /**
+     * Handle Facebook page selection flow.
+     */
+    protected function handleFacebookPageSelection(Channel $channel, $socialUser): RedirectResponse
+    {
+        try {
+            // Get user's Facebook pages
+            $response = Http::get('https://graph.facebook.com/v18.0/me/accounts', [
+                'access_token' => $socialUser->token,
+                'fields' => 'id,name,access_token'
+            ]);
+
+            if (!$response->successful()) {
+                throw new \Exception('Failed to fetch Facebook pages: ' . $response->body());
+            }
+
+            $data = $response->json();
+            $pages = $data['data'] ?? [];
+
+            // If user has no pages, show error
+            if (empty($pages)) {
+                return $this->redirectToErrorPage(
+                    'facebook',
+                    $channel->slug,
+                    'No Facebook pages found. You need to have admin access to at least one Facebook page to connect your account.',
+                    'no_pages_found'
+                );
+            }
+
+            // If user has only one page, auto-select it
+            if (count($pages) === 1) {
+                return $this->completeFacebookConnection($channel, $socialUser, $pages[0]);
+            }
+
+            // Store user data temporarily in session for page selection
+            session([
+                'facebook_oauth_data' => [
+                    'channel_slug' => $channel->slug,
+                    'access_token' => $socialUser->token,
+                    'refresh_token' => $socialUser->refreshToken,
+                    'expires_in' => $socialUser->expiresIn,
+                    'pages' => $pages,
+                ]
+            ]);
+
+            // Redirect to page selection view
+            return redirect()->route('facebook.page-selection', $channel->slug);
+
+        } catch (\Exception $e) {
+            return $this->redirectToErrorPage(
+                'facebook',
+                $channel->slug,
+                'Failed to retrieve Facebook pages: ' . $e->getMessage(),
+                'page_fetch_failed'
+            );
+        }
+    }
+
+    /**
+     * Show Facebook page selection page.
+     */
+    public function showFacebookPageSelection(Channel $channel, Request $request)
+    {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        // Get OAuth data from session
+        $oauthData = session('facebook_oauth_data');
+        
+        if (!$oauthData || $oauthData['channel_slug'] !== $channel->slug) {
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('error', 'Facebook connection session expired. Please try connecting again.');
+        }
+
+        return Inertia::render('FacebookPageSelection', [
+            'channel' => [
+                'id' => $channel->id,
+                'name' => $channel->name,
+                'slug' => $channel->slug,
+            ],
+            'pages' => $oauthData['pages'],
+        ]);
+    }
+
+    /**
+     * Handle Facebook page selection submission.
+     */
+    public function selectFacebookPage(Channel $channel, Request $request): RedirectResponse
+    {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'page_id' => 'required|string',
+        ]);
+
+        // Get OAuth data from session
+        $oauthData = session('facebook_oauth_data');
+        
+        if (!$oauthData || $oauthData['channel_slug'] !== $channel->slug) {
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('error', 'Facebook connection session expired. Please try connecting again.');
+        }
+
+        // Find the selected page
+        $selectedPage = collect($oauthData['pages'])->firstWhere('id', $request->page_id);
+        
+        if (!$selectedPage) {
+            return redirect()->back()
+                ->with('error', 'Invalid page selection. Please try again.');
+        }
+
+        // Create social user object
+        $socialUser = (object) [
+            'token' => $oauthData['access_token'],
+            'refreshToken' => $oauthData['refresh_token'],
+            'expiresIn' => $oauthData['expires_in'],
+        ];
+
+        // Complete the connection
+        $result = $this->completeFacebookConnection($channel, $socialUser, $selectedPage);
+
+        // Clear session data
+        session()->forget('facebook_oauth_data');
+
+        return $result;
+    }
+
+    /**
+     * Complete Facebook connection with selected page.
+     */
+    protected function completeFacebookConnection(Channel $channel, $socialUser, array $selectedPage): RedirectResponse
+    {
+        try {
+            // First, delete any existing Facebook social account for this user+platform combination
+            SocialAccount::where('user_id', Auth::id())
+                ->where('platform', 'facebook')
+                ->delete();
+            
+            // Create the new social account with page information
+            $socialAccount = SocialAccount::create([
+                'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
+                'platform' => 'facebook',
+                'access_token' => $socialUser->token,
+                'refresh_token' => $socialUser->refreshToken,
+                'token_expires_at' => $socialUser->expiresIn ? 
+                    now()->addSeconds($socialUser->expiresIn) : null,
+                'facebook_page_id' => $selectedPage['id'],
+                'facebook_page_name' => $selectedPage['name'],
+                'facebook_page_access_token' => $selectedPage['access_token'],
+            ]);
+
+            $this->errorHandler->logConnectionSuccess('facebook', $channel->slug, [
+                'social_account_id' => $socialAccount->id,
+                'facebook_page_id' => $selectedPage['id'],
+                'facebook_page_name' => $selectedPage['name'],
+                'has_refresh_token' => !empty($socialAccount->refresh_token),
+                'expires_at' => $socialAccount->token_expires_at?->toISOString() ?? 'never',
+            ]);
+
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('success', 'Facebook account connected successfully to page: ' . $selectedPage['name']);
+
+        } catch (\Exception $e) {
+            return $this->redirectToErrorPage(
+                'facebook',
+                $channel->slug,
+                'Failed to complete Facebook connection: ' . $e->getMessage(),
+                'connection_completion_failed'
+            );
+        }
     }
 }

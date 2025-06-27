@@ -194,6 +194,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('auth/{platform}/callback', [SocialAccountController::class, 'generalCallback'])
         ->name('social.general-callback');
     
+    // Facebook page selection routes
+    Route::get('channels/{channel:slug}/facebook/page-selection', [SocialAccountController::class, 'showFacebookPageSelection'])
+        ->name('facebook.page-selection');
+    Route::post('channels/{channel:slug}/facebook/page-selection', [SocialAccountController::class, 'selectFacebookPage'])
+        ->name('facebook.page-select');
+    
     // OAuth error page
     Route::get('oauth/error', function () {
         $suggestedActions = request('suggested_actions') ? explode('|', request('suggested_actions')) : [];

@@ -14,6 +14,12 @@ class SocialAccount extends Model
         'access_token',
         'refresh_token',
         'token_expires_at',
+        'facebook_page_id',
+        'facebook_page_name',
+        'facebook_page_access_token',
+        'profile_name',
+        'profile_avatar_url',
+        'profile_username',
     ];
 
     protected function casts(): array
@@ -22,6 +28,7 @@ class SocialAccount extends Model
             'token_expires_at' => 'datetime',
             'access_token' => 'encrypted',
             'refresh_token' => 'encrypted',
+            'facebook_page_access_token' => 'encrypted',
         ];
     }
 
