@@ -105,4 +105,12 @@ class Channel extends Model
         
         $this->update(['default_platforms' => $newDefaults]);
     }
+
+    /**
+     * Get the route key for the model.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 }

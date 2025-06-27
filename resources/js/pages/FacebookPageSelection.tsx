@@ -52,7 +52,7 @@ export default function FacebookPageSelection({ channel, pages }: Props) {
 
         setIsSubmitting(true);
         
-        router.post(`/channels/${channel.slug}/facebook/page-selection`, {
+        router.post(`/channels/${channel.slug}/facebook/select-page`, {
             page_id: selectedPageId,
         }, {
             onFinish: () => setIsSubmitting(false),
