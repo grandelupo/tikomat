@@ -239,10 +239,31 @@ class SocialAccountController extends Controller
                 ->with('error', 'Invalid platform selected.');
         }
 
-        SocialAccount::where('user_id', Auth::id())
+        // Log the disconnect for debugging
+        \Log::info('Disconnecting social account', [
+            'user_id' => Auth::id(),
+            'channel_id' => $channel->id,
+            'channel_slug' => $channel->slug,
+            'platform' => $platform,
+        ]);
+
+        // For YouTube/Google, also revoke permissions if possible
+        if ($platform === 'youtube') {
+            $this->revokeGooglePermissions(Auth::id(), $channel->id);
+        }
+
+        // Delete the social account
+        $deletedCount = SocialAccount::where('user_id', Auth::id())
             ->where('channel_id', $channel->id)
             ->where('platform', $platform)
             ->delete();
+
+        \Log::info('Social account disconnection completed', [
+            'user_id' => Auth::id(),
+            'channel_id' => $channel->id,
+            'platform' => $platform,
+            'deleted_count' => $deletedCount,
+        ]);
 
         return redirect()->route('channels.show', $channel->slug)
             ->with('success', ucfirst($platform) . ' account disconnected successfully!');
@@ -283,7 +304,7 @@ class SocialAccountController extends Controller
             ->delete();
         
         // Now create the new social account
-        SocialAccount::create([
+        $accountData = [
             'user_id' => Auth::id(),
             'channel_id' => $channel->id,
             'platform' => $platform,
@@ -293,7 +314,32 @@ class SocialAccountController extends Controller
             'profile_name' => 'Test ' . ucfirst($platform) . ' Account',
             'profile_avatar_url' => 'https://via.placeholder.com/100x100?text=' . strtoupper(substr($platform, 0, 2)),
             'profile_username' => 'test_' . $platform . '_user',
-        ]);
+        ];
+
+        // Add platform-specific test data
+        if ($platform === 'youtube') {
+            $accountData['platform_channel_id'] = 'UCtest123456789';
+            $accountData['platform_channel_name'] = 'Test YouTube Channel';
+            $accountData['platform_channel_handle'] = '@testyoutubechannel';
+            $accountData['platform_channel_url'] = 'https://www.youtube.com/channel/UCtest123456789';
+            $accountData['is_platform_channel_specific'] = true;
+        } elseif ($platform === 'facebook') {
+            $accountData['facebook_page_id'] = '123456789';
+            $accountData['facebook_page_name'] = 'Test Facebook Page';
+            $accountData['facebook_page_access_token'] = 'fake_page_token';
+            $accountData['platform_channel_id'] = '123456789';
+            $accountData['platform_channel_name'] = 'Test Facebook Page';
+            $accountData['platform_channel_url'] = 'https://www.facebook.com/123456789';
+            $accountData['is_platform_channel_specific'] = true;
+        } elseif ($platform === 'instagram') {
+            $accountData['platform_channel_id'] = 'test_instagram_123';
+            $accountData['platform_channel_name'] = 'test_instagram_user';
+            $accountData['platform_channel_handle'] = '@test_instagram_user';
+            $accountData['platform_channel_url'] = 'https://www.instagram.com/test_instagram_user';
+            $accountData['is_platform_channel_specific'] = true;
+        }
+
+        SocialAccount::create($accountData);
 
         return redirect()->route('channels.show', $channel->slug)
             ->with('success', ucfirst($platform) . ' account connected successfully! (Development Mode)');
@@ -728,7 +774,16 @@ class SocialAccountController extends Controller
      */
     protected function createSocialAccount(int $channelId, string $platform, $socialUser): SocialAccount
     {
-        return SocialAccount::create([
+        \Log::info('Creating social account', [
+            'channel_id' => $channelId,
+            'platform' => $platform,
+            'has_token' => !empty($socialUser->token),
+            'has_refresh_token' => !empty($socialUser->refreshToken),
+            'profile_name' => $socialUser->name ?? $socialUser->nickname ?? null,
+            'profile_email' => $socialUser->email ?? null,
+        ]);
+
+        $accountData = [
             'user_id' => Auth::id(),
             'channel_id' => $channelId,
             'platform' => $platform,
@@ -739,7 +794,29 @@ class SocialAccountController extends Controller
             'profile_name' => $socialUser->name ?? $socialUser->nickname ?? null,
             'profile_avatar_url' => $socialUser->avatar ?? null,
             'profile_username' => $socialUser->nickname ?? null,
+        ];
+
+        // Add platform-specific data when available
+        if ($platform === 'instagram' && property_exists($socialUser, 'user')) {
+            // Instagram API provides additional user data
+            $userData = $socialUser->user;
+            if (is_array($userData)) {
+                $accountData['platform_channel_id'] = $userData['id'] ?? null;
+                $accountData['platform_channel_name'] = $userData['username'] ?? null;
+                $accountData['platform_channel_handle'] = '@' . ($userData['username'] ?? '');
+                $accountData['is_platform_channel_specific'] = true;
+            }
+        }
+
+        $socialAccount = SocialAccount::create($accountData);
+
+        \Log::info('Social account created successfully', [
+            'social_account_id' => $socialAccount->id,
+            'platform' => $platform,
+            'channel_id' => $channelId,
         ]);
+
+        return $socialAccount;
     }
 
     /**
@@ -927,6 +1004,12 @@ class SocialAccountController extends Controller
                 'facebook_page_id' => $selectedPage['id'],
                 'facebook_page_name' => $selectedPage['name'],
                 'facebook_page_access_token' => $selectedPage['access_token'],
+                // Also set platform-specific fields for consistency
+                'platform_channel_id' => $selectedPage['id'],
+                'platform_channel_name' => $selectedPage['name'],
+                'platform_channel_handle' => null, // Facebook pages don't have handles like @username
+                'platform_channel_url' => 'https://www.facebook.com/' . $selectedPage['id'],
+                'is_platform_channel_specific' => true,
             ]);
 
             $this->errorHandler->logConnectionSuccess('facebook', $channel->slug, [

@@ -164,7 +164,7 @@ export default function ChannelShow({
     const handleForceReconnectPlatform = (platform: string) => {
         if (confirm(`Force reconnect ${platform}? This will revoke current permissions and ask you to choose an account again.`)) {
             // Use window.location for OAuth to handle redirects properly
-            window.location.href = `/channels/${channel.slug}/auth/${platform}?force=true`;
+            window.location.href = `/channels/${channel.slug}/auth/${platform}/force-reconnect`;
         }
     };
 
