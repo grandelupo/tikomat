@@ -331,4 +331,49 @@ class User extends Authenticatable
     {
         $this->update(['notification_settings' => array_merge($this->getNotificationSettings(), $settings)]);
     }
+
+    /**
+     * Check if user should receive notifications for a specific type.
+     */
+    public function shouldReceiveNotification(string $type): bool
+    {
+        $settings = $this->getNotificationSettings();
+        
+        return match ($type) {
+            'ai_errors' => $settings['ai_errors'] ?? true,
+            'upload_errors' => $settings['upload_errors'] ?? true,
+            'platform_errors' => $settings['platform_errors'] ?? true,
+            'success_notifications' => $settings['success_notifications'] ?? false,
+            default => true,
+        };
+    }
+
+    /**
+     * Add a job failure notification.
+     */
+    public function addJobFailureNotification(string $jobType, string $title, string $message, array $context = []): void
+    {
+        if (!$this->shouldReceiveNotification($this->getNotificationTypeForJob($jobType))) {
+            return;
+        }
+        
+        $this->addNotification('error', $title, $message, array_merge($context, [
+            'job_type' => $jobType,
+            'timestamp' => now()->toISOString(),
+        ]));
+    }
+
+    /**
+     * Get notification type for a specific job.
+     */
+    private function getNotificationTypeForJob(string $jobType): string
+    {
+        return match ($jobType) {
+            'ProcessInstantUploads', 'ProcessInstantUploadWithAI' => 'ai_errors',
+            'ProcessVideoUploads', 'UploadVideoToYoutube', 'UploadVideoToInstagram', 
+            'UploadVideoToTiktok', 'UploadVideoToFacebook', 'UploadVideoToSnapchat', 
+            'UploadVideoToPinterest', 'UploadVideoToX' => 'upload_errors',
+            default => 'ai_errors',
+        };
+    }
 }

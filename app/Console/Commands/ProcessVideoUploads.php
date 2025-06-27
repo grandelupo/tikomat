@@ -68,7 +68,26 @@ class ProcessVideoUploads extends Command
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            
+            // Send notification to all users about the upload service failure
+            $this->sendGlobalFailureNotification($e->getMessage());
+            
             return self::FAILURE;
+        }
+    }
+
+    /**
+     * Send global failure notification to all users.
+     */
+    private function sendGlobalFailureNotification(string $errorMessage): void
+    {
+        $users = \App\Models\User::all();
+        
+        foreach ($users as $user) {
+            $user->addJobFailureNotification('ProcessVideoUploads', 'Video Upload Service Error', 
+                'There was an issue with the video upload processing service. Some uploads may be delayed.', [
+                'error_message' => $errorMessage,
+            ]);
         }
     }
 } 

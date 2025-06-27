@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Video;
 use App\Models\VideoTarget;
 use App\Models\Channel;
+use App\Models\SocialAccount;
 use App\Services\VideoProcessingService;
 use App\Services\VideoUploadService;
 use Illuminate\Http\Request;
@@ -660,16 +661,27 @@ class VideoController extends Controller
     /**
      * Instant upload with AI-powered metadata generation.
      */
-    public function instantUpload(Request $request, Channel $channel): RedirectResponse
+    public function instantUpload(Request $request, Channel $channel): JsonResponse
     {
         // Ensure user owns this channel
         if ($channel->user_id !== $request->user()->id) {
-            abort(403);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to channel'
+            ], 403);
         }
 
-        $request->validate([
-            'video' => 'required|file|mimes:mp4,mov,avi,wmv,webm|max:102400', // 100MB max
-        ]);
+        try {
+            $request->validate([
+                'video' => 'required|file|mimes:mp4,mov,avi,wmv,webm|max:102400', // 100MB max
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        }
 
         try {
             Log::info('Starting instant upload process', [
@@ -730,8 +742,10 @@ class VideoController extends Controller
                     'allowed_platforms' => $allowedPlatforms,
                 ]);
                 
-                return redirect()->route('channels.show', $channel->slug)
-                    ->with('error', 'No platforms available for instant upload. Please connect platforms first.');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No platforms available for instant upload. Please connect platforms first.'
+                ], 400);
             }
 
             // Dispatch AI processing job
@@ -742,8 +756,15 @@ class VideoController extends Controller
                 'platforms' => $availablePlatforms,
             ]);
 
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('success', 'Video uploaded successfully! AI is processing your content and will publish automatically.');
+            return response()->json([
+                'success' => true,
+                'message' => 'Video uploaded successfully! AI is processing your content and will publish automatically.',
+                'data' => [
+                    'video_id' => $video->id,
+                    'platforms' => $availablePlatforms,
+                    'file_name' => $request->file('video')->getClientOriginalName(),
+                ]
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Instant upload failed', [
@@ -753,9 +774,10 @@ class VideoController extends Controller
                 'file_name' => $request->file('video')->getClientOriginalName() ?? 'unknown',
             ]);
 
-            return redirect()->back()
-                ->withErrors(['video' => $e->getMessage()])
-                ->withInput();
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 }

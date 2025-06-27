@@ -181,6 +181,32 @@ class UploadVideoToFacebook implements ShouldQueue
                 throw new \Exception('Invalid Facebook page ID detected. Please reconnect your Facebook account.');
             }
 
+            // Additional validation: ensure page ID is numeric and doesn't contain any non-numeric characters
+            if (!is_numeric($pageId) || !ctype_digit($pageId)) {
+                Log::error('Facebook page ID is not numeric', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'invalid_page_id' => $pageId,
+                    'page_id_type' => gettype($pageId),
+                    'page_id_length' => strlen($pageId),
+                    'social_account_id' => $socialAccount->id,
+                ]);
+                throw new \Exception('Invalid Facebook page ID format. Facebook page IDs must be numeric. Please reconnect your Facebook account.');
+            }
+
+            // Additional validation: check for common invalid patterns
+            $invalidPatterns = ['instagram', 'facebook', 'twitter', 'tiktok', 'youtube', 'snapchat', 'pinterest'];
+            foreach ($invalidPatterns as $pattern) {
+                if (stripos($pageId, $pattern) !== false) {
+                    Log::error('Facebook page ID contains invalid platform name', [
+                        'video_target_id' => $this->videoTarget->id,
+                        'invalid_page_id' => $pageId,
+                        'detected_pattern' => $pattern,
+                        'social_account_id' => $socialAccount->id,
+                    ]);
+                    throw new \Exception("Invalid Facebook page ID detected (contains '{$pattern}'). Please reconnect your Facebook account.");
+                }
+            }
+
             Log::info('Facebook page info retrieved for upload', [
                 'video_target_id' => $this->videoTarget->id,
                 'page_id' => $pageId,
@@ -282,14 +308,29 @@ class UploadVideoToFacebook implements ShouldQueue
         // Use the stored Facebook page ID if available
         if (!empty($socialAccount->facebook_page_id)) {
             // Validate that the page ID is numeric (Facebook page IDs are numeric)
-            if (!is_numeric($socialAccount->facebook_page_id)) {
+            if (!is_numeric($socialAccount->facebook_page_id) || !ctype_digit($socialAccount->facebook_page_id)) {
                 Log::error('Invalid Facebook page ID stored in database', [
                     'video_target_id' => $this->videoTarget->id,
                     'social_account_id' => $socialAccount->id,
                     'invalid_page_id' => $socialAccount->facebook_page_id,
                     'page_id_type' => gettype($socialAccount->facebook_page_id),
+                    'page_id_length' => strlen($socialAccount->facebook_page_id),
                 ]);
                 throw new \Exception('Invalid Facebook page ID stored in database. Please reconnect your Facebook account.');
+            }
+
+            // Check for invalid patterns in stored page ID
+            $invalidPatterns = ['instagram', 'facebook', 'twitter', 'tiktok', 'youtube', 'snapchat', 'pinterest'];
+            foreach ($invalidPatterns as $pattern) {
+                if (stripos($socialAccount->facebook_page_id, $pattern) !== false) {
+                    Log::error('Stored Facebook page ID contains invalid platform name', [
+                        'video_target_id' => $this->videoTarget->id,
+                        'social_account_id' => $socialAccount->id,
+                        'invalid_page_id' => $socialAccount->facebook_page_id,
+                        'detected_pattern' => $pattern,
+                    ]);
+                    throw new \Exception("Invalid Facebook page ID stored in database (contains '{$pattern}'). Please reconnect your Facebook account.");
+                }
             }
             
             Log::info('Using stored Facebook page info', [
@@ -377,14 +418,29 @@ class UploadVideoToFacebook implements ShouldQueue
     protected function uploadVideoToFacebook(SocialAccount $socialAccount, string $pageId, string $pageAccessToken, string $videoUrl): void
     {
         // Validate page ID before making API call
-        if (!is_numeric($pageId)) {
+        if (!is_numeric($pageId) || !ctype_digit($pageId)) {
             Log::error('Invalid Facebook page ID provided for upload', [
                 'video_target_id' => $this->videoTarget->id,
                 'invalid_page_id' => $pageId,
                 'page_id_type' => gettype($pageId),
+                'page_id_length' => strlen($pageId),
                 'social_account_id' => $socialAccount->id,
             ]);
             throw new \Exception('Invalid Facebook page ID provided for upload. Please reconnect your Facebook account.');
+        }
+
+        // Check for invalid patterns in page ID
+        $invalidPatterns = ['instagram', 'facebook', 'twitter', 'tiktok', 'youtube', 'snapchat', 'pinterest'];
+        foreach ($invalidPatterns as $pattern) {
+            if (stripos($pageId, $pattern) !== false) {
+                Log::error('Facebook page ID contains invalid platform name for upload', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'invalid_page_id' => $pageId,
+                    'detected_pattern' => $pattern,
+                    'social_account_id' => $socialAccount->id,
+                ]);
+                throw new \Exception("Invalid Facebook page ID for upload (contains '{$pattern}'). Please reconnect your Facebook account.");
+            }
         }
 
         // Get advanced options for this platform

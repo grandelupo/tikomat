@@ -379,6 +379,22 @@ class UploadVideoToYoutube implements ShouldQueue
         ]);
 
         $this->videoTarget->markAsFailed('Job failed permanently: ' . $exception->getMessage());
+        
+        // Send notification to user about the upload failure
+        if ($this->videoTarget->video && $this->videoTarget->video->user) {
+            $this->videoTarget->video->user->addJobFailureNotification(
+                'UploadVideoToYoutube',
+                'YouTube Upload Failed',
+                'Your video upload to YouTube has failed permanently. Please check your YouTube account connection and try again.',
+                [
+                    'video_id' => $this->videoTarget->video_id,
+                    'video_title' => $this->videoTarget->video->title,
+                    'channel_name' => $this->videoTarget->video->channel->name ?? 'Unknown',
+                    'platform' => 'youtube',
+                    'error_message' => $exception->getMessage(),
+                ]
+            );
+        }
     }
 
     /**

@@ -176,7 +176,14 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
             .then(response => {
                 if (!response.ok) {
                     return response.json().then(errors => {
-                        const errorMessage = errors.video || errors.message || 'Upload failed';
+                        // Handle validation errors
+                        if (errors.errors && errors.errors.video) {
+                            const videoErrors = errors.errors.video;
+                            const errorMessage = Array.isArray(videoErrors) ? videoErrors[0] : videoErrors;
+                            throw new Error(errorMessage);
+                        }
+                        // Handle other errors
+                        const errorMessage = errors.message || 'Upload failed';
                         throw new Error(errorMessage);
                     });
                 }

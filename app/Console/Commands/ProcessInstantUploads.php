@@ -130,6 +130,7 @@ class ProcessInstantUploads extends Command
 
             if (empty($availablePlatforms)) {
                 $this->warn("No platforms available for video ID: {$video->id}");
+                $this->sendFailureNotification($video, 'No platforms available', 'No social media platforms are connected or available for this video.');
                 return 1;
             }
 
@@ -155,7 +156,25 @@ class ProcessInstantUploads extends Command
             ]);
 
             $this->error("Error processing video: " . $e->getMessage());
+            
+            // Send notification to user about the failure
+            $this->sendFailureNotification($video, 'AI Processing Failed', $e->getMessage());
+            
             return 1;
         }
+    }
+
+    /**
+     * Send failure notification to the video owner.
+     */
+    private function sendFailureNotification(Video $video, string $title, string $message): void
+    {
+        $user = $video->user;
+        
+        $user->addJobFailureNotification('ProcessInstantUploads', $title, $message, [
+            'video_id' => $video->id,
+            'video_title' => $video->title,
+            'channel_name' => $video->channel->name,
+        ]);
     }
 } 

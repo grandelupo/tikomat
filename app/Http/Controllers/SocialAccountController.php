@@ -950,7 +950,7 @@ class SocialAccountController extends Controller
 
             // Validate that all page IDs are numeric
             $invalidPages = collect($pages)->filter(function($page) {
-                return empty($page['id']) || !is_numeric($page['id']);
+                return empty($page['id']) || !is_numeric($page['id']) || !ctype_digit($page['id']);
             });
             
             if ($invalidPages->isNotEmpty()) {
@@ -959,6 +959,25 @@ class SocialAccountController extends Controller
                     'invalid_pages' => $invalidPages->toArray(),
                 ]);
                 throw new \Exception('Invalid Facebook page data received from API. Please try connecting again.');
+            }
+
+            // Additional validation: check for invalid patterns in page IDs
+            $invalidPatternPages = collect($pages)->filter(function($page) {
+                $invalidPatterns = ['instagram', 'facebook', 'twitter', 'tiktok', 'youtube', 'snapchat', 'pinterest'];
+                foreach ($invalidPatterns as $pattern) {
+                    if (stripos($page['id'], $pattern) !== false) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+            
+            if ($invalidPatternPages->isNotEmpty()) {
+                \Log::error('Facebook page IDs contain invalid platform names', [
+                    'channel_slug' => $channel->slug,
+                    'invalid_pages' => $invalidPatternPages->toArray(),
+                ]);
+                throw new \Exception('Invalid Facebook page data received from API (contains platform names). Please try connecting again.');
             }
 
             \Log::info('Facebook pages retrieved', [
@@ -1079,6 +1098,35 @@ class SocialAccountController extends Controller
         if (!$selectedPage) {
             return redirect()->back()
                 ->with('error', 'Invalid page selection. Please try again.');
+        }
+
+        // Validate that the selected page ID is numeric and doesn't contain invalid patterns
+        $pageId = $selectedPage['id'];
+        if (!is_numeric($pageId) || !ctype_digit($pageId)) {
+            \Log::error('Invalid Facebook page ID selected by user', [
+                'user_id' => Auth::id(),
+                'channel_slug' => $channel->slug,
+                'invalid_page_id' => $pageId,
+                'page_id_type' => gettype($pageId),
+                'page_id_length' => strlen($pageId),
+            ]);
+            return redirect()->back()
+                ->with('error', 'Invalid Facebook page ID selected. Please try connecting again.');
+        }
+
+        // Check for invalid patterns in page ID
+        $invalidPatterns = ['instagram', 'facebook', 'twitter', 'tiktok', 'youtube', 'snapchat', 'pinterest'];
+        foreach ($invalidPatterns as $pattern) {
+            if (stripos($pageId, $pattern) !== false) {
+                \Log::error('Facebook page ID contains invalid platform name', [
+                    'user_id' => Auth::id(),
+                    'channel_slug' => $channel->slug,
+                    'invalid_page_id' => $pageId,
+                    'detected_pattern' => $pattern,
+                ]);
+                return redirect()->back()
+                    ->with('error', "Invalid Facebook page ID detected (contains '{$pattern}'). Please try connecting again.");
+            }
         }
 
         // Create social user object
