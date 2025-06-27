@@ -13,7 +13,8 @@ import {
     CheckCircle,
     AlertCircle,
     Clock,
-    X
+    X,
+    Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -28,12 +29,19 @@ interface InstantUploadDropzoneProps {
     className?: string;
 }
 
+interface QueuedFile {
+    file: File;
+    id: string;
+    status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error';
+    progress: number;
+    processingStage: string;
+    error?: string;
+}
+
 export default function InstantUploadDropzone({ channel, className }: InstantUploadDropzoneProps) {
     const [isDragOver, setIsDragOver] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [processingStage, setProcessingStage] = useState<string>('');
-
+    const [uploadQueue, setUploadQueue] = useState<QueuedFile[]>([]);
+    
     const { data, setData, post, processing, errors, progress, reset } = useForm({
         video: null as File | null,
     });
@@ -42,16 +50,15 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
         e.preventDefault();
         setIsDragOver(false);
         
-        const files = e.dataTransfer.files;
-        if (files && files[0]) {
-            const file = files[0];
-            if (file.type.startsWith('video/')) {
-                handleFileSelect(file);
-            } else {
-                // Show error for invalid file type
-                console.error('Please select a valid video file');
-            }
+        const files = Array.from(e.dataTransfer.files);
+        const videoFiles = files.filter(file => file.type.startsWith('video/'));
+        
+        if (videoFiles.length === 0) {
+            console.error('Please select valid video files');
+            return;
         }
+        
+        handleMultipleFileSelect(videoFiles);
     }, []);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -64,126 +71,269 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
         setIsDragOver(false);
     }, []);
 
-    const handleFileSelect = (file: File) => {
-        // Validate file
+    const validateFile = (file: File): string | null => {
         if (file.size > 100 * 1024 * 1024) {
-            console.error('File size must be less than 100MB');
-            return;
+            return 'File size must be less than 100MB';
         }
 
         if (!file.type.startsWith('video/')) {
-            console.error('Please select a valid video file');
-            return;
+            return 'Please select a valid video file';
         }
 
-        setData('video', file);
-        handleInstantUpload(file);
+        return null;
+    };
+
+    const handleMultipleFileSelect = (files: File[]) => {
+        const validFiles: File[] = [];
+        const invalidFiles: string[] = [];
+
+        files.forEach(file => {
+            const error = validateFile(file);
+            if (error) {
+                invalidFiles.push(`${file.name}: ${error}`);
+            } else {
+                validFiles.push(file);
+            }
+        });
+
+        if (invalidFiles.length > 0) {
+            console.error('Invalid files:', invalidFiles.join(', '));
+        }
+
+        if (validFiles.length > 0) {
+            const newQueuedFiles: QueuedFile[] = validFiles.map(file => ({
+                file,
+                id: `${Date.now()}-${Math.random()}`,
+                status: 'pending',
+                progress: 0,
+                processingStage: 'Queued for upload...',
+            }));
+
+            setUploadQueue(prevQueue => [...prevQueue, ...newQueuedFiles]);
+            
+            // Start uploading files one by one
+            setTimeout(() => processQueue([...uploadQueue, ...newQueuedFiles]), 100);
+        }
     };
 
     const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            handleFileSelect(file);
+        const files = Array.from(e.target.files || []);
+        if (files.length > 0) {
+            handleMultipleFileSelect(files);
         }
+        // Reset the input so the same file can be selected again
+        e.target.value = '';
     };
 
-    const handleInstantUpload = (file: File) => {
-        setIsProcessing(true);
-        setProcessingStage('Uploading video...');
+    const processQueue = async (queue: QueuedFile[]) => {
+        const pendingFiles = queue.filter(item => item.status === 'pending');
         
-        post(`/channels/${channel.slug}/videos/instant-upload`, {
-            onProgress: (progress) => {
-                setUploadProgress(progress.percentage || 0);
-                if (progress.percentage === 100) {
-                    setProcessingStage('AI is analyzing your video...');
-                }
-            },
-            onSuccess: (page) => {
-                setProcessingStage('Processing complete! Refreshing page...');
-                
-                // Give a moment for the user to see the success message
-                setTimeout(() => {
-                    setIsProcessing(false);
-                    setProcessingStage('');
-                    setUploadProgress(0);
-                    reset();
-                    
-                    // Refresh the page to show updated videos
-                    window.location.reload();
-                }, 2000);
-            },
-            onError: (errors) => {
-                console.error('Upload failed:', errors);
-                setIsProcessing(false);
-                setProcessingStage('');
-                setUploadProgress(0);
-            },
+        if (pendingFiles.length === 0) return;
+
+        const fileToProcess = pendingFiles[0];
+        await handleSingleFileUpload(fileToProcess);
+        
+        // Process next file after a short delay
+        setTimeout(() => {
+            const updatedQueue = uploadQueue.filter(item => item.status !== 'completed');
+            if (updatedQueue.some(item => item.status === 'pending')) {
+                processQueue(updatedQueue);
+            }
+        }, 1000);
+    };
+
+    const handleSingleFileUpload = async (queuedFile: QueuedFile) => {
+        // Update status to uploading
+        setUploadQueue(prevQueue => 
+            prevQueue.map(item => 
+                item.id === queuedFile.id 
+                    ? { ...item, status: 'uploading', processingStage: 'Uploading video...' }
+                    : item
+            )
+        );
+
+        // Set the form data with the file and wait for it to be set
+        setData('video', queuedFile.file);
+
+        // Use a promise to handle the upload
+        return new Promise((resolve, reject) => {
+            // Wait a moment for setData to update the form data
+            setTimeout(() => {
+                post(`/channels/${channel.slug}/videos/instant-upload`, {
+                    onProgress: (progress) => {
+                        const percentage = progress.percentage || 0;
+                        setUploadQueue(prevQueue => 
+                            prevQueue.map(item => 
+                                item.id === queuedFile.id 
+                                    ? { 
+                                        ...item, 
+                                        progress: percentage,
+                                        processingStage: percentage === 100 ? 'AI is analyzing your video...' : 'Uploading video...'
+                                    }
+                                    : item
+                            )
+                        );
+                    },
+                    onSuccess: (page) => {
+                        setUploadQueue(prevQueue => 
+                            prevQueue.map(item => 
+                                item.id === queuedFile.id 
+                                    ? { 
+                                        ...item, 
+                                        status: 'completed',
+                                        progress: 100,
+                                        processingStage: 'Upload completed! AI processing in background...'
+                                    }
+                                    : item
+                            )
+                        );
+                        
+                        // Remove completed item after showing success
+                        setTimeout(() => {
+                            setUploadQueue(prevQueue => prevQueue.filter(item => item.id !== queuedFile.id));
+                            // Refresh the page if all uploads are complete
+                            if (uploadQueue.every(item => item.status === 'completed' || item.id === queuedFile.id)) {
+                                setTimeout(() => window.location.reload(), 1000);
+                            }
+                        }, 3000);
+                        
+                        resolve(page);
+                    },
+                    onError: (errors) => {
+                        console.error('Upload failed:', errors);
+                        const errorMessage = errors.video || 'Upload failed';
+                        setUploadQueue(prevQueue => 
+                            prevQueue.map(item => 
+                                item.id === queuedFile.id 
+                                    ? { 
+                                        ...item, 
+                                        status: 'error',
+                                        error: errorMessage,
+                                        processingStage: 'Upload failed'
+                                    }
+                                    : item
+                            )
+                        );
+                        reject(errors);
+                    },
+                });
+            }, 100);
         });
     };
 
-    const handleCancelUpload = () => {
-        setIsProcessing(false);
-        setProcessingStage('');
-        setUploadProgress(0);
-        reset();
+    const removeFromQueue = (fileId: string) => {
+        setUploadQueue(prevQueue => prevQueue.filter(item => item.id !== fileId));
     };
 
-    // Show processing state
-    if (isProcessing || processing) {
+    const retryUpload = (fileId: string) => {
+        setUploadQueue(prevQueue => 
+            prevQueue.map(item => 
+                item.id === fileId 
+                    ? { ...item, status: 'pending', error: undefined, progress: 0, processingStage: 'Queued for upload...' }
+                    : item
+            )
+        );
+        
+        setTimeout(() => processQueue(uploadQueue), 100);
+    };
+
+    // Show upload queue if there are items
+    if (uploadQueue.length > 0) {
         return (
-            <Card className={cn("border-2 border-dashed border-blue-300 bg-blue-50/50", className)}>
-                <CardContent className="flex flex-col items-center justify-center p-8 text-center">
-                    <div className="w-16 h-16 mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Brain className="w-8 h-8 text-blue-600 animate-pulse" />
-                    </div>
-                    
-                    <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                        AI Processing Your Video
-                    </h3>
-                    
-                    <p className="text-blue-700 mb-4">{processingStage}</p>
-                    
-                    {uploadProgress > 0 && uploadProgress < 100 && (
-                        <div className="w-full max-w-xs mb-4">
-                            <div className="flex justify-between text-sm text-blue-600 mb-1">
-                                <span>Uploading</span>
-                                <span>{uploadProgress}%</span>
+            <div className={cn("space-y-4", className)}>
+                {/* Upload Queue */}
+                {uploadQueue.map((queuedFile) => (
+                    <Card key={queuedFile.id} className="border-2 border-dashed border-blue-300 bg-blue-50/50">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                        {queuedFile.status === 'uploading' || queuedFile.status === 'processing' ? (
+                                            <Brain className="w-4 h-4 text-blue-600 animate-pulse" />
+                                        ) : queuedFile.status === 'completed' ? (
+                                            <CheckCircle className="w-4 h-4 text-green-600" />
+                                        ) : queuedFile.status === 'error' ? (
+                                            <AlertCircle className="w-4 h-4 text-red-600" />
+                                        ) : (
+                                            <Clock className="w-4 h-4 text-gray-600" />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900 truncate max-w-xs">
+                                            {queuedFile.file.name}
+                                        </p>
+                                        <p className="text-xs text-gray-600">
+                                            {(queuedFile.file.size / (1024 * 1024)).toFixed(2)} MB
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    {queuedFile.status === 'error' && (
+                                        <Button 
+                                            onClick={() => retryUpload(queuedFile.id)}
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-xs"
+                                        >
+                                            Retry
+                                        </Button>
+                                    )}
+                                    {queuedFile.status !== 'uploading' && queuedFile.status !== 'processing' && (
+                                        <Button 
+                                            onClick={() => removeFromQueue(queuedFile.id)}
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-xs text-gray-500 hover:text-red-600"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
-                            <div className="w-full bg-blue-200 rounded-full h-2">
-                                <div
-                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${uploadProgress}%` }}
-                                />
-                            </div>
-                        </div>
+                            
+                            <p className="text-xs text-blue-700 mb-2">{queuedFile.processingStage}</p>
+                            
+                            {queuedFile.error && (
+                                <p className="text-xs text-red-600 mb-2">{queuedFile.error}</p>
+                            )}
+                            
+                            {(queuedFile.status === 'uploading' || queuedFile.status === 'processing') && queuedFile.progress > 0 && (
+                                <div className="w-full bg-blue-200 rounded-full h-1.5">
+                                    <div
+                                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                                        style={{ width: `${queuedFile.progress}%` }}
+                                    />
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                ))}
+                
+                {/* Add more files option */}
+                <Card 
+                    className={cn(
+                        "border-2 border-dashed transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30",
+                        isDragOver ? "border-blue-500 bg-blue-50" : "border-gray-300"
                     )}
-                    
-                    <div className="flex items-center space-x-4 text-sm text-blue-600 mb-4">
-                        <div className="flex items-center space-x-1">
-                            <CheckCircle className="w-4 h-4" />
-                            <span>Video Analysis</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                            <Clock className="w-4 h-4" />
-                            <span>Content Generation</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                            <Sparkles className="w-4 h-4" />
-                            <span>Platform Optimization</span>
-                        </div>
-                    </div>
-                    
-                    <Button 
-                        onClick={handleCancelUpload}
-                        variant="outline" 
-                        size="sm"
-                        className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                    >
-                        <X className="w-4 h-4 mr-1" />
-                        Cancel
-                    </Button>
-                </CardContent>
-            </Card>
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onClick={() => document.getElementById('instant-upload-input-additional')?.click()}
+                >
+                    <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                        <Plus className="w-8 h-8 text-gray-400 mb-2" />
+                        <p className="text-sm text-gray-600">Add more videos to queue</p>
+                        <input
+                            type="file"
+                            accept="video/*"
+                            multiple
+                            onChange={handleFileInputChange}
+                            className="hidden"
+                            id="instant-upload-input-additional"
+                        />
+                    </CardContent>
+                </Card>
+            </div>
         );
     }
 
@@ -208,7 +358,7 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                 </h3>
                 
                 <p className="text-gray-600 mb-4 max-w-md">
-                    Drop your video here or click to select. AI will automatically generate optimized titles, descriptions, and settings for all your connected platforms.
+                    Drop your videos here or click to select multiple files. AI will automatically generate optimized titles, descriptions, and settings for all your connected platforms.
                 </p>
                 
                 <div className="flex flex-wrap gap-2 mb-6 justify-center">
@@ -224,11 +374,16 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                         <FileVideo className="w-3 h-3 mr-1" />
                         Watermark Removal
                     </Badge>
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                        <Plus className="w-3 h-3 mr-1" />
+                        Multiple Files
+                    </Badge>
                 </div>
                 
                 <input
                     type="file"
                     accept="video/*"
+                    multiple
                     onChange={handleFileInputChange}
                     className="hidden"
                     id="instant-upload-input"
@@ -238,13 +393,13 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                     <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700" asChild>
                         <span>
                             <Upload className="w-5 h-5 mr-2" />
-                            Select Video for Instant Upload
+                            Select Videos for Instant Upload
                         </span>
                     </Button>
                 </label>
                 
                 <p className="text-xs text-gray-500 mt-4">
-                    Supports MP4, MOV, AVI, WMV, WebM • Max 100MB • Up to 60 seconds
+                    Supports MP4, MOV, AVI, WMV, WebM • Max 100MB each • Up to 60 seconds each • Multiple files supported
                 </p>
                 
                 {errors.video && (
