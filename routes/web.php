@@ -146,7 +146,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('watermark-quality', [AIController::class, 'analyzeRemovalQuality'])->name('watermark-quality');
         Route::post('watermark-report', [AIController::class, 'generateRemovalReport'])->name('watermark-report');
         
-            // AI Content Generation
+        // Watermark Template Management
+        Route::post('watermark-template-create', [AIController::class, 'createWatermarkTemplate'])->name('watermark-template-create');
+        Route::get('watermark-templates', [AIController::class, 'getWatermarkTemplates'])->name('watermark-templates');
+        Route::get('watermark-detection-stats', [AIController::class, 'getWatermarkDetectionStats'])->name('watermark-detection-stats');
+        
+        // AI Content Generation
     Route::post('generate-video-content', [AIController::class, 'generateVideoContent'])->name('generate-video-content');
     
     // AI Subtitle Generator

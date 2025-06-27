@@ -20,6 +20,7 @@ interface WatermarkRemoverProps {
 interface Watermark {
     id: string;
     type: string;
+    platform?: string;
     confidence: number;
     location: {
         x: number;
@@ -31,6 +32,7 @@ interface Watermark {
     temporal_consistency: number;
     removal_difficulty: string;
     frames_detected: number;
+    detection_method?: string;
 }
 
 interface DetectionData {
@@ -101,7 +103,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
         setLoading(true);
         
         try {
-            // Step 1: Detect watermarks
+            // Step 1: Detect watermarks with enhanced detection
             const response = await fetch('/ai/watermark-detect', {
                 method: 'POST',
                 headers: {
@@ -112,6 +114,8 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                     video_path: videoPath,
                     sensitivity: removalSettings.sensitivity,
                     detection_mode: 'thorough', // Use thorough mode for best results
+                    enable_learning: true, // Enable learning for better future detection
+                    platform_focus: 'all', // Detect all platform watermarks
                 }),
             });
 
@@ -182,6 +186,8 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                     video_path: videoPath,
                     sensitivity: removalSettings.sensitivity,
                     detection_mode: removalSettings.detection_mode,
+                    enable_learning: true, // Enable learning for better detection
+                    platform_focus: 'all', // Detect all platform watermarks
                 }),
             });
 
@@ -369,6 +375,11 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                                                 <Badge className={getDifficultyColor(watermark.removal_difficulty)}>
                                                     {watermark.removal_difficulty}
                                                 </Badge>
+                                                {watermark.platform && watermark.platform !== 'unknown' && (
+                                                    <Badge className="bg-blue-100 text-blue-800">
+                                                        {watermark.platform}
+                                                    </Badge>
+                                                )}
                                             </div>
                                             
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -393,12 +404,21 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                                                     <div className="font-medium">{watermark.frames_detected}</div>
                                                 </div>
                                             </div>
+                                            
+                                            {watermark.detection_method && (
+                                                <div className="mt-3 text-xs text-gray-500">
+                                                    Detected using: {watermark.detection_method.replace('_', ' ')}
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="text-2xl">
-                                            {watermark.type === 'logo' && '🎨'}
-                                            {watermark.type === 'text' && '📝'}
-                                            {watermark.type === 'brand' && '🏷️'}
-                                            {watermark.type === 'channel' && '📺'}
+                                            {watermark.platform === 'tiktok' && '🎵'}
+                                            {watermark.platform === 'sora' && '🤖'}
+                                            {watermark.platform === 'custom' && '🎨'}
+                                            {watermark.type === 'logo' && !watermark.platform && '🎨'}
+                                            {watermark.type === 'text' && !watermark.platform && '📝'}
+                                            {watermark.type === 'brand' && !watermark.platform && '🏷️'}
+                                            {watermark.type === 'channel' && !watermark.platform && '📺'}
                                         </div>
                                     </div>
                                 </Card>

@@ -1534,9 +1534,10 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 </div>
 
                 {/* Bounding Box Controls */}
+                {subtitlesGenerated && (
                 <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                   <span className="text-sm font-medium text-gray-700">Subtitle Area:</span>
-                  {subtitlesGenerated && (
+                  
                     <button
                       onClick={() => {
                         initializeDefaultBounds();
@@ -1551,7 +1552,6 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       <Settings2 className="w-4 h-4" />
                       {isEditingBounds ? 'Finish Editing' : 'Set Boundary'}
                     </button>
-                  )}
                   {customBounds && (
                     <button
                       onClick={() => {
@@ -1570,6 +1570,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                     </span>
                   )}
                 </div>
+               )}
               </div>
             </div>
 

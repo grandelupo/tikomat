@@ -2828,6 +2828,8 @@ class AIController extends Controller
             'video_path' => 'required|string',
             'sensitivity' => 'nullable|string|in:low,medium,high',
             'detection_mode' => 'nullable|string|in:fast,balanced,thorough',
+            'enable_learning' => 'nullable|boolean',
+            'platform_focus' => 'nullable|string|in:tiktok,sora,custom,all',
         ]);
 
         if ($validator->fails()) {
@@ -2851,24 +2853,48 @@ class AIController extends Controller
             $options = [
                 'sensitivity' => $request->sensitivity ?? 'medium',
                 'detection_mode' => $request->detection_mode ?? 'balanced',
+                'enable_learning' => $request->enable_learning ?? true,
+                'platform_focus' => $request->platform_focus ?? 'all',
             ];
 
-            $detection = $this->watermarkRemoverService->detectWatermarks($videoPath, $options);
+            // Use enhanced detection with learning if enabled
+            if ($options['enable_learning']) {
+                $detection = $this->watermarkRemoverService->detectWatermarksWithLearning($videoPath, $options);
+            } else {
+                $detection = $this->watermarkRemoverService->detectWatermarks($videoPath, $options);
+            }
 
-            Log::info('Watermark detection completed', [
+            // Filter watermarks by platform focus if specified
+            if ($options['platform_focus'] !== 'all' && !empty($detection['detected_watermarks'])) {
+                $detection['detected_watermarks'] = array_filter(
+                    $detection['detected_watermarks'],
+                    function($watermark) use ($options) {
+                        return ($watermark['platform'] ?? 'unknown') === $options['platform_focus'];
+                    }
+                );
+                $detection['detected_watermarks'] = array_values($detection['detected_watermarks']);
+            }
+
+            // Add detection statistics
+            $detection['detection_stats'] = $this->watermarkRemoverService->getDetectionStats();
+            $detection['platform_breakdown'] = $this->getPlatformBreakdown($detection['detected_watermarks']);
+
+            Log::info('Enhanced watermark detection completed', [
                 'user_id' => $request->user()->id ?? null,
                 'video_path' => $request->video_path,
                 'watermarks_found' => count($detection['detected_watermarks'] ?? []),
+                'platform_focus' => $options['platform_focus'],
+                'enable_learning' => $options['enable_learning'],
             ]);
 
             return response()->json([
                 'success' => true,
                 'data' => $detection,
-                'message' => 'Watermark detection completed successfully',
+                'message' => 'Enhanced watermark detection completed successfully',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Watermark detection failed', [
+            Log::error('Enhanced watermark detection failed', [
                 'user_id' => $request->user()->id ?? null,
                 'error' => $e->getMessage(),
                 'video_path' => $request->video_path ?? 'unknown',
@@ -2880,6 +2906,44 @@ class AIController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Get platform breakdown of detected watermarks
+     */
+    private function getPlatformBreakdown(array $watermarks): array
+    {
+        $breakdown = [
+            'tiktok' => ['count' => 0, 'confidence_avg' => 0, 'types' => []],
+            'sora' => ['count' => 0, 'confidence_avg' => 0, 'types' => []],
+            'custom' => ['count' => 0, 'confidence_avg' => 0, 'types' => []],
+            'unknown' => ['count' => 0, 'confidence_avg' => 0, 'types' => []],
+        ];
+
+        foreach ($watermarks as $watermark) {
+            $platform = $watermark['platform'] ?? 'unknown';
+            $type = $watermark['type'] ?? 'unknown';
+            
+            if (!isset($breakdown[$platform])) {
+                $breakdown[$platform] = ['count' => 0, 'confidence_avg' => 0, 'types' => []];
+            }
+            
+            $breakdown[$platform]['count']++;
+            $breakdown[$platform]['confidence_avg'] += $watermark['confidence'] ?? 0;
+            
+            if (!in_array($type, $breakdown[$platform]['types'])) {
+                $breakdown[$platform]['types'][] = $type;
+            }
+        }
+
+        // Calculate average confidence
+        foreach ($breakdown as $platform => &$data) {
+            if ($data['count'] > 0) {
+                $data['confidence_avg'] = round($data['confidence_avg'] / $data['count'], 2);
+            }
+        }
+
+        return $breakdown;
     }
 
     /**
@@ -5014,6 +5078,115 @@ class AIController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upload thumbnail. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Create a custom watermark template
+     */
+    public function createWatermarkTemplate(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'properties' => 'required|array',
+            'patterns' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $template = $this->watermarkRemoverService->createWatermarkTemplate(
+                $request->name,
+                $request->properties,
+                $request->patterns ?? []
+            );
+
+            Log::info('Watermark template created', [
+                'user_id' => $request->user()->id ?? null,
+                'template_name' => $request->name,
+                'template_id' => $template['id'] ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $template,
+                'message' => 'Watermark template created successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create watermark template', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+                'template_name' => $request->name ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create watermark template. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all watermark templates
+     */
+    public function getWatermarkTemplates(Request $request): JsonResponse
+    {
+        try {
+            $templates = $this->watermarkRemoverService->getWatermarkTemplates();
+
+            return response()->json([
+                'success' => true,
+                'data' => $templates,
+                'message' => 'Watermark templates retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get watermark templates', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve watermark templates. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Get watermark detection statistics
+     */
+    public function getWatermarkDetectionStats(Request $request): JsonResponse
+    {
+        try {
+            $stats = $this->watermarkRemoverService->getDetectionStats();
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+                'message' => 'Watermark detection statistics retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get watermark detection stats', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve detection statistics. Please try again.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

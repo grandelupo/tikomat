@@ -37,6 +37,7 @@ class VideoController extends Controller
     public function index(Request $request): Response
     {
         $query = Video::where('user_id', $request->user()->id)
+            ->whereHas('channel') // Only include videos with valid channels
             ->with(['targets', 'channel']);
 
         // Apply filters

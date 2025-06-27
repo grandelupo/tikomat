@@ -33,7 +33,7 @@ interface Video {
         id: number;
         name: string;
         slug: string;
-    };
+    } | null;
     targets: VideoTarget[];
 }
 
@@ -326,12 +326,16 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Link 
-                                                    href={`/channels/${video.channel.slug}`}
-                                                    className="text-blue-600 hover:text-blue-700"
-                                                >
-                                                    {video.channel.name}
-                                                </Link>
+                                                {video.channel ? (
+                                                    <Link 
+                                                        href={`/channels/${video.channel.slug}`}
+                                                        className="text-blue-600 hover:text-blue-700"
+                                                    >
+                                                        {video.channel.name}
+                                                    </Link>
+                                                ) : (
+                                                    <span className="text-muted-foreground">No Channel</span>
+                                                )}
                                             </TableCell>
                                             <TableCell>{video.formatted_duration}</TableCell>
                                             <TableCell>
