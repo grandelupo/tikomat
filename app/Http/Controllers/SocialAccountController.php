@@ -173,6 +173,12 @@ class SocialAccountController extends Controller
 
             // Handle Facebook page selection if platform is Facebook
             if ($platform === 'facebook') {
+                \Log::info('Facebook OAuth callback - starting page selection', [
+                    'channel_slug' => $channel->slug,
+                    'user_id' => Auth::id(),
+                    'has_token' => !empty($socialUser->token),
+                    'has_refresh_token' => !empty($socialUser->refreshToken),
+                ]);
                 return $this->handleFacebookPageSelection($channel, $socialUser);
             }
 
@@ -577,14 +583,15 @@ class SocialAccountController extends Controller
                     'pages_manage_posts',
                     'pages_read_engagement',
                     'pages_show_list',
-                    'publish_video'
+                    'publish_video',
+                    'business_management'                    // Required for business selection
                 ])
                 ->with([
                     'state' => $state,
                     'auth_type' => 'rerequest',              // Force re-authorization to show page selection
                     'prompt' => 'select_account consent',    // Force account selection
                     'response_type' => 'code',               // Ensure we get authorization code
-                    'config_id' => null,                    // Force business selection dialog
+                    'display' => 'popup',                    // Use popup display for better UX
                 ])
                 ->redirect();
         } elseif ($platform === 'snapchat') {
@@ -730,10 +737,24 @@ class SocialAccountController extends Controller
     protected function handleFacebookPageSelection(Channel $channel, $socialUser): RedirectResponse
     {
         try {
-            // Get user's Facebook pages
-            $response = Http::get('https://graph.facebook.com/v18.0/me/accounts', [
+            // Log that we're starting the Facebook page selection process
+            \Log::info('Starting Facebook page selection', [
+                'channel_slug' => $channel->slug,
+                'has_access_token' => !empty($socialUser->token),
+                'token_length' => strlen($socialUser->token ?? ''),
+            ]);
+
+            // Get user's Facebook pages using latest Graph API version
+            $response = Http::get('https://graph.facebook.com/v21.0/me/accounts', [
                 'access_token' => $socialUser->token,
-                'fields' => 'id,name,access_token'
+                'fields' => 'id,name,access_token,category,tasks',
+                'limit' => 100  // Ensure we get all pages
+            ]);
+
+            \Log::info('Facebook API response', [
+                'status' => $response->status(),
+                'successful' => $response->successful(),
+                'body_preview' => substr($response->body(), 0, 200),
             ]);
 
             if (!$response->successful()) {
@@ -743,8 +764,16 @@ class SocialAccountController extends Controller
             $data = $response->json();
             $pages = $data['data'] ?? [];
 
+            \Log::info('Facebook pages retrieved', [
+                'page_count' => count($pages),
+                'pages' => array_map(function($page) {
+                    return ['id' => $page['id'], 'name' => $page['name']];
+                }, $pages),
+            ]);
+
             // If user has no pages, show error
             if (empty($pages)) {
+                \Log::warning('No Facebook pages found for user');
                 return $this->redirectToErrorPage(
                     'facebook',
                     $channel->slug,
@@ -753,10 +782,8 @@ class SocialAccountController extends Controller
                 );
             }
 
-            // If user has only one page, auto-select it
-            if (count($pages) === 1) {
-                return $this->completeFacebookConnection($channel, $socialUser, $pages[0]);
-            }
+            // Always show page selection interface, even for single page
+            // This ensures users are always aware of which page they're connecting
 
             // Store user data temporarily in session for page selection
             session([
@@ -769,10 +796,20 @@ class SocialAccountController extends Controller
                 ]
             ]);
 
+            \Log::info('Redirecting to Facebook page selection', [
+                'route' => 'facebook.page-selection',
+                'channel_slug' => $channel->slug,
+            ]);
+
             // Redirect to page selection view
             return redirect()->route('facebook.page-selection', $channel->slug);
 
         } catch (\Exception $e) {
+            \Log::error('Facebook page selection failed', [
+                'error' => $e->getMessage(),
+                'channel_slug' => $channel->slug,
+            ]);
+            
             return $this->redirectToErrorPage(
                 'facebook',
                 $channel->slug,

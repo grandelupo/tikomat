@@ -408,32 +408,37 @@ export default function ChannelShow({
                                                             @{account.profile_username}
                                                         </p>
                                                     )}
-                                                    {account.platform === 'facebook' && account.facebook_page_name && (
-                                                        <p className="text-xs text-gray-500 truncate">
-                                                            Page: {account.facebook_page_name}
-                                                        </p>
-                                                    )}
                                                 </div>
                                             </div>
 
                                             {/* Action Buttons */}
-                                            <div className="flex space-x-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => handleDisconnectPlatform(account.platform)}
-                                                    className="text-red-600 hover:text-red-700 flex-1"
-                                                >
-                                                    Disconnect
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => handleForceReconnectPlatform(account.platform)}
-                                                    className="text-xs flex-1"
-                                                >
-                                                    Reconnect
-                                                </Button>
+                                            <div className="space-y-2">
+                                                <div className="flex space-x-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleDisconnectPlatform(account.platform)}
+                                                        className="text-red-600 hover:text-red-700 flex-1"
+                                                    >
+                                                        Disconnect
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => handleForceReconnectPlatform(account.platform)}
+                                                        className="text-xs flex-1"
+                                                    >
+                                                        Reconnect
+                                                    </Button>
+                                                </div>
+                                                {/* Show Facebook page info under buttons */}
+                                                {account.platform === 'facebook' && account.facebook_page_name && (
+                                                    <div className="text-center">
+                                                        <p className="text-xs text-gray-500 font-medium">
+                                                            📄 {account.facebook_page_name}
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>
