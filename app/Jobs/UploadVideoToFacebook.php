@@ -158,11 +158,40 @@ class UploadVideoToFacebook implements ShouldQueue
             $pageId = $pageInfo['page_id'];
             $pageAccessToken = $pageInfo['page_access_token'];
             
-            Log::info('Facebook Page info obtained', [
+            // Validate that video target's Facebook page ID matches social account's page ID if both are set
+            if (!empty($this->videoTarget->facebook_page_id) && !empty($socialAccount->facebook_page_id)) {
+                if ($this->videoTarget->facebook_page_id !== $socialAccount->facebook_page_id) {
+                    Log::error('Facebook page ID mismatch between video target and social account', [
+                        'video_target_id' => $this->videoTarget->id,
+                        'video_target_facebook_page_id' => $this->videoTarget->facebook_page_id,
+                        'social_account_facebook_page_id' => $socialAccount->facebook_page_id,
+                        'social_account_id' => $socialAccount->id,
+                    ]);
+                    throw new \Exception('Facebook page ID mismatch. Please reconnect your Facebook account.');
+                }
+            }
+
+            // Validate that page ID doesn't contain invalid characters
+            if (str_contains(strtolower($pageId), 'instagram')) {
+                Log::error('Facebook page ID contains invalid characters', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'invalid_page_id' => $pageId,
+                    'social_account_id' => $socialAccount->id,
+                ]);
+                throw new \Exception('Invalid Facebook page ID detected. Please reconnect your Facebook account.');
+            }
+
+            Log::info('Facebook page info retrieved for upload', [
                 'video_target_id' => $this->videoTarget->id,
                 'page_id' => $pageId,
+                'page_id_type' => gettype($pageId),
+                'page_id_length' => strlen($pageId),
+                'page_id_is_numeric' => is_numeric($pageId),
                 'has_page_access_token' => !empty($pageAccessToken),
-                'page_access_token_length' => strlen($pageAccessToken ?? ''),
+                'page_access_token_length' => strlen($pageAccessToken),
+                'social_account_id' => $socialAccount->id,
+                'social_account_facebook_page_id' => $socialAccount->facebook_page_id,
+                'video_target_facebook_page_id' => $this->videoTarget->facebook_page_id,
             ]);
 
             // Step 2: Upload video to Facebook
@@ -252,6 +281,17 @@ class UploadVideoToFacebook implements ShouldQueue
     {
         // Use the stored Facebook page ID if available
         if (!empty($socialAccount->facebook_page_id)) {
+            // Validate that the page ID is numeric (Facebook page IDs are numeric)
+            if (!is_numeric($socialAccount->facebook_page_id)) {
+                Log::error('Invalid Facebook page ID stored in database', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'social_account_id' => $socialAccount->id,
+                    'invalid_page_id' => $socialAccount->facebook_page_id,
+                    'page_id_type' => gettype($socialAccount->facebook_page_id),
+                ]);
+                throw new \Exception('Invalid Facebook page ID stored in database. Please reconnect your Facebook account.');
+            }
+            
             Log::info('Using stored Facebook page info', [
                 'video_target_id' => $this->videoTarget->id,
                 'social_account_id' => $socialAccount->id,
@@ -336,6 +376,17 @@ class UploadVideoToFacebook implements ShouldQueue
      */
     protected function uploadVideoToFacebook(SocialAccount $socialAccount, string $pageId, string $pageAccessToken, string $videoUrl): void
     {
+        // Validate page ID before making API call
+        if (!is_numeric($pageId)) {
+            Log::error('Invalid Facebook page ID provided for upload', [
+                'video_target_id' => $this->videoTarget->id,
+                'invalid_page_id' => $pageId,
+                'page_id_type' => gettype($pageId),
+                'social_account_id' => $socialAccount->id,
+            ]);
+            throw new \Exception('Invalid Facebook page ID provided for upload. Please reconnect your Facebook account.');
+        }
+
         // Get advanced options for this platform
         $options = $this->videoTarget->advanced_options ?? [];
 

@@ -194,9 +194,10 @@ class SocialAccountController extends Controller
             }
 
             // Store or update social account
-            // First, delete any existing social account for this user+platform combination
-            // to avoid conflicts with the old unique constraint
+            // First, delete any existing social account for this user+channel+platform combination
+            // to avoid conflicts with the unique constraint
             SocialAccount::where('user_id', Auth::id())
+                ->where('channel_id', $channel->id)
                 ->where('platform', $platform)
                 ->delete();
             
@@ -297,9 +298,10 @@ class SocialAccountController extends Controller
         }
 
         // Create a fake social account for testing
-        // First, delete any existing social account for this user+platform combination
-        // to avoid conflicts with the old unique constraint
+        // First, delete any existing social account for this user+channel+platform combination
+        // to avoid conflicts with the unique constraint
         SocialAccount::where('user_id', Auth::id())
+            ->where('channel_id', $channel->id)
             ->where('platform', $platform)
             ->delete();
         
@@ -500,9 +502,10 @@ class SocialAccountController extends Controller
             }
 
             // Store or update social account
-            // First, delete any existing social account for this user+platform combination
-            // to avoid conflicts with the old unique constraint
+            // First, delete any existing social account for this user+channel+platform combination
+            // to avoid conflicts with the unique constraint
             SocialAccount::where('user_id', Auth::id())
+                ->where('channel_id', $channel->id)
                 ->where('platform', $platform)
                 ->delete();
             
@@ -876,6 +879,19 @@ class SocialAccountController extends Controller
             $data = $response->json();
             $pages = $data['data'] ?? [];
 
+            // Validate that all page IDs are numeric
+            $invalidPages = collect($pages)->filter(function($page) {
+                return empty($page['id']) || !is_numeric($page['id']);
+            });
+            
+            if ($invalidPages->isNotEmpty()) {
+                \Log::error('Invalid Facebook page IDs received from API', [
+                    'channel_slug' => $channel->slug,
+                    'invalid_pages' => $invalidPages->toArray(),
+                ]);
+                throw new \Exception('Invalid Facebook page data received from API. Please try connecting again.');
+            }
+
             \Log::info('Facebook pages retrieved', [
                 'page_count' => count($pages),
                 'pages' => array_map(function($page) {
@@ -1018,8 +1034,20 @@ class SocialAccountController extends Controller
     protected function completeFacebookConnection(Channel $channel, $socialUser, array $selectedPage): RedirectResponse
     {
         try {
-            // First, delete any existing Facebook social account for this user+platform combination
+            // Validate that the selected page has a valid numeric ID
+            if (empty($selectedPage['id']) || !is_numeric($selectedPage['id'])) {
+                \Log::error('Invalid Facebook page ID received during connection', [
+                    'channel_slug' => $channel->slug,
+                    'selected_page' => $selectedPage,
+                    'page_id' => $selectedPage['id'] ?? 'null',
+                    'page_id_type' => gettype($selectedPage['id'] ?? null),
+                ]);
+                throw new \Exception('Invalid Facebook page ID received. Please try connecting again.');
+            }
+
+            // First, delete any existing Facebook social account for this user+channel+platform combination
             SocialAccount::where('user_id', Auth::id())
+                ->where('channel_id', $channel->id)
                 ->where('platform', 'facebook')
                 ->delete();
             

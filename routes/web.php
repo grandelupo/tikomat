@@ -54,6 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Channel routes
     Route::get('channels/{channel:slug}', [DashboardController::class, 'channel'])->name('channels.show');
     Route::resource('channels', ChannelController::class)->except(['show']);
+    Route::get('channels/{channel:slug}/edit', [ChannelController::class, 'edit'])->name('channels.edit');
     
     // Video routes (scoped to channels)
     Route::get('channels/{channel:slug}/videos/create', [VideoController::class, 'create'])->name('videos.create');

@@ -205,9 +205,9 @@ export default function Connections({
                                                                 {/* Show platform-specific connection info */}
                                                                 {(account.platform_channel_name || account.profile_name) && (
                                                                     <p className="text-xs text-gray-600 truncate">
-                                                                        Connected as: {account.platform_channel_name || account.profile_name}
-                                                                        {(account.platform_channel_handle || account.profile_username) && 
-                                                                            ` (${account.platform_channel_handle || `@${account.profile_username}`})`}
+                                                                        Connected as: {account.profile_name || account.platform_channel_name}
+                                                                        {(account.profile_username || account.platform_channel_handle) && 
+                                                                            ` (${`@${account.profile_username || account.platform_channel_handle}`})`}
                                                                     </p>
                                                                 )}
                                                                 {account.platform === 'facebook' && account.facebook_page_name && (
