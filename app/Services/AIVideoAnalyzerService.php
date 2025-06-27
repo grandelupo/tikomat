@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Coordinate\TimeCode;
+use App\Services\FFmpegService;
 
 class AIVideoAnalyzerService
 {
@@ -35,6 +36,13 @@ class AIVideoAnalyzerService
         'casual' => ['casual', 'friendly', 'easy', 'simple', 'basic', 'everyday'],
         'inspirational' => ['inspire', 'motivate', 'dream', 'achieve', 'success', 'believe'],
     ];
+
+    protected FFmpegService $ffmpegService;
+
+    public function __construct(FFmpegService $ffmpegService)
+    {
+        $this->ffmpegService = $ffmpegService;
+    }
 
     /**
      * Analyze video content comprehensively
@@ -90,7 +98,12 @@ class AIVideoAnalyzerService
     protected function getBasicVideoInfo(string $videoPath): array
     {
         try {
-            $ffmpeg = FFMpeg::create();
+            $ffmpeg = $this->ffmpegService->createFFMpeg();
+            if (!$ffmpeg) {
+                Log::error('FFMpeg not available for video analysis');
+                return ['error' => 'FFMpeg not available'];
+            }
+
             $video = $ffmpeg->open($videoPath);
             
             // Get video properties
@@ -163,7 +176,12 @@ class AIVideoAnalyzerService
     protected function extractAudioFromVideo(string $videoPath): ?string
     {
         try {
-            $ffmpeg = FFMpeg::create();
+            $ffmpeg = $this->ffmpegService->createFFMpeg();
+            if (!$ffmpeg) {
+                Log::error('FFMpeg not available for audio extraction');
+                return null;
+            }
+
             $video = $ffmpeg->open($videoPath);
             
             $audioPath = storage_path('app/temp/audio_' . uniqid() . '.mp3');
@@ -232,7 +250,12 @@ class AIVideoAnalyzerService
     protected function extractKeyframes(string $videoPath, int $intervalSeconds = 30): array
     {
         try {
-            $ffmpeg = FFMpeg::create();
+            $ffmpeg = $this->ffmpegService->createFFMpeg();
+            if (!$ffmpeg) {
+                Log::error('FFMpeg not available for keyframe extraction');
+                return [];
+            }
+
             $video = $ffmpeg->open($videoPath);
             $duration = $video->getFormat()->get('duration');
             

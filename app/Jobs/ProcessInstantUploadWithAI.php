@@ -139,6 +139,11 @@ class ProcessInstantUploadWithAI implements ShouldQueue
                 }
             }
 
+            // If content generation failed completely, throw an exception
+            if ($optimizedContent === null) {
+                throw new \Exception('Failed to generate optimized content after multiple attempts');
+            }
+
             // Step 3: Detect watermarks with error handling
             $needsWatermarkRemoval = false;
             try {
@@ -730,84 +735,40 @@ class ProcessInstantUploadWithAI implements ShouldQueue
     }
 
     /**
-     * Handle processing failure with real AI content generation.
+     * Handle processing failure with proper error handling.
      */
     private function handleProcessingFailure(string $error): void
     {
-        Log::warning('AI processing failed, attempting real AI content generation', [
+        Log::error('AI processing failed completely', [
             'video_id' => $this->video->id,
             'error' => $error,
         ]);
 
-        try {
-            // Use AIContentOptimizationService to generate real content
-            $contentService = app(\App\Services\AIContentOptimizationService::class);
-            
-            // Generate basic content using AI
-            $title = $contentService->generateOptimizedTitleOnly(
-                'Video Content', 
-                'Amazing video content that viewers will love',
-                ['youtube']
-            );
-            
-            $description = $contentService->generateOptimizedDescriptionOnly(
-                'Video Content',
-                'Check out this amazing video content!',
-                ['youtube']
-            );
-            
-            // Update video with AI-generated content
-            $this->video->update([
-                'title' => $title,
-                'description' => $description,
-                'tags' => ['video', 'content', 'ai-generated'],
-            ]);
+        // Update video with error status
+        $this->video->update([
+            'title' => 'Processing Failed',
+            'description' => 'AI processing failed. Please try uploading again or contact support.',
+        ]);
 
-            // Still create video targets for publishing with AI-generated content
-            foreach ($this->platforms as $platform) {
-                $target = VideoTarget::create([
+        // Send notification to user about the failure
+        if ($this->video->user) {
+            $this->video->user->addJobFailureNotification(
+                'ProcessInstantUploadWithAI',
+                'AI Processing Failed',
+                'Your video could not be processed by our AI system. Please try uploading again or contact support if the problem persists.',
+                [
                     'video_id' => $this->video->id,
-                    'platform' => $platform,
-                    'status' => 'pending',
-                    'publish_at' => now(),
-                    'advanced_options' => ['auto_generated' => true, 'ai_optimized' => true],
-                ]);
-
-                // Dispatch upload job
-                $uploadService = app(VideoUploadService::class);
-                $uploadService->dispatchUploadJob($target);
-            }
-
-            Log::info('Real AI content generation completed despite processing failure', [
-                'video_id' => $this->video->id,
-                'platforms_count' => count($this->platforms),
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Real AI content generation also failed', [
-                'video_id' => $this->video->id,
-                'error' => $e->getMessage(),
-            ]);
-            
-            // Update video with basic content and still create targets
-            $this->video->update([
-                'title' => 'New Video Upload',
-                'description' => 'Check out this amazing video content! #video #content #viral',
-                'tags' => ['video', 'content', 'viral'],
-            ]);
-
-            foreach ($this->platforms as $platform) {
-                $target = VideoTarget::create([
-                    'video_id' => $this->video->id,
-                    'platform' => $platform,
-                    'status' => 'pending',
-                    'publish_at' => now(),
-                    'advanced_options' => ['auto_generated' => true, 'basic_fallback' => true],
-                ]);
-
-                $uploadService = app(VideoUploadService::class);
-                $uploadService->dispatchUploadJob($target);
-            }
+                    'video_title' => $this->video->title,
+                    'channel_name' => $this->video->channel->name ?? 'Unknown',
+                    'error_message' => $error,
+                ]
+            );
         }
+
+        // Don't create any video targets since processing failed
+        Log::info('No video targets created due to processing failure', [
+            'video_id' => $this->video->id,
+            'error' => $error,
+        ]);
     }
 } 

@@ -13,6 +13,7 @@ use App\Services\AIContentStrategyPlannerService;
 use App\Services\AISEOOptimizerService;
 use App\Services\AIWatermarkRemoverService;
 use App\Services\AISubtitleGeneratorService;
+use App\Services\FFmpegService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -33,9 +34,22 @@ class AIController extends Controller
     protected AISEOOptimizerService $seoOptimizerService;
     protected AIWatermarkRemoverService $watermarkRemoverService;
     protected AISubtitleGeneratorService $subtitleGeneratorService;
+    protected FFmpegService $ffmpegService;
 
-    public function __construct(AIContentOptimizationService $aiService, AIVideoAnalyzerService $videoAnalyzerService, AIPerformanceOptimizationService $performanceOptimizationService, AIThumbnailOptimizerService $thumbnailOptimizerService, AIContentCalendarService $contentCalendarService, AITrendAnalyzerService $trendAnalyzerService, AIAudienceInsightsService $audienceInsightsService, AIContentStrategyPlannerService $contentStrategyPlannerService, AISEOOptimizerService $seoOptimizerService, AIWatermarkRemoverService $watermarkRemoverService, AISubtitleGeneratorService $subtitleGeneratorService)
-    {
+    public function __construct(
+        AIContentOptimizationService $aiService, 
+        AIVideoAnalyzerService $videoAnalyzerService, 
+        AIPerformanceOptimizationService $performanceOptimizationService, 
+        AIThumbnailOptimizerService $thumbnailOptimizerService, 
+        AIContentCalendarService $contentCalendarService, 
+        AITrendAnalyzerService $trendAnalyzerService, 
+        AIAudienceInsightsService $audienceInsightsService, 
+        AIContentStrategyPlannerService $contentStrategyPlannerService, 
+        AISEOOptimizerService $seoOptimizerService, 
+        AIWatermarkRemoverService $watermarkRemoverService, 
+        AISubtitleGeneratorService $subtitleGeneratorService,
+        FFmpegService $ffmpegService
+    ) {
         $this->aiService = $aiService;
         $this->videoAnalyzerService = $videoAnalyzerService;
         $this->performanceOptimizationService = $performanceOptimizationService;
@@ -47,6 +61,7 @@ class AIController extends Controller
         $this->seoOptimizerService = $seoOptimizerService;
         $this->watermarkRemoverService = $watermarkRemoverService;
         $this->subtitleGeneratorService = $subtitleGeneratorService;
+        $this->ffmpegService = $ffmpegService;
     }
 
     /**
@@ -4529,10 +4544,35 @@ class AIController extends Controller
     private function performDeepVideoAnalysis(string $videoPath): array
     {
         try {
-            // Extract video metadata using FFmpeg
-            $ffmpegCommand = "ffprobe -v quiet -print_format json -show_format -show_streams " . escapeshellarg($videoPath);
-            $output = shell_exec($ffmpegCommand);
-            $videoData = json_decode($output, true);
+            // Extract video metadata using FFProbe
+            $ffprobe = $this->ffmpegService->getFFProbe();
+            
+            if (!$ffprobe) {
+                Log::warning('FFProbe not available for video analysis');
+                return $this->getFallbackVideoAnalysis();
+            }
+
+            $format = $ffprobe->format($videoPath);
+            $streams = $ffprobe->streams($videoPath);
+            
+            $videoData = [
+                'format' => [
+                    'duration' => $format->get('duration'),
+                    'size' => $format->get('size'),
+                    'bit_rate' => $format->get('bit_rate'),
+                ],
+                'streams' => []
+            ];
+
+            foreach ($streams as $stream) {
+                $videoData['streams'][] = [
+                    'codec_type' => $stream->get('codec_type'),
+                    'width' => $stream->get('width'),
+                    'height' => $stream->get('height'),
+                    'duration' => $stream->get('duration'),
+                    'r_frame_rate' => $stream->get('r_frame_rate'),
+                ];
+            }
 
             // Extract video frames for analysis (3 frames at different intervals)
             $tempDir = storage_path('app/temp');
@@ -4544,14 +4584,24 @@ class AIController extends Controller
             $duration = floatval($videoData['format']['duration'] ?? 30);
             $intervals = [0.1, 0.5, 0.9]; // 10%, 50%, 90% through video
 
-            foreach ($intervals as $i => $interval) {
-                $timestamp = $duration * $interval;
-                $frameFile = $tempDir . '/frame_' . uniqid() . '.jpg';
-                $frameCommand = "ffmpeg -i " . escapeshellarg($videoPath) . " -ss {$timestamp} -vframes 1 -y " . escapeshellarg($frameFile) . " 2>/dev/null";
-                shell_exec($frameCommand);
+            $ffmpeg = $this->ffmpegService->getFFMpeg();
+            if ($ffmpeg) {
+                $video = $ffmpeg->open($videoPath);
                 
-                if (file_exists($frameFile)) {
-                    $frameFiles[] = $frameFile;
+                foreach ($intervals as $i => $interval) {
+                    $timestamp = $duration * $interval;
+                    $frameFile = $tempDir . '/frame_' . uniqid() . '.jpg';
+                    
+                    try {
+                        $frame = $video->frame(\FFMpeg\Coordinate\TimeCode::fromSeconds($timestamp));
+                        $frame->save($frameFile);
+                        
+                        if (file_exists($frameFile)) {
+                            $frameFiles[] = $frameFile;
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to extract frame at timestamp ' . $timestamp, ['error' => $e->getMessage()]);
+                    }
                 }
             }
 
@@ -4581,20 +4631,28 @@ class AIController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Video analysis failed: ' . $e->getMessage());
-            return [
-                'suggested_tags' => ['video', 'content'],
-                'optimized_content' => [],
-                'confidence' => 0.3,
-                'properties' => [],
-                'features' => [],
-                'content_type' => 'general',
-                'mood' => 'general',
-                'target_audience' => 'general',
-                'content_description' => 'Video content analysis failed',
-                'themes' => [],
-                'visual_elements' => [],
-            ];
+            return $this->getFallbackVideoAnalysis();
         }
+    }
+
+    /**
+     * Get fallback video analysis when FFmpeg is not available
+     */
+    private function getFallbackVideoAnalysis(): array
+    {
+        return [
+            'suggested_tags' => ['video', 'content'],
+            'optimized_content' => [],
+            'confidence' => 0.3,
+            'properties' => [],
+            'features' => [],
+            'content_type' => 'general',
+            'mood' => 'general',
+            'target_audience' => 'general',
+            'content_description' => 'Video content analysis failed',
+            'themes' => [],
+            'visual_elements' => [],
+        ];
     }
 
     /**

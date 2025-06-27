@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use App\Services\CloudStorageService;
+use App\Services\FFmpegService;
 
 class VideoProcessingService
 {
@@ -17,37 +18,17 @@ class VideoProcessingService
     protected ?FFProbe $ffprobe = null;
     protected ThumbnailService $thumbnailService;
     protected CloudStorageService $cloudStorage;
+    protected FFmpegService $ffmpegService;
 
-    public function __construct(ThumbnailService $thumbnailService, CloudStorageService $cloudStorage)
+    public function __construct(ThumbnailService $thumbnailService, CloudStorageService $cloudStorage, FFmpegService $ffmpegService)
     {
         $this->thumbnailService = $thumbnailService;
         $this->cloudStorage = $cloudStorage;
+        $this->ffmpegService = $ffmpegService;
         
-        try {
-            // Configuration for FFMpeg
-            $configuration = [
-                'ffmpeg.binaries'  => [
-                    env('FFMPEG_PATH', '/usr/local/bin/ffmpeg'),
-                    '/usr/local/bin/ffmpeg',
-                    '/usr/bin/ffmpeg',
-                    'ffmpeg'
-                ],
-                'ffprobe.binaries' => [
-                    env('FFPROBE_PATH', '/usr/local/bin/ffprobe'),
-                    '/usr/local/bin/ffprobe',
-                    '/usr/bin/ffprobe',
-                    'ffprobe'
-                ],
-                'timeout'          => 3600, // The timeout for the underlying process
-                'ffmpeg.threads'   => 12,   // The number of threads that FFMpeg should use
-            ];
-
-            $this->ffmpeg = FFMpeg::create($configuration);
-            $this->ffprobe = FFProbe::create($configuration);
-        } catch (\Exception $e) {
-            // FFMpeg not available, will use fallback methods
-            \Log::warning('FFMpeg not available: ' . $e->getMessage());
-        }
+        // Get FFMpeg instances from the centralized service
+        $this->ffmpeg = $this->ffmpegService->getFFMpeg();
+        $this->ffprobe = $this->ffmpegService->getFFProbe();
     }
 
     /**

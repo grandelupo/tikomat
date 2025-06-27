@@ -9,9 +9,17 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use App\Models\Video;
 use App\Jobs\ProcessSubtitleGeneration;
+use App\Services\FFmpegService;
 
 class AISubtitleGeneratorService
 {
+    protected FFmpegService $ffmpegService;
+
+    public function __construct(FFmpegService $ffmpegService)
+    {
+        $this->ffmpegService = $ffmpegService;
+    }
+
     private $subtitleStyles = [
         'simple' => [
             'name' => 'Simple Text',
@@ -1761,10 +1769,7 @@ class AISubtitleGeneratorService
      */
     private function checkFFmpegAvailability(): bool
     {
-        $output = [];
-        $returnVar = 0;
-        exec('ffmpeg -version 2>&1', $output, $returnVar);
-        return $returnVar === 0;
+        return $this->ffmpegService->isAvailable();
     }
 
     /**
@@ -1814,44 +1819,57 @@ class AISubtitleGeneratorService
      */
     private function getVideoInfo(string $videoPath): array
     {
-        $command = sprintf(
-            'ffprobe -v quiet -print_format json -show_format -show_streams %s',
-            escapeshellarg($videoPath)
-        );
+        $ffprobe = $this->ffmpegService->getFFProbe();
         
-        $output = shell_exec($command);
-        $videoInfo = json_decode($output, true);
-        
-        $info = [
-            'duration' => 0,
-            'fps' => 30,
-            'width' => 1920,
-            'height' => 1080
-        ];
-        
-        if (isset($videoInfo['format']['duration'])) {
-            $info['duration'] = (float)$videoInfo['format']['duration'];
+        if (!$ffprobe) {
+            Log::warning('FFProbe not available, using fallback video info');
+            return [
+                'duration' => 0,
+                'fps' => 30,
+                'width' => 1920,
+                'height' => 1080
+            ];
         }
-        
-        if (isset($videoInfo['streams'])) {
-            foreach ($videoInfo['streams'] as $stream) {
-                if ($stream['codec_type'] === 'video') {
-                    if (isset($stream['r_frame_rate'])) {
-                        $frameRate = explode('/', $stream['r_frame_rate']);
+
+        try {
+            $format = $ffprobe->format($videoPath);
+            $streams = $ffprobe->streams($videoPath);
+            
+            $info = [
+                'duration' => (float) ($format->get('duration') ?? 0),
+                'fps' => 30,
+                'width' => 1920,
+                'height' => 1080
+            ];
+            
+            // Find video stream
+            foreach ($streams as $stream) {
+                if ($stream->get('codec_type') === 'video') {
+                    if ($stream->has('r_frame_rate')) {
+                        $frameRate = explode('/', $stream->get('r_frame_rate'));
                         if (count($frameRate) === 2 && $frameRate[1] > 0) {
                             $info['fps'] = $frameRate[0] / $frameRate[1];
                         }
                     }
-                    if (isset($stream['width'], $stream['height'])) {
-                        $info['width'] = $stream['width'];
-                        $info['height'] = $stream['height'];
+                    if ($stream->has('width') && $stream->has('height')) {
+                        $info['width'] = $stream->get('width');
+                        $info['height'] = $stream->get('height');
                     }
                     break;
                 }
             }
+            
+            return $info;
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to get video info with FFProbe', ['error' => $e->getMessage()]);
+            return [
+                'duration' => 0,
+                'fps' => 30,
+                'width' => 1920,
+                'height' => 1080
+            ];
         }
-        
-        return $info;
     }
 
     /**
@@ -1859,6 +1877,12 @@ class AISubtitleGeneratorService
      */
     private function renderVideoWithOverlays(string $videoPath, array $overlayFrames, string $outputPath, float $fps): void
     {
+        $ffmpeg = $this->ffmpegService->getFFMpeg();
+        
+        if (!$ffmpeg) {
+            throw new \Exception('FFMpeg not available for video rendering');
+        }
+
         // Create a temporary directory for overlay sequence
         $overlayDir = dirname($outputPath) . '/overlays_' . uniqid();
         mkdir($overlayDir, 0755, true);
@@ -1871,33 +1895,28 @@ class AISubtitleGeneratorService
             $frameIndex++;
         }
         
-        // Build FFmpeg command to overlay subtitle frames
-        $command = sprintf(
-            'ffmpeg -i %s -framerate %f -i %s/overlay_%%08d.png -filter_complex "[1:v]fps=%f[overlay];[0:v][overlay]overlay=0:0:enable=\'between(t,0,%f)\'" -c:a copy -c:v libx264 -preset medium -crf 23 %s 2>&1',
-            escapeshellarg($videoPath),
-            $fps,
-            escapeshellarg($overlayDir),
-            $fps,
-            $this->getVideoDuration($videoPath),
-            escapeshellarg($outputPath)
-        );
-        
-        Log::info('Executing advanced subtitle rendering command', [
-            'command' => $command,
-        ]);
-        
-        exec($command, $output, $returnVar);
-        
-        // Clean up overlay directory
-        $this->cleanupDirectory($overlayDir);
-        
-        if ($returnVar !== 0) {
+        try {
+            // Use FFMpeg class instead of command line
+            $video = $ffmpeg->open($videoPath);
+            $overlayVideo = $ffmpeg->open($overlayDir . '/overlay_%08d.png');
+            
+            // Create filter complex for overlay
+            $filterComplex = "[1:v]fps={$fps}[overlay];[0:v][overlay]overlay=0:0:enable='between(t,0," . $this->getVideoDuration($videoPath) . ")'";
+            
+            // Apply the filter and save
+            $video->filters()->custom($filterComplex);
+            $video->save(new \FFMpeg\Format\Video\X264(), $outputPath);
+            
+        } catch (\Exception $e) {
             Log::error('Advanced subtitle rendering failed', [
-                'command' => $command,
-                'output' => implode("\n", $output),
-                'return_var' => $returnVar,
+                'error' => $e->getMessage(),
+                'video_path' => $videoPath,
+                'output_path' => $outputPath,
             ]);
-            throw new \Exception('Failed to render video with advanced subtitle effects: ' . implode("\n", $output));
+            throw new \Exception('Failed to render video with advanced subtitle effects: ' . $e->getMessage());
+        } finally {
+            // Clean up overlay directory
+            $this->cleanupDirectory($overlayDir);
         }
     }
 
@@ -1906,27 +1925,33 @@ class AISubtitleGeneratorService
      */
     private function renderVideoWithASSSubtitles(string $videoPath, string $assFilePath, string $outputPath): string
     {
-        $command = "ffmpeg -i " . escapeshellarg($videoPath) . 
-                   " -vf \"ass=" . escapeshellarg($assFilePath) . "\"" .
-                   " -c:a copy -c:v libx264 -preset medium -crf 23" .
-                   " " . escapeshellarg($outputPath) . " 2>&1";
-
-        Log::info('Executing standard subtitle rendering command', [
-            'command' => $command,
-        ]);
-
-        exec($command, $output, $returnVar);
-
-        if ($returnVar !== 0) {
-            Log::error('Standard subtitle rendering failed', [
-                'command' => $command,
-                'output' => implode("\n", $output),
-                'return_var' => $returnVar,
-            ]);
-            throw new \Exception('Failed to render video with subtitles: ' . implode("\n", $output));
+        $ffmpeg = $this->ffmpegService->getFFMpeg();
+        
+        if (!$ffmpeg) {
+            throw new \Exception('FFMpeg not available for subtitle rendering');
         }
 
-        return $outputPath;
+        try {
+            $video = $ffmpeg->open($videoPath);
+            
+            // Create filter for ASS subtitles
+            $filter = "ass=" . escapeshellarg($assFilePath);
+            
+            // Apply the filter and save
+            $video->filters()->custom($filter);
+            $video->save(new \FFMpeg\Format\Video\X264(), $outputPath);
+            
+            return $outputPath;
+            
+        } catch (\Exception $e) {
+            Log::error('Standard subtitle rendering failed', [
+                'error' => $e->getMessage(),
+                'video_path' => $videoPath,
+                'ass_file' => $assFilePath,
+                'output_path' => $outputPath,
+            ]);
+            throw new \Exception('Failed to render video with subtitles: ' . $e->getMessage());
+        }
     }
 
     /**

@@ -7,9 +7,12 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Process;
 use App\Jobs\ProcessWatermarkRemoval;
+use App\Services\FFmpegService;
 
 class AIWatermarkRemoverService
 {
+    protected FFmpegService $ffmpegService;
+
     private $watermarkPatterns = [
         'logo' => ['transparency' => 0.3, 'size_ratio' => 0.15, 'position' => 'corner'],
         'text' => ['transparency' => 0.5, 'size_ratio' => 0.25, 'position' => 'bottom'],
@@ -139,6 +142,11 @@ class AIWatermarkRemoverService
             'processing_time' => 'medium'
         ]
     ];
+
+    public function __construct(FFmpegService $ffmpegService)
+    {
+        $this->ffmpegService = $ffmpegService;
+    }
 
     public function detectWatermarks(string $videoPath, array $options = [])
     {
@@ -834,8 +842,7 @@ class AIWatermarkRemoverService
     private function processWatermarkRemoval(string $removalId, string $videoPath, array $watermarks, array $options)
     {
         try {
-            // Update progress
-            $this->updateRemovalProgress($removalId, 'preprocessing', 20);
+            $this->updateRemovalProgress($removalId, 'processing', 30);
 
             $outputPath = $this->generateOutputPath($videoPath);
             $method = $options['method'] ?? 'inpainting';
@@ -845,27 +852,29 @@ class AIWatermarkRemoverService
 
             $this->updateRemovalProgress($removalId, 'processing', 60);
 
-            // Execute FFmpeg with watermark removal filters
-            $ffmpegCommand = array_merge([
-                'ffmpeg',
-                '-i', $videoPath,
-            ], $filterCommands, [
-                '-c:a', 'copy', // Copy audio stream
-                $outputPath,
-                '-y'
-            ]);
-
-            $result = Process::timeout(3600)->run($ffmpegCommand); // 1 hour timeout
-
-            if ($result->successful()) {
-                $this->updateRemovalProgress($removalId, 'completed', 100, [
-                    'output_path' => $outputPath,
-                    'removal_results' => $this->generateRemovalResults($watermarks),
-                    'quality_assessment' => $this->assessOutputQuality($videoPath, $outputPath)
-                ]);
-            } else {
-                throw new \Exception('FFmpeg processing failed: ' . $result->errorOutput());
+            // Use FFMpeg class instead of command line execution
+            $ffmpeg = $this->ffmpegService->getFFMpeg();
+            
+            if (!$ffmpeg) {
+                throw new \Exception('FFMpeg not available for watermark removal');
             }
+
+            $video = $ffmpeg->open($videoPath);
+            
+            // Apply the filter chain
+            $filterChain = implode(',', $filterCommands);
+            $video->filters()->custom($filterChain);
+            
+            // Save with audio copy
+            $format = new \FFMpeg\Format\Video\X264();
+            $format->setAudioCodec('copy'); // Copy audio stream
+            $video->save($format, $outputPath);
+
+            $this->updateRemovalProgress($removalId, 'completed', 100, [
+                'output_path' => $outputPath,
+                'removal_results' => $this->generateRemovalResults($watermarks),
+                'quality_assessment' => $this->assessOutputQuality($videoPath, $outputPath)
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Watermark removal processing failed: ' . $e->getMessage());
@@ -877,7 +886,6 @@ class AIWatermarkRemoverService
 
     private function buildRemovalFilters(array $watermarks, string $method): array
     {
-        $filters = [];
         $filterChain = [];
         
         foreach ($watermarks as $watermark) {
@@ -912,16 +920,13 @@ class AIWatermarkRemoverService
             }
         }
 
-        // Combine all filters into a single filter chain
+        // Return filter chain as array of filter strings
         if (!empty($filterChain)) {
-            $filters[] = '-vf';
-            $filters[] = implode(',', $filterChain);
+            return $filterChain;
         } else {
             // Fallback to general denoising filter
-            $filters = ['-vf', 'hqdn3d=4:3:6:4.5'];
+            return ['hqdn3d=4:3:6:4.5'];
         }
-
-        return $filters;
     }
 
     private function getOptimalRemovalMethod(array $watermark, string $defaultMethod): string

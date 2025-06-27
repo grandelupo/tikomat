@@ -11,6 +11,7 @@ use Intervention\Image\Drivers\Gd\Driver;
 use Carbon\Carbon;
 use FFMpeg\FFMpeg;
 use FFMpeg\Coordinate\TimeCode;
+use App\Services\FFmpegService;
 
 class AIThumbnailOptimizerService
 {
@@ -97,6 +98,13 @@ class AIThumbnailOptimizerService
         'platform_optimization' => 0.10,
     ];
 
+    protected FFmpegService $ffmpegService;
+
+    public function __construct(FFmpegService $ffmpegService)
+    {
+        $this->ffmpegService = $ffmpegService;
+    }
+
     /**
      * Analyze and optimize thumbnails for a video
      */
@@ -166,7 +174,12 @@ class AIThumbnailOptimizerService
                 return [];
             }
 
-            $ffmpeg = FFMpeg::create();
+            $ffmpeg = $this->ffmpegService->createFFMpeg();
+            if (!$ffmpeg) {
+                Log::warning('FFMpeg not available for frame extraction');
+                return [];
+            }
+
             $video = $ffmpeg->open($videoPath);
             
             // Get video duration

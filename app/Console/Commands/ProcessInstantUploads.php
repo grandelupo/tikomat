@@ -157,6 +157,12 @@ class ProcessInstantUploads extends Command
 
             $this->error("Error processing video: " . $e->getMessage());
             
+            // Update video with error status
+            $video->update([
+                'title' => 'Processing Failed',
+                'description' => 'AI processing failed: ' . $e->getMessage() . '. Please try uploading again or contact support.',
+            ]);
+            
             // Send notification to user about the failure
             $this->sendFailureNotification($video, 'AI Processing Failed', $e->getMessage());
             
@@ -175,6 +181,8 @@ class ProcessInstantUploads extends Command
             'video_id' => $video->id,
             'video_title' => $video->title,
             'channel_name' => $video->channel->name,
+            'error_details' => $message,
+            'suggestion' => 'Please try uploading your video again. If the problem persists, contact our support team.',
         ]);
     }
 } 

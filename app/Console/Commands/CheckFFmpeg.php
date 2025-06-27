@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
+use App\Services\FFmpegService;
 
 class CheckFFmpeg extends Command
 {
@@ -22,6 +23,14 @@ class CheckFFmpeg extends Command
      */
     protected $description = 'Check if FFmpeg and FFprobe are available on the system';
 
+    protected FFmpegService $ffmpegService;
+
+    public function __construct(FFmpegService $ffmpegService)
+    {
+        parent::__construct();
+        $this->ffmpegService = $ffmpegService;
+    }
+
     /**
      * Execute the console command.
      */
@@ -29,15 +38,21 @@ class CheckFFmpeg extends Command
     {
         $this->info('🔍 Checking FFmpeg availability...');
         
-        // Check FFmpeg
+        // Check FFmpeg using the centralized service
         $this->info('');
         $this->info('Checking FFmpeg:');
-        $ffmpegAvailable = $this->checkCommand('ffmpeg', ['-version']);
+        $ffmpegAvailable = $this->ffmpegService->isAvailable();
         
-        // Check FFprobe
-        $this->info('');
-        $this->info('Checking FFprobe:');
-        $ffprobeAvailable = $this->checkCommand('ffprobe', ['-version']);
+        if ($ffmpegAvailable) {
+            $this->info('✅ FFmpeg is available via FFmpegService');
+            $config = $this->ffmpegService->getConfig();
+            $this->line('   - FFmpeg path: ' . ($config['ffmpeg.binaries'][0] ?? 'default'));
+            $this->line('   - FFProbe path: ' . ($config['ffprobe.binaries'][0] ?? 'default'));
+            $this->line('   - Timeout: ' . $config['timeout'] . ' seconds');
+            $this->line('   - Threads: ' . $config['ffmpeg.threads']);
+        } else {
+            $this->error('❌ FFmpeg is not available');
+        }
         
         // Check GD Library
         $this->info('');
@@ -58,7 +73,7 @@ class CheckFFmpeg extends Command
         $this->info('');
         $this->info('📋 Summary:');
         
-        if ($ffmpegAvailable && $ffprobeAvailable) {
+        if ($ffmpegAvailable) {
             $this->info('✅ FFmpeg is fully available - video processing will work normally');
         } elseif ($gdAvailable) {
             $this->warn('⚠️  FFmpeg not available but GD Library is present');
@@ -69,42 +84,17 @@ class CheckFFmpeg extends Command
         }
         
         // Installation suggestions
-        if (!$ffmpegAvailable || !$ffprobeAvailable) {
+        if (!$ffmpegAvailable) {
             $this->info('');
             $this->info('💡 To install FFmpeg:');
             $this->line('   Ubuntu/Debian: sudo apt update && sudo apt install ffmpeg -y');
             $this->line('   CentOS/RHEL:   sudo yum install epel-release -y && sudo yum install ffmpeg -y');
             $this->line('   macOS:         brew install ffmpeg');
+            $this->info('');
+            $this->info('💡 Environment Variables:');
+            $this->line('   Set FFMPEG_PATH and FFPROBE_PATH in your .env file if FFmpeg is installed in a custom location');
         }
         
         return self::SUCCESS;
-    }
-    
-    /**
-     * Check if a command is available.
-     */
-    private function checkCommand(string $command, array $args = []): bool
-    {
-        $process = new Process(array_merge([$command], $args));
-        $process->setTimeout(10);
-        
-        try {
-            $process->mustRun();
-            $output = $process->getOutput();
-            
-            $this->info("✅ {$command} is available");
-            
-            // Extract version info
-            if (preg_match('/version\s+([^\s]+)/', $output, $matches)) {
-                $this->line("   Version: {$matches[1]}");
-            }
-            
-            return true;
-            
-        } catch (ProcessFailedException $exception) {
-            $this->error("❌ {$command} is not available");
-            $this->line("   Error: " . $exception->getMessage());
-            return false;
-        }
     }
 } 

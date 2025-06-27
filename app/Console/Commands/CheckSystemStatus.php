@@ -7,13 +7,22 @@ use App\Models\Video;
 use App\Models\VideoTarget;
 use App\Models\SocialAccount;
 use App\Models\User;
-  use Illuminate\Support\Facades\Log;
-  use Illuminate\Support\Facades\Storage;
-  
-  class CheckSystemStatus extends Command
-  {
-      protected $signature = 'system:status';
-      protected $description = 'Check the current system status and improvements';
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use App\Services\FFmpegService;
+
+class CheckSystemStatus extends Command
+{
+    protected $signature = 'system:status';
+    protected $description = 'Check the current system status and improvements';
+
+    protected FFmpegService $ffmpegService;
+
+    public function __construct(FFmpegService $ffmpegService)
+    {
+        parent::__construct();
+        $this->ffmpegService = $ffmpegService;
+    }
 
     public function handle()
     {
@@ -155,13 +164,9 @@ use App\Models\User;
     {
         $this->info('⚙️ System Capabilities:');
         
-        // Check FFmpeg
-        $ffmpegAvailable = false;
-        exec('ffmpeg -version 2>/dev/null', $output, $returnCode);
-        if ($returnCode === 0) {
-            $ffmpegAvailable = true;
-            $version = isset($output[0]) ? explode(' ', $output[0])[2] ?? 'unknown' : 'unknown';
-            $this->line("  FFmpeg: ✅ (version {$version})");
+        // Check FFmpeg using the centralized service
+        if ($this->ffmpegService->isAvailable()) {
+            $this->line("  FFmpeg: ✅ (available via FFmpegService)");
         } else {
             $this->line("  FFmpeg: ❌ (not available - using GD library fallback)");
         }
@@ -196,6 +201,6 @@ use App\Models\User;
         $this->line("    ✅ Enhanced duration detection methods");
         $this->line("    ✅ FFmpeg fallback to GD library");
         $this->line("    ✅ OAuth refresh token fixes");
-                  $this->line("    ✅ Comprehensive error logging");
-      }
-  } 
+        $this->line("    ✅ Comprehensive error logging");
+    }
+} 
