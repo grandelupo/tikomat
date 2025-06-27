@@ -182,6 +182,17 @@ class SocialAccountController extends Controller
                 return $this->handleFacebookPageSelection($channel, $socialUser);
             }
 
+            // Handle YouTube channel selection if platform is YouTube
+            if ($platform === 'youtube') {
+                \Log::info('YouTube OAuth callback - starting channel selection', [
+                    'channel_slug' => $channel->slug,
+                    'user_id' => Auth::id(),
+                    'has_token' => !empty($socialUser->token),
+                    'has_refresh_token' => !empty($socialUser->refreshToken),
+                ]);
+                return $this->handleYouTubeChannelSelection($channel, $socialUser);
+            }
+
             // Store or update social account
             // First, delete any existing social account for this user+platform combination
             // to avoid conflicts with the old unique constraint
@@ -934,6 +945,233 @@ class SocialAccountController extends Controller
                 'facebook',
                 $channel->slug,
                 'Failed to complete Facebook connection: ' . $e->getMessage(),
+                'connection_completion_failed'
+            );
+        }
+    }
+
+    /**
+     * Handle YouTube channel selection flow.
+     */
+    protected function handleYouTubeChannelSelection(Channel $channel, $socialUser): RedirectResponse
+    {
+        try {
+            // Log that we're starting the YouTube channel selection process
+            \Log::info('Starting YouTube channel selection', [
+                'channel_slug' => $channel->slug,
+                'user_id' => Auth::id(),
+                'has_token' => !empty($socialUser->token),
+                'has_refresh_token' => !empty($socialUser->refreshToken),
+            ]);
+
+            // Get user's YouTube channels using YouTube Data API v3
+            $response = Http::get('https://www.googleapis.com/youtube/v3/channels', [
+                'access_token' => $socialUser->token,
+                'part' => 'id,snippet',
+                'mine' => 'true',
+                'maxResults' => 100  // Ensure we get all channels
+            ]);
+
+            \Log::info('YouTube API response', [
+                'status' => $response->status(),
+                'successful' => $response->successful(),
+                'body_preview' => substr($response->body(), 0, 200),
+            ]);
+
+            if (!$response->successful()) {
+                throw new \Exception('Failed to fetch YouTube channels: ' . $response->body());
+            }
+
+            $data = $response->json();
+            $channels = $data['items'] ?? [];
+
+            \Log::info('YouTube channels retrieved', [
+                'channel_count' => count($channels),
+                'channels' => array_map(function($ytChannel) {
+                    return [
+                        'id' => $ytChannel['id'],
+                        'name' => $ytChannel['snippet']['title'] ?? 'Unknown',
+                        'handle' => $ytChannel['snippet']['customUrl'] ?? null,
+                    ];
+                }, $channels),
+            ]);
+
+            // If user has no channels, show error
+            if (empty($channels)) {
+                \Log::warning('No YouTube channels found for user');
+                return $this->redirectToErrorPage(
+                    'youtube',
+                    $channel->slug,
+                    'No YouTube channels found. You need to have access to at least one YouTube channel to connect your account.',
+                    'no_channels_found'
+                );
+            }
+
+            // Always show channel selection interface, even for single channel
+            // This ensures users are always aware of which channel they're connecting
+
+            // Store user data temporarily in session for channel selection
+            session([
+                'youtube_oauth_data' => [
+                    'channel_slug' => $channel->slug,
+                    'access_token' => $socialUser->token,
+                    'refresh_token' => $socialUser->refreshToken,
+                    'expires_in' => $socialUser->expiresIn,
+                    'user_profile' => [
+                        'name' => $socialUser->name,
+                        'email' => $socialUser->email,
+                        'avatar' => $socialUser->avatar,
+                    ],
+                    'channels' => $channels,
+                ]
+            ]);
+
+            \Log::info('YouTube OAuth data stored in session', [
+                'channel_slug' => $channel->slug,
+                'channels_count' => count($channels),
+                'session_key' => 'youtube_oauth_data',
+            ]);
+
+            // Redirect to YouTube channel selection page
+            return Inertia::render('SocialAccount/YouTubeChannelSelection', [
+                'channel' => [
+                    'id' => $channel->id,
+                    'name' => $channel->name,
+                    'slug' => $channel->slug,
+                ],
+                'youtubeChannels' => $channels,
+                'userProfile' => [
+                    'name' => $socialUser->name,
+                    'email' => $socialUser->email,
+                    'avatar' => $socialUser->avatar,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('YouTube channel selection failed', [
+                'channel_slug' => $channel->slug,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return $this->redirectToErrorPage(
+                'youtube',
+                $channel->slug,
+                'Failed to retrieve YouTube channels: ' . $e->getMessage(),
+                'channel_selection_failed'
+            );
+        }
+    }
+
+    /**
+     * Complete YouTube channel connection after user selects a channel.
+     */
+    public function selectYouTubeChannel(Channel $channel, Request $request): RedirectResponse
+    {
+        // Ensure user owns this channel
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $request->validate([
+            'youtube_channel_id' => 'required|string',
+        ]);
+
+        // Get OAuth data from session
+        $oauthData = session('youtube_oauth_data');
+
+        if (!$oauthData || $oauthData['channel_slug'] !== $channel->slug) {
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('error', 'YouTube connection session expired. Please try connecting again.');
+        }
+
+        // Find the selected YouTube channel
+        $selectedChannel = collect($oauthData['channels'])->firstWhere('id', $request->youtube_channel_id);
+
+        if (!$selectedChannel) {
+            return redirect()->back()
+                ->with('error', 'Invalid YouTube channel selection. Please try again.');
+        }
+
+        // Create social user object
+        $socialUser = (object) [
+            'token' => $oauthData['access_token'],
+            'refreshToken' => $oauthData['refresh_token'],
+            'expiresIn' => $oauthData['expires_in'],
+            'name' => $oauthData['user_profile']['name'],
+            'email' => $oauthData['user_profile']['email'],
+            'avatar' => $oauthData['user_profile']['avatar'],
+        ];
+
+        // Complete the connection
+        $result = $this->completeYouTubeChannelConnection($channel, $socialUser, $selectedChannel);
+
+        // Clear session data
+        session()->forget('youtube_oauth_data');
+
+        return $result;
+    }
+
+    /**
+     * Complete YouTube channel connection with selected channel.
+     */
+    protected function completeYouTubeChannelConnection(Channel $channel, $socialUser, array $selectedChannel): RedirectResponse
+    {
+        try {
+            // First, delete any existing YouTube social account for this user+channel combination
+            SocialAccount::where('user_id', Auth::id())
+                ->where('channel_id', $channel->id)
+                ->where('platform', 'youtube')
+                ->delete();
+
+            // Create the new social account with YouTube channel information
+            $socialAccount = SocialAccount::create([
+                'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
+                'platform' => 'youtube',
+                'access_token' => $socialUser->token,
+                'refresh_token' => $socialUser->refreshToken,
+                'token_expires_at' => $socialUser->expiresIn ?
+                    now()->addSeconds($socialUser->expiresIn) : null,
+                'profile_name' => $socialUser->name,
+                'profile_avatar_url' => $socialUser->avatar,
+                'platform_channel_id' => $selectedChannel['id'],
+                'platform_channel_name' => $selectedChannel['snippet']['title'],
+                'platform_channel_handle' => $selectedChannel['snippet']['customUrl'] ?? null,
+                'platform_channel_url' => 'https://www.youtube.com/channel/' . $selectedChannel['id'],
+                'platform_channel_data' => [
+                    'description' => $selectedChannel['snippet']['description'] ?? '',
+                    'published_at' => $selectedChannel['snippet']['publishedAt'] ?? null,
+                    'thumbnail_url' => $selectedChannel['snippet']['thumbnails']['default']['url'] ?? null,
+                    'subscriber_count' => $selectedChannel['statistics']['subscriberCount'] ?? 0,
+                ],
+                'is_platform_channel_specific' => true,
+            ]);
+
+            $this->errorHandler->logConnectionSuccess('youtube', $channel->slug, [
+                'social_account_id' => $socialAccount->id,
+                'youtube_channel_id' => $selectedChannel['id'],
+                'youtube_channel_name' => $selectedChannel['snippet']['title'],
+                'has_refresh_token' => !empty($socialAccount->refresh_token),
+                'expires_at' => $socialAccount->token_expires_at?->toISOString() ?? 'never',
+                'is_platform_channel_specific' => true,
+            ]);
+
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('success', 'YouTube channel connected successfully: ' . $selectedChannel['snippet']['title']);
+
+        } catch (\Exception $e) {
+            \Log::error('YouTube channel connection completion failed', [
+                'channel_slug' => $channel->slug,
+                'youtube_channel_id' => $selectedChannel['id'] ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return $this->redirectToErrorPage(
+                'youtube',
+                $channel->slug,
+                'Failed to complete YouTube channel connection: ' . $e->getMessage(),
                 'connection_completion_failed'
             );
         }

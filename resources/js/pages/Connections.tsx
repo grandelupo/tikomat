@@ -39,6 +39,9 @@ interface SocialAccount {
     profile_name?: string;
     profile_avatar_url?: string;
     profile_username?: string;
+    platform_channel_name?: string;
+    platform_channel_handle?: string;
+    platform_channel_specific?: boolean;
 }
 
 interface Platform {
@@ -189,6 +192,18 @@ export default function Connections({
                                                                 {account.platform === 'facebook' && account.facebook_page_name && (
                                                                     <p className="text-xs text-gray-500 truncate">
                                                                         Facebook Page: {account.facebook_page_name}
+                                                                    </p>
+                                                                )}
+                                                                {account.platform === 'youtube' && account.platform_channel_name && (
+                                                                    <p className="text-xs text-gray-500 truncate">
+                                                                        YouTube Channel: {account.platform_channel_name}
+                                                                        {account.platform_channel_handle && ` (${account.platform_channel_handle})`}
+                                                                    </p>
+                                                                )}
+                                                                {account.platform_channel_specific && account.platform_channel_name && account.platform !== 'youtube' && account.platform !== 'facebook' && (
+                                                                    <p className="text-xs text-gray-500 truncate">
+                                                                        Channel: {account.platform_channel_name}
+                                                                        {account.platform_channel_handle && ` (${account.platform_channel_handle})`}
                                                                     </p>
                                                                 )}
                                                             </div>

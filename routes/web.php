@@ -181,14 +181,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('workflow', WorkflowController::class);
     
     // Social Account Management (scoped to channels)
-    Route::get('channels/{channel:slug}/auth/{platform}', [SocialAccountController::class, 'redirect'])
+    Route::get('channels/{channel}/auth/{platform}', [SocialAccountController::class, 'redirect'])
         ->name('social.redirect');
-    Route::get('channels/{channel:slug}/auth/{platform}/callback', [SocialAccountController::class, 'callback'])
+    Route::get('channels/{channel}/auth/{platform}/callback', [SocialAccountController::class, 'callback'])
         ->name('social.callback');
-    Route::delete('channels/{channel:slug}/social/{platform}', [SocialAccountController::class, 'disconnect'])
+    Route::delete('channels/{channel}/social/{platform}', [SocialAccountController::class, 'disconnect'])
         ->name('social.disconnect');
-    Route::post('channels/{channel:slug}/social/{platform}/force-reconnect', [SocialAccountController::class, 'forceReconnect'])
+    Route::get('channels/{channel}/auth/{platform}/force-reconnect', [SocialAccountController::class, 'forceReconnect'])
         ->name('social.force-reconnect');
+    Route::get('channels/{channel}/auth/{platform}/simulate', [SocialAccountController::class, 'simulateConnection'])
+        ->name('social.simulate');
+    
+    // Social platform specific routes
+    Route::post('channels/{channel}/facebook/select-page', [SocialAccountController::class, 'selectFacebookPage'])
+        ->name('social.facebook.select-page');
+    Route::post('channels/{channel}/youtube/select-channel', [SocialAccountController::class, 'selectYouTubeChannel'])
+        ->name('social.youtube.select-channel');
     
     // General OAuth callbacks (for OAuth providers that need exact URLs)
     Route::get('auth/{platform}/callback', [SocialAccountController::class, 'generalCallback'])
@@ -197,8 +205,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Facebook page selection routes
     Route::get('channels/{channel:slug}/facebook/page-selection', [SocialAccountController::class, 'showFacebookPageSelection'])
         ->name('facebook.page-selection');
-    Route::post('channels/{channel:slug}/facebook/page-selection', [SocialAccountController::class, 'selectFacebookPage'])
-        ->name('facebook.page-select');
     
     // OAuth error page
     Route::get('oauth/error', function () {
@@ -220,10 +226,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ],
         ]);
     })->name('oauth.error');
-    
-    // Development: Simulate OAuth connection
-    Route::post('channels/{channel:slug}/simulate-oauth/{platform}', [SocialAccountController::class, 'simulateConnection'])
-        ->name('social.simulate');
     
     // Development: OAuth configuration diagnostics
     Route::get('oauth/debug/{platform}', function ($platform) {

@@ -12,15 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('social_accounts', function (Blueprint $table) {
-            $table->string('profile_name')->nullable();
-            $table->text('profile_avatar_url')->nullable();
-            $table->string('profile_username')->nullable(); // For platforms that have usernames (like X, Instagram)
+            // Add platform-specific channel/account identifiers
             $table->string('platform_channel_id')->nullable()->after('profile_username');
             $table->string('platform_channel_name')->nullable()->after('platform_channel_id');
             $table->string('platform_channel_handle')->nullable()->after('platform_channel_name');
             $table->string('platform_channel_url')->nullable()->after('platform_channel_handle');
             $table->json('platform_channel_data')->nullable()->after('platform_channel_url');
+            
+            // Add a flag to indicate if this connection represents a specific platform channel
             $table->boolean('is_platform_channel_specific')->default(false)->after('platform_channel_data');
+            
+            // Add index for platform channel lookups
             $table->index(['platform', 'platform_channel_id'], 'social_accounts_platform_channel_id_index');
         });
     }
@@ -40,7 +42,6 @@ return new class extends Migration
                 'platform_channel_data',
                 'is_platform_channel_specific'
             ]);
-            $table->dropColumn(['profile_name', 'profile_avatar_url', 'profile_username']);
         });
     }
 }; 

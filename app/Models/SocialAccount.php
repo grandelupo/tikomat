@@ -20,6 +20,12 @@ class SocialAccount extends Model
         'profile_name',
         'profile_avatar_url',
         'profile_username',
+        'platform_channel_id',
+        'platform_channel_name',
+        'platform_channel_handle',
+        'platform_channel_url',
+        'platform_channel_data',
+        'is_platform_channel_specific',
     ];
 
     protected function casts(): array
@@ -29,6 +35,8 @@ class SocialAccount extends Model
             'access_token' => 'encrypted',
             'refresh_token' => 'encrypted',
             'facebook_page_access_token' => 'encrypted',
+            'platform_channel_data' => 'array',
+            'is_platform_channel_specific' => 'boolean',
         ];
     }
 
@@ -54,5 +62,56 @@ class SocialAccount extends Model
     public function isTokenExpired(): bool
     {
         return $this->token_expires_at && $this->token_expires_at->isPast();
+    }
+
+    /**
+     * Get the display name for this social account connection.
+     */
+    public function getDisplayName(): string
+    {
+        // Prioritize platform-specific channel name
+        if ($this->is_platform_channel_specific && $this->platform_channel_name) {
+            return $this->platform_channel_name;
+        }
+
+        // Fall back to profile name or username
+        return $this->profile_name 
+            ?? $this->profile_username 
+            ?? $this->facebook_page_name 
+            ?? 'Connected Account';
+    }
+
+    /**
+     * Get the display handle/username for this social account connection.
+     */
+    public function getDisplayHandle(): ?string
+    {
+        return $this->platform_channel_handle 
+            ?? $this->profile_username 
+            ?? null;
+    }
+
+    /**
+     * Get the URL for this platform channel/account.
+     */
+    public function getPlatformUrl(): ?string
+    {
+        return $this->platform_channel_url;
+    }
+
+    /**
+     * Check if this is a platform-specific channel connection.
+     */
+    public function isPlatformChannelSpecific(): bool
+    {
+        return $this->is_platform_channel_specific && !empty($this->platform_channel_id);
+    }
+
+    /**
+     * Get platform-specific channel metadata.
+     */
+    public function getPlatformChannelData(): array
+    {
+        return $this->platform_channel_data ?? [];
     }
 }
