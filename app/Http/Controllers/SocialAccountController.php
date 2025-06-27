@@ -637,11 +637,13 @@ class SocialAccountController extends Controller
             // Facebook requires pages and video publishing permissions
             return Socialite::driver($driver)
                 ->scopes([
-                    'pages_manage_posts',
-                    'pages_read_engagement',
-                    'pages_show_list',
-                    'publish_video',
-                    'business_management'                    // Required for business selection
+                    'pages_manage_posts',           // Required for posting to pages
+                    'pages_read_engagement',        // Required for reading page data
+                    'pages_show_list',              // Required for listing pages
+                    'publish_video',                // Required for video uploads
+                    'pages_manage_metadata',        // Required for managing page content
+                    'pages_read_user_content',      // Required for reading page content
+                    'business_management'           // Required for business selection
                 ])
                 ->with([
                     'state' => $state,
@@ -835,7 +837,7 @@ class SocialAccountController extends Controller
             // Get user's Facebook pages using latest Graph API version
             $response = Http::get('https://graph.facebook.com/v21.0/me/accounts', [
                 'access_token' => $socialUser->token,
-                'fields' => 'id,name,access_token,category,tasks',
+                'fields' => 'id,name,access_token,category,tasks,perms,is_published,verification_status',
                 'limit' => 100  // Ensure we get all pages
             ]);
 
@@ -855,7 +857,17 @@ class SocialAccountController extends Controller
             \Log::info('Facebook pages retrieved', [
                 'page_count' => count($pages),
                 'pages' => array_map(function($page) {
-                    return ['id' => $page['id'], 'name' => $page['name']];
+                    return [
+                        'id' => $page['id'], 
+                        'name' => $page['name'],
+                        'category' => $page['category'] ?? 'Unknown',
+                        'tasks' => $page['tasks'] ?? [],
+                        'perms' => $page['perms'] ?? [],
+                        'is_published' => $page['is_published'] ?? false,
+                        'verification_status' => $page['verification_status'] ?? 'Unknown',
+                        'has_video_upload_task' => in_array('CREATE_CONTENT', $page['tasks'] ?? []),
+                        'has_manage_task' => in_array('MANAGE', $page['tasks'] ?? []),
+                    ];
                 }, $pages),
             ]);
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,12 +21,21 @@ interface Channel {
     slug: string;
 }
 
+interface FacebookPage {
+    social_account_id: number;
+    page_id: string;
+    page_name: string;
+    channel_id: number;
+    is_current_channel: boolean;
+}
+
 interface CreateVideoProps {
     channel: Channel;
     availablePlatforms: string[];
     defaultPlatforms: string[];
     connectedPlatforms: string[];
     allowedPlatforms: string[];
+    facebookPages: FacebookPage[];
 }
 
 const platformData = {
@@ -44,13 +53,15 @@ export default function CreateVideo({
     availablePlatforms, 
     defaultPlatforms, 
     connectedPlatforms, 
-    allowedPlatforms 
+    allowedPlatforms,
+    facebookPages 
 }: CreateVideoProps) {
     // Ensure all platform arrays are properly initialized as arrays
     const safeAvailablePlatforms = Array.isArray(availablePlatforms) ? availablePlatforms : [];
     const safeDefaultPlatforms = Array.isArray(defaultPlatforms) ? defaultPlatforms : [];
     const safeConnectedPlatforms = Array.isArray(connectedPlatforms) ? connectedPlatforms : [];
     const safeAllowedPlatforms = Array.isArray(allowedPlatforms) ? allowedPlatforms : [];
+    const safeFacebookPages = Array.isArray(facebookPages) ? facebookPages : [];
     
     // defaultPlatforms now only contains connected platforms (filtered in backend)
     const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(safeDefaultPlatforms);
@@ -60,6 +71,11 @@ export default function CreateVideo({
     const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
     const [isCloudStorageOpen, setIsCloudStorageOpen] = useState(false);
     const [advancedOptions, setAdvancedOptions] = useState<Record<string, any>>({});
+    const [selectedFacebookPageId, setSelectedFacebookPageId] = useState<string>(
+        safeFacebookPages.find(page => page.is_current_channel)?.page_id || 
+        safeFacebookPages[0]?.page_id || 
+        ''
+    );
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -85,7 +101,13 @@ export default function CreateVideo({
         publish_at: '',
         cloud_providers: [] as string[],
         advanced_options: {} as Record<string, any>,
+        facebook_page_id: selectedFacebookPageId,
     });
+
+    // Update form data when selectedFacebookPageId changes
+    React.useEffect(() => {
+        setData('facebook_page_id', selectedFacebookPageId);
+    }, [selectedFacebookPageId, setData]);
 
     const handlePlatformChange = (platformId: string, checked: boolean) => {
         let newPlatforms: string[];
@@ -96,6 +118,11 @@ export default function CreateVideo({
         }
         setSelectedPlatforms(newPlatforms);
         setData('platforms', newPlatforms);
+    };
+
+    const handleFacebookPageChange = (pageId: string) => {
+        setSelectedFacebookPageId(pageId);
+        setData('facebook_page_id', pageId);
     };
 
     const handlePublishTypeChange = (value: 'now' | 'scheduled') => {
@@ -186,6 +213,11 @@ export default function CreateVideo({
         // Validate platforms
         if (selectedPlatforms.length === 0) {
             newErrors.platforms = 'Please select at least one platform';
+        }
+
+        // Validate Facebook page selection if Facebook is selected
+        if (selectedPlatforms.includes('facebook') && !selectedFacebookPageId) {
+            newErrors.facebook_page_id = 'Please select a Facebook page';
         }
 
         // Validate scheduled date
@@ -468,6 +500,57 @@ export default function CreateVideo({
                                     </Alert>
                                 )}
                             </div>
+
+                            {/* Facebook Page Selection */}
+                            {selectedPlatforms.includes('facebook') && safeFacebookPages.length > 0 && (
+                                <div className="space-y-3">
+                                    <Label>Select Facebook Page</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Choose which Facebook page to publish this video to
+                                    </p>
+                                    <div className="space-y-2">
+                                        {safeFacebookPages.map((page) => (
+                                            <div 
+                                                key={page.page_id}
+                                                className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                                                    selectedFacebookPageId === page.page_id
+                                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                                                        : 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'
+                                                }`}
+                                                onClick={() => handleFacebookPageChange(page.page_id)}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="facebook_page"
+                                                    value={page.page_id}
+                                                    checked={selectedFacebookPageId === page.page_id}
+                                                    onChange={() => handleFacebookPageChange(page.page_id)}
+                                                    className="text-blue-600"
+                                                />
+                                                <div className="flex items-center space-x-3 flex-1">
+                                                    <Facebook className="h-5 w-5 text-blue-600" />
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center space-x-2">
+                                                            <span className="font-medium">{page.page_name}</span>
+                                                            {page.is_current_channel && (
+                                                                <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded dark:bg-green-900/30 dark:text-green-300">
+                                                                    Current Channel
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                            Page ID: {page.page_id}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {(errors.facebook_page_id || clientErrors.facebook_page_id) && (
+                                        <p className="text-sm text-red-600">{errors.facebook_page_id || clientErrors.facebook_page_id}</p>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Publishing Options */}
                             <div className="space-y-3">

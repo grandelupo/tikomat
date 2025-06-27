@@ -16,6 +16,7 @@ class VideoTarget extends Model
         'platform_video_id',
         'platform_url',
         'advanced_options',
+        'facebook_page_id',
     ];
 
     protected function casts(): array

@@ -96,12 +96,32 @@ class VideoController extends Controller
         // Filter default platforms to only include connected ones
         $defaultPlatforms = array_intersect($channel->default_platforms_list, $connectedPlatforms);
 
+        // Get all Facebook pages for the user (across all channels they own)
+        $facebookPages = [];
+        if (in_array('facebook', $availablePlatforms)) {
+            $facebookAccounts = $request->user()->socialAccounts()
+                ->where('platform', 'facebook')
+                ->whereNotNull('facebook_page_id')
+                ->get(['id', 'facebook_page_id', 'facebook_page_name', 'channel_id']);
+            
+            foreach ($facebookAccounts as $account) {
+                $facebookPages[] = [
+                    'social_account_id' => $account->id,
+                    'page_id' => $account->facebook_page_id,
+                    'page_name' => $account->facebook_page_name,
+                    'channel_id' => $account->channel_id,
+                    'is_current_channel' => $account->channel_id === $channel->id,
+                ];
+            }
+        }
+
         return Inertia::render('Videos/Create', [
             'channel' => $channel,
             'availablePlatforms' => $availablePlatforms,
             'defaultPlatforms' => $defaultPlatforms,
             'connectedPlatforms' => $connectedPlatforms,
             'allowedPlatforms' => $allowedPlatforms,
+            'facebookPages' => $facebookPages,
         ]);
     }
 
@@ -126,6 +146,7 @@ class VideoController extends Controller
             'cloud_providers' => 'nullable|array',
             'cloud_providers.*' => 'in:google_drive,dropbox',
             'advanced_options' => 'nullable|array',
+            'facebook_page_id' => 'nullable|string|exists:social_accounts,facebook_page_id',
         ]);
 
         // Validate that user can access selected platforms
@@ -142,6 +163,27 @@ class VideoController extends Controller
             if (!in_array($platform, $connectedPlatforms)) {
                 return redirect()->back()
                     ->withErrors(['platforms' => "Platform '{$platform}' is not connected to this channel."])
+                    ->withInput();
+            }
+        }
+
+        // Validate Facebook page selection if Facebook is selected
+        if (in_array('facebook', $request->platforms)) {
+            if (empty($request->facebook_page_id)) {
+                return redirect()->back()
+                    ->withErrors(['facebook_page_id' => 'Please select a Facebook page to publish to.'])
+                    ->withInput();
+            }
+            
+            // Verify user owns this Facebook page
+            $facebookAccount = SocialAccount::where('user_id', $request->user()->id)
+                ->where('platform', 'facebook')
+                ->where('facebook_page_id', $request->facebook_page_id)
+                ->first();
+                
+            if (!$facebookAccount) {
+                return redirect()->back()
+                    ->withErrors(['facebook_page_id' => 'Invalid Facebook page selection.'])
                     ->withInput();
             }
         }
@@ -203,13 +245,20 @@ class VideoController extends Controller
                 foreach ($request->platforms as $platform) {
                     $advancedOptions = $request->advanced_options[$platform] ?? null;
                     
-                    $target = VideoTarget::create([
+                    // For Facebook, store the selected page ID
+                    $targetData = [
                         'video_id' => $video->id,
                         'platform' => $platform,
                         'publish_at' => $request->publish_type === 'scheduled' ? $request->publish_at : null,
                         'status' => 'pending',
                         'advanced_options' => $advancedOptions,
-                    ]);
+                    ];
+                    
+                    if ($platform === 'facebook' && $request->facebook_page_id) {
+                        $targetData['facebook_page_id'] = $request->facebook_page_id;
+                    }
+                    
+                    $target = VideoTarget::create($targetData);
 
                     Log::info('Video target created', [
                         'target_id' => $target->id,
@@ -217,6 +266,7 @@ class VideoController extends Controller
                         'status' => $target->status,
                         'publish_at' => $target->publish_at,
                         'advanced_options' => $advancedOptions ? 'present' : 'none',
+                        'facebook_page_id' => $platform === 'facebook' ? $request->facebook_page_id : null,
                     ]);
                 }
             });

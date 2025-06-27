@@ -55,12 +55,32 @@ class UploadVideoToFacebook implements ShouldQueue
                 'user_id' => $this->videoTarget->video->user_id,
                 'channel_id' => $this->videoTarget->video->channel_id,
                 'platform' => 'facebook',
+                'target_facebook_page_id' => $this->videoTarget->facebook_page_id ?? 'Not specified',
             ]);
 
-            $socialAccount = SocialAccount::where('user_id', $this->videoTarget->video->user_id)
-                ->where('channel_id', $this->videoTarget->video->channel_id)
-                ->where('platform', 'facebook')
-                ->first();
+            // If video target has a specific Facebook page ID, use that to find the right account
+            if ($this->videoTarget->facebook_page_id) {
+                Log::info('Using specific Facebook page ID from video target', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'facebook_page_id' => $this->videoTarget->facebook_page_id,
+                ]);
+                
+                $socialAccount = SocialAccount::where('user_id', $this->videoTarget->video->user_id)
+                    ->where('platform', 'facebook')
+                    ->where('facebook_page_id', $this->videoTarget->facebook_page_id)
+                    ->first();
+            } else {
+                Log::info('Using channel-based Facebook account lookup (legacy)', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'channel_id' => $this->videoTarget->video->channel_id,
+                ]);
+                
+                // Fallback to the old method for backwards compatibility
+                $socialAccount = SocialAccount::where('user_id', $this->videoTarget->video->user_id)
+                    ->where('channel_id', $this->videoTarget->video->channel_id)
+                    ->where('platform', 'facebook')
+                    ->first();
+            }
 
             if (!$socialAccount) {
                 Log::error('Facebook social account not found', [
@@ -126,17 +146,23 @@ class UploadVideoToFacebook implements ShouldQueue
                 'video_url_accessible' => $this->testVideoUrlAccessibility($videoUrl),
             ]);
 
-            // Step 1: Get Facebook Page ID (required for posting)
-            Log::info('Getting Facebook Page ID for posting', [
+            // Step 1: Get Facebook Page ID and access token
+            Log::info('Getting Facebook Page ID and access token for posting', [
                 'video_target_id' => $this->videoTarget->id,
                 'social_account_id' => $socialAccount->id,
+                'has_stored_page_id' => !empty($socialAccount->facebook_page_id),
+                'has_page_access_token' => !empty($socialAccount->facebook_page_access_token),
             ]);
             
-            $pageId = $this->getFacebookPageId($socialAccount);
+            $pageInfo = $this->getFacebookPageInfo($socialAccount);
+            $pageId = $pageInfo['page_id'];
+            $pageAccessToken = $pageInfo['page_access_token'];
             
-            Log::info('Facebook Page ID obtained', [
+            Log::info('Facebook Page info obtained', [
                 'video_target_id' => $this->videoTarget->id,
                 'page_id' => $pageId,
+                'has_page_access_token' => !empty($pageAccessToken),
+                'page_access_token_length' => strlen($pageAccessToken ?? ''),
             ]);
 
             // Step 2: Upload video to Facebook
@@ -148,7 +174,7 @@ class UploadVideoToFacebook implements ShouldQueue
                 'advanced_options' => $this->videoTarget->advanced_options ?? [],
             ]);
             
-            $this->uploadVideoToFacebook($socialAccount, $pageId, $videoUrl);
+            $this->uploadVideoToFacebook($socialAccount, $pageId, $pageAccessToken, $videoUrl);
 
             Log::info('Facebook upload completed successfully', [
                 'video_target_id' => $this->videoTarget->id,
@@ -220,19 +246,24 @@ class UploadVideoToFacebook implements ShouldQueue
     }
 
     /**
-     * Get Facebook Page ID for posting.
+     * Get Facebook Page ID and access token for posting.
      */
-    protected function getFacebookPageId(SocialAccount $socialAccount): string
+    protected function getFacebookPageInfo(SocialAccount $socialAccount): array
     {
         // Use the stored Facebook page ID if available
         if (!empty($socialAccount->facebook_page_id)) {
-            Log::info('Using stored Facebook page ID', [
+            Log::info('Using stored Facebook page info', [
                 'video_target_id' => $this->videoTarget->id,
                 'social_account_id' => $socialAccount->id,
                 'page_id' => $socialAccount->facebook_page_id,
                 'page_name' => $socialAccount->facebook_page_name ?? 'Unknown',
+                'has_page_access_token' => !empty($socialAccount->facebook_page_access_token),
             ]);
-            return $socialAccount->facebook_page_id;
+            
+            return [
+                'page_id' => $socialAccount->facebook_page_id,
+                'page_access_token' => $socialAccount->facebook_page_access_token ?? $socialAccount->access_token,
+            ];
         }
 
         Log::info('No stored Facebook page ID, fetching from API', [
@@ -291,15 +322,19 @@ class UploadVideoToFacebook implements ShouldQueue
             'video_target_id' => $this->videoTarget->id,
             'page_id' => $firstPage['id'],
             'page_name' => $firstPage['name'] ?? 'Unknown',
+            'has_page_access_token' => isset($firstPage['access_token']),
         ]);
         
-        return $firstPage['id'];
+        return [
+            'page_id' => $firstPage['id'],
+            'page_access_token' => $firstPage['access_token'] ?? $socialAccount->access_token,
+        ];
     }
 
     /**
      * Upload video to Facebook.
      */
-    protected function uploadVideoToFacebook(SocialAccount $socialAccount, string $pageId, string $videoUrl): void
+    protected function uploadVideoToFacebook(SocialAccount $socialAccount, string $pageId, string $pageAccessToken, string $videoUrl): void
     {
         // Get advanced options for this platform
         $options = $this->videoTarget->advanced_options ?? [];
@@ -311,16 +346,11 @@ class UploadVideoToFacebook implements ShouldQueue
             'advanced_options' => $options,
         ]);
 
-        // Use page-specific access token if available, otherwise use user token
-        $accessToken = !empty($socialAccount->facebook_page_access_token) 
-            ? $socialAccount->facebook_page_access_token 
-            : $socialAccount->access_token;
-
-        Log::info('Facebook access token selection', [
+        Log::info('Using provided Facebook page access token', [
             'video_target_id' => $this->videoTarget->id,
-            'using_page_token' => !empty($socialAccount->facebook_page_access_token),
-            'has_user_token' => !empty($socialAccount->access_token),
-            'has_page_token' => !empty($socialAccount->facebook_page_access_token),
+            'page_id' => $pageId,
+            'has_page_access_token' => !empty($pageAccessToken),
+            'page_access_token_length' => strlen($pageAccessToken),
         ]);
 
         // Prepare video data with advanced options
@@ -328,7 +358,7 @@ class UploadVideoToFacebook implements ShouldQueue
             'file_url' => $videoUrl,
             'title' => $this->videoTarget->video->title,
             'description' => $options['message'] ?? $this->videoTarget->video->description,
-            'access_token' => $accessToken
+            'access_token' => $pageAccessToken
         ];
 
         // Add privacy settings if provided
