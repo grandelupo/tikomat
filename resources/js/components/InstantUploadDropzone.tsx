@@ -152,72 +152,67 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
             )
         );
 
-        // Set the form data with the file and wait for it to be set
-        setData('video', queuedFile.file);
+        // Create a new form instance for this upload to avoid conflicts
+        const formData = new FormData();
+        
+        // Ensure the file is properly appended to the FormData
+        if (queuedFile.file) {
+            formData.append('video', queuedFile.file);
+        } else {
+            throw new Error('No file provided for upload');
+        }
 
         // Use a promise to handle the upload
         return new Promise((resolve, reject) => {
-            // Wait a moment for setData to update the form data
-            setTimeout(() => {
-                post(`/channels/${channel.slug}/videos/instant-upload`, {
-                    onProgress: (progress) => {
-                        const percentage = progress.percentage || 0;
-                        setUploadQueue(prevQueue => 
-                            prevQueue.map(item => 
-                                item.id === queuedFile.id 
-                                    ? { 
-                                        ...item, 
-                                        progress: percentage,
-                                        processingStage: percentage === 100 ? 'AI is analyzing your video...' : 'Uploading video...'
-                                    }
-                                    : item
-                            )
-                        );
-                    },
-                    onSuccess: (page) => {
-                        setUploadQueue(prevQueue => 
-                            prevQueue.map(item => 
-                                item.id === queuedFile.id 
-                                    ? { 
-                                        ...item, 
-                                        status: 'completed',
-                                        progress: 100,
-                                        processingStage: 'Upload completed! AI processing in background...'
-                                    }
-                                    : item
-                            )
-                        );
-                        
-                        // Remove completed item after showing success
-                        setTimeout(() => {
-                            setUploadQueue(prevQueue => prevQueue.filter(item => item.id !== queuedFile.id));
-                            // Refresh the page if all uploads are complete
-                            if (uploadQueue.every(item => item.status === 'completed' || item.id === queuedFile.id)) {
-                                setTimeout(() => window.location.reload(), 1000);
+            // Use fetch directly to ensure proper form data handling
+            fetch(`/channels/${channel.slug}/videos/instant-upload`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errors => {
+                        const errorMessage = errors.video || errors.message || 'Upload failed';
+                        throw new Error(errorMessage);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                setUploadQueue(prevQueue => 
+                    prevQueue.map(item => 
+                        item.id === queuedFile.id 
+                            ? { 
+                                ...item, 
+                                status: 'completed',
+                                progress: 100,
+                                processingStage: 'Upload completed successfully!'
                             }
-                        }, 3000);
-                        
-                        resolve(page);
-                    },
-                    onError: (errors) => {
-                        console.error('Upload failed:', errors);
-                        const errorMessage = errors.video || 'Upload failed';
-                        setUploadQueue(prevQueue => 
-                            prevQueue.map(item => 
-                                item.id === queuedFile.id 
-                                    ? { 
-                                        ...item, 
-                                        status: 'error',
-                                        error: errorMessage,
-                                        processingStage: 'Upload failed'
-                                    }
-                                    : item
-                            )
-                        );
-                        reject(errors);
-                    },
-                });
-            }, 100);
+                            : item
+                    )
+                );
+                resolve(data);
+            })
+            .catch(error => {
+                console.error('Upload failed:', error);
+                setUploadQueue(prevQueue => 
+                    prevQueue.map(item => 
+                        item.id === queuedFile.id 
+                            ? { 
+                                ...item, 
+                                status: 'error',
+                                error: error.message,
+                                processingStage: 'Upload failed'
+                            }
+                            : item
+                    )
+                );
+                reject(error);
+            });
         });
     };
 

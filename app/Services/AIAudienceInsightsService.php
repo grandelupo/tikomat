@@ -887,4 +887,25 @@ class AIAudienceInsightsService
     protected function getQualitySettingsRecommendations($videos): array { return ['1080p_minimum']; }
     protected function getWorkflowOptimizationRecommendations($user): array { return ['automation_tools']; }
     protected function getAutomationOpportunities($user): array { return ['scheduling_tools']; }
+
+    /**
+     * Get the user who owns this Facebook page (for admin bypass).
+     */
+    public static function getFacebookPageOwner(string $facebookPageId): ?User
+    {
+        $socialAccount = self::where('platform', 'facebook')
+            ->where('facebook_page_id', $facebookPageId)
+            ->with('user')
+            ->first();
+        
+        return $socialAccount?->user;
+    }
+
+    /**
+     * Generate audience insights (alias for analyzeAudienceInsights for compatibility).
+     */
+    public function generateAudienceInsights(int $userId, array $options = []): array
+    {
+        return $this->analyzeAudienceInsights($userId, $options);
+    }
 }

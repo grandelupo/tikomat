@@ -86,6 +86,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeWords, setActiveWords] = useState<Set<number>>(new Set());
   
   // Subtitle editing state
   const [editingSubtitle, setEditingSubtitle] = useState<string | null>(null);
@@ -107,6 +108,9 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   const [isEditingBounds, setIsEditingBounds] = useState(false);
   const [boundsBeingDragged, setBoundsBeingDragged] = useState<'move' | 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br' | null>(null);
   const [boundsDragStart, setBoundsDragStart] = useState<{ x: number; y: number; bounds: { x: number; y: number; width: number; height: number } } | null>(null);
+
+  // Add state to track if subtitles have been generated
+  const [subtitlesGenerated, setSubtitlesGenerated] = useState(false);
 
   // Subtitle style presets
   const subtitleStylePresets = {
@@ -221,6 +225,13 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
       checkExistingSubtitles();
     }
   }, [videoId]);
+
+  // Add effect to track when subtitles are generated
+  useEffect(() => {
+    if (generationData?.subtitles && generationData.subtitles.length > 0) {
+      setSubtitlesGenerated(true);
+    }
+  }, [generationData?.subtitles]);
 
   const checkExistingSubtitles = async () => {
     if (!videoId) {
@@ -724,16 +735,16 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   // Drag and drop handlers
   const handleSubtitleMouseDown = (e: React.MouseEvent, subtitleId: string) => {
     e.preventDefault();
+    e.stopPropagation();
     const subtitle = generationData?.subtitles.find(s => s.id === subtitleId);
     if (!subtitle || !videoRef.current) return;
 
     setDraggedSubtitle(subtitleId);
     
-    // Get video element bounds instead of container bounds
+    // Get video element bounds
     const videoRect = videoRef.current.getBoundingClientRect();
     
     // Calculate offset from mouse to the subtitle center point
-    // Since subtitle uses transform: translate(-50%, -50%), we need to account for this
     const subtitleElement = e.target as HTMLElement;
     const subtitleRect = subtitleElement.getBoundingClientRect();
     
@@ -751,7 +762,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!draggedSubtitle || !videoRef.current) return;
 
-    // Use video element bounds instead of container bounds
+    // Use video element bounds
     const videoRect = videoRef.current.getBoundingClientRect();
     
     // Calculate where the subtitle center should be positioned
@@ -935,9 +946,9 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
 
   // Calculate video bounds for proper subtitle positioning
   const updateVideoBounds = () => {
-    if (videoRef.current) {
+    if (videoRef.current && subtitleEditorRef.current) {
       const videoRect = videoRef.current.getBoundingClientRect();
-      const containerRect = subtitleEditorRef.current?.getBoundingClientRect();
+      const containerRect = subtitleEditorRef.current.getBoundingClientRect();
       
       if (containerRect) {
         const baseBounds = {
@@ -1006,14 +1017,16 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     }
   }, [generationData]);
 
-  // Bounding box drag handlers
-  const handleBoundsMouseDown = (e: React.MouseEvent, dragType: 'move' | 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br') => {
-    if (!customBounds || !videoRef.current) return;
-    
+  // Bounding box handlers with improved performance
+  const handleBoundsMouseDown = (e: React.MouseEvent, action: 'move' | 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br') => {
     e.preventDefault();
     e.stopPropagation();
     
-    setBoundsBeingDragged(dragType);
+    if (!customBounds || !videoRef.current) return;
+    
+    setBoundsBeingDragged(action);
+    const videoRect = videoRef.current.getBoundingClientRect();
+    
     setBoundsDragStart({
       x: e.clientX,
       y: e.clientY,
@@ -1025,49 +1038,48 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     if (!boundsBeingDragged || !boundsDragStart || !videoRef.current) return;
 
     const videoRect = videoRef.current.getBoundingClientRect();
-    const deltaX = ((e.clientX - boundsDragStart.x) / videoRect.width) * 100;
-    const deltaY = ((e.clientY - boundsDragStart.y) / videoRect.height) * 100;
-
+    const deltaX = e.clientX - boundsDragStart.x;
+    const deltaY = e.clientY - boundsDragStart.y;
+    
+    // Convert pixel deltas to percentages
+    const deltaXPercent = (deltaX / videoRect.width) * 100;
+    const deltaYPercent = (deltaY / videoRect.height) * 100;
+    
     let newBounds = { ...boundsDragStart.bounds };
-
+    
     switch (boundsBeingDragged) {
       case 'move':
-        newBounds.x = Math.max(0, Math.min(100 - newBounds.width, boundsDragStart.bounds.x + deltaX));
-        newBounds.y = Math.max(0, Math.min(100 - newBounds.height, boundsDragStart.bounds.y + deltaY));
+        newBounds.x = Math.max(0, Math.min(100 - newBounds.width, newBounds.x + deltaXPercent));
+        newBounds.y = Math.max(0, Math.min(100 - newBounds.height, newBounds.y + deltaYPercent));
         break;
       case 'resize-tl':
-        const newWidth = Math.max(10, boundsDragStart.bounds.width - deltaX);
-        const newHeight = Math.max(10, boundsDragStart.bounds.height - deltaY);
-        newBounds.x = Math.max(0, boundsDragStart.bounds.x + (boundsDragStart.bounds.width - newWidth));
-        newBounds.y = Math.max(0, boundsDragStart.bounds.y + (boundsDragStart.bounds.height - newHeight));
-        newBounds.width = newWidth;
-        newBounds.height = newHeight;
+        newBounds.x = Math.max(0, Math.min(newBounds.x + newBounds.width - 10, newBounds.x + deltaXPercent));
+        newBounds.y = Math.max(0, Math.min(newBounds.y + newBounds.height - 10, newBounds.y + deltaYPercent));
+        newBounds.width = Math.max(10, Math.min(100 - newBounds.x, newBounds.width - deltaXPercent));
+        newBounds.height = Math.max(10, Math.min(100 - newBounds.y, newBounds.height - deltaYPercent));
         break;
       case 'resize-tr':
-        newBounds.width = Math.max(10, Math.min(100 - newBounds.x, boundsDragStart.bounds.width + deltaX));
-        newBounds.height = Math.max(10, boundsDragStart.bounds.height - deltaY);
-        newBounds.y = Math.max(0, boundsDragStart.bounds.y + (boundsDragStart.bounds.height - newBounds.height));
+        newBounds.y = Math.max(0, Math.min(newBounds.y + newBounds.height - 10, newBounds.y + deltaYPercent));
+        newBounds.width = Math.max(10, Math.min(100 - newBounds.x, newBounds.width + deltaXPercent));
+        newBounds.height = Math.max(10, Math.min(100 - newBounds.y, newBounds.height - deltaYPercent));
         break;
       case 'resize-bl':
-        newBounds.width = Math.max(10, boundsDragStart.bounds.width - deltaX);
-        newBounds.height = Math.max(10, Math.min(100 - newBounds.y, boundsDragStart.bounds.height + deltaY));
-        newBounds.x = Math.max(0, boundsDragStart.bounds.x + (boundsDragStart.bounds.width - newBounds.width));
+        newBounds.x = Math.max(0, Math.min(newBounds.x + newBounds.width - 10, newBounds.x + deltaXPercent));
+        newBounds.width = Math.max(10, Math.min(100 - newBounds.x, newBounds.width - deltaXPercent));
+        newBounds.height = Math.max(10, Math.min(100 - newBounds.y, newBounds.height + deltaYPercent));
         break;
       case 'resize-br':
-        newBounds.width = Math.max(10, Math.min(100 - newBounds.x, boundsDragStart.bounds.width + deltaX));
-        newBounds.height = Math.max(10, Math.min(100 - newBounds.y, boundsDragStart.bounds.height + deltaY));
+        newBounds.width = Math.max(10, Math.min(100 - newBounds.x, newBounds.width + deltaXPercent));
+        newBounds.height = Math.max(10, Math.min(100 - newBounds.y, newBounds.height + deltaYPercent));
         break;
     }
-
+    
     setCustomBounds(newBounds);
   };
 
   const handleBoundsMouseUp = () => {
     setBoundsBeingDragged(null);
     setBoundsDragStart(null);
-    updateVideoBounds();
-    // Auto-save bounds when user finishes dragging
-    saveCustomBounds();
   };
 
   // Update video bounds when video loads or window resizes
@@ -1101,6 +1113,116 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   useEffect(() => {
     setTimeout(updateVideoBounds, 100);
   }, [isFullscreen, customBounds]);
+
+  // Update active words based on current time
+  useEffect(() => {
+    if (!currentSubtitle?.words || currentSubtitle.words.length === 0) {
+      setActiveWords(new Set());
+      return;
+    }
+
+    const newActiveWords = new Set<number>();
+    
+    currentSubtitle.words.forEach((word, index) => {
+      if (currentTime >= word.start_time && currentTime <= word.end_time) {
+        newActiveWords.add(index);
+      }
+    });
+    
+    setActiveWords(newActiveWords);
+  }, [currentTime, currentSubtitle?.words]);
+
+  // Render words with proper timing and formatting
+  const renderWords = () => {
+    if (!currentSubtitle?.words || currentSubtitle.words.length === 0) {
+      // Fallback to simple text rendering if no word timing data
+      return (
+        <span className="subtitle-text">
+          {currentSubtitle?.text || ''}
+        </span>
+      );
+    }
+
+    return currentSubtitle.words.map((word, index) => {
+      const isActive = activeWords.has(index);
+      const isLastWord = index === currentSubtitle.words.length - 1;
+      
+      return (
+        <span
+          key={`${word.word}-${index}`}
+          className={`subtitle-word ${isActive ? 'active' : ''}`}
+          style={{
+            color: isActive ? (currentSubtitle.style?.color || '#FFFFFF') : (currentSubtitle.style?.color || '#FFFFFF'),
+            fontWeight: isActive ? 'bold' : (currentSubtitle.style?.bold ? 'bold' : 'normal'),
+            fontStyle: currentSubtitle.style?.italic ? 'italic' : 'normal',
+            textDecoration: currentSubtitle.style?.underline ? 'underline' : 'none',
+            transition: 'all 0.1s ease-in-out',
+            display: 'inline-block',
+            marginRight: isLastWord ? '0' : '0.1em',
+          }}
+        >
+          {word.word}
+          {!isLastWord && ' '}
+        </span>
+      );
+    });
+  };
+
+  // Constrain position to keep text within bounds with appropriate margins
+  const getConstrainedPosition = () => {
+    if (!currentSubtitle) return { x: 50, y: 85 };
+    // Use larger margins to account for text wrapping and subtitle box size
+    const constrainedX = Math.max(10, Math.min(90, currentSubtitle.position.x));
+    const constrainedY = Math.max(10, Math.min(90, currentSubtitle.position.y));
+    return { x: constrainedX, y: constrainedY };
+  };
+
+  const getContainerStyle = (): React.CSSProperties => {
+    if (!currentSubtitle) return {};
+    const style = currentSubtitle.style || {};
+    const constrainedPos = getConstrainedPosition();
+    
+    // Calculate responsive font size based on container (video) size
+    // Default to 2.5vw (2.5% of viewport width) with min/max constraints
+    const responsiveFontSize = Math.max(16, Math.min(48, (style.fontSize || 24)));
+    
+    return {
+      position: 'absolute',
+      left: `${constrainedPos.x}%`,
+      top: `${constrainedPos.y}%`,
+      transform: 'translate(-50%, -50%)',
+      fontFamily: style.fontFamily || 'Arial, sans-serif',
+      fontSize: `${responsiveFontSize}px`,
+      fontWeight: style.fontWeight || 'bold',
+      color: style.color || '#FFFFFF',
+      background: style.backgroundColor?.includes('gradient') 
+        ? style.backgroundColor 
+        : undefined,
+      backgroundColor: !style.backgroundColor?.includes('gradient') 
+        ? (style.backgroundColor || 'rgba(0, 0, 0, 0.7)')
+        : undefined,
+      textAlign: (style.textAlign as 'left' | 'center' | 'right') || 'center',
+      borderRadius: `${style.borderRadius || 4}px`,
+      padding: `${style.padding || 8}px`,
+      textShadow: style.textShadow || '2px 2px 4px rgba(0, 0, 0, 0.5)',
+      fontStyle: style.italic ? 'italic' : 'normal',
+      textDecoration: style.underline ? 'underline' : 'none',
+      cursor: 'move',
+      userSelect: 'none',
+      // Remove box shadow for neon effect as requested
+      boxShadow: style?.preset === 'neon' ? 'none' : undefined,
+      // Enable text wrapping and constrain width to video bounds
+      whiteSpace: 'normal',
+      wordWrap: 'break-word',
+      maxWidth: '90vw',
+      minWidth: '200px',
+      lineHeight: '1.2',
+      letterSpacing: '0.5px',
+      // Ensure text is always readable
+      backdropFilter: 'blur(2px)',
+      zIndex: 1000,
+    };
+  };
 
   return (
     <div ref={containerRef} className={`bg-white shadow-sm border ${isFullscreen ? 'h-screen w-screen flex flex-col' : 'rounded-lg'}`}>
@@ -1211,7 +1333,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 {/* Subtitle Overlay Container - positioned absolutely over video */}
                 <div 
                   className="video-subtitle-overlay"
-                  style={{ 
+                  style={{
                     top: videoBounds?.top || 0,
                     left: videoBounds?.left || 0,
                     width: videoBounds?.width || '100%',
@@ -1245,10 +1367,12 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   <div 
                     className="bounds-editor-overlay"
                     style={{
-                      top: (videoRef.current.getBoundingClientRect().top - subtitleEditorRef.current?.getBoundingClientRect().top!) || 0,
-                      left: (videoRef.current.getBoundingClientRect().left - subtitleEditorRef.current?.getBoundingClientRect().left!) || 0,
-                      width: videoRef.current.getBoundingClientRect().width,
-                      height: videoRef.current.getBoundingClientRect().height,
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      pointerEvents: 'auto',
                     }}
                     onMouseMove={handleBoundsMouseMove}
                     onMouseUp={handleBoundsMouseUp}
@@ -1258,39 +1382,104 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                     <div
                       className="bounds-rectangle"
                       style={{
+                        position: 'absolute',
                         left: `${customBounds.x}%`,
                         top: `${customBounds.y}%`,
                         width: `${customBounds.width}%`,
                         height: `${customBounds.height}%`,
+                        border: '3px solid #3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                        cursor: 'move',
+                        boxShadow: '0 0 10px rgba(59, 130, 246, 0.3)',
+                        transition: 'all 0.2s ease-in-out',
                       }}
                       onMouseDown={(e) => handleBoundsMouseDown(e, 'move')}
                     >
-                      {/* Corner resize handles */}
+                      {/* Resize handles */}
                       <div
-                        className="bounds-handle cursor-nw-resize"
-                        style={{ top: '-6px', left: '-6px' }}
+                        className="resize-handle resize-tl"
+                        style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          left: '-8px',
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: '#3b82f6',
+                          border: '3px solid white',
+                          borderRadius: '50%',
+                          cursor: 'nw-resize',
+                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                          transition: 'all 0.2s ease-in-out',
+                        }}
                         onMouseDown={(e) => handleBoundsMouseDown(e, 'resize-tl')}
                       />
                       <div
-                        className="bounds-handle cursor-ne-resize"
-                        style={{ top: '-6px', right: '-6px' }}
+                        className="resize-handle resize-tr"
+                        style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          right: '-8px',
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: '#3b82f6',
+                          border: '3px solid white',
+                          borderRadius: '50%',
+                          cursor: 'ne-resize',
+                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                          transition: 'all 0.2s ease-in-out',
+                        }}
                         onMouseDown={(e) => handleBoundsMouseDown(e, 'resize-tr')}
                       />
                       <div
-                        className="bounds-handle cursor-sw-resize"
-                        style={{ bottom: '-6px', left: '-6px' }}
+                        className="resize-handle resize-bl"
+                        style={{
+                          position: 'absolute',
+                          bottom: '-8px',
+                          left: '-8px',
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: '#3b82f6',
+                          border: '3px solid white',
+                          borderRadius: '50%',
+                          cursor: 'sw-resize',
+                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                          transition: 'all 0.2s ease-in-out',
+                        }}
                         onMouseDown={(e) => handleBoundsMouseDown(e, 'resize-bl')}
                       />
                       <div
-                        className="bounds-handle cursor-se-resize"
-                        style={{ bottom: '-6px', right: '-6px' }}
+                        className="resize-handle resize-br"
+                        style={{
+                          position: 'absolute',
+                          bottom: '-8px',
+                          right: '-8px',
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: '#3b82f6',
+                          border: '3px solid white',
+                          borderRadius: '50%',
+                          cursor: 'se-resize',
+                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                          transition: 'all 0.2s ease-in-out',
+                        }}
                         onMouseDown={(e) => handleBoundsMouseDown(e, 'resize-br')}
                       />
                       
-                      {/* Label */}
-                      <div className="bounds-label">
-                        Subtitle Area ({Math.round(customBounds.width)}% × {Math.round(customBounds.height)}%)
-                      </div>
+                      {/* Center indicator */}
+                      <div
+                        className="center-indicator"
+                        style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: '4px',
+                          height: '4px',
+                          backgroundColor: '#3b82f6',
+                          borderRadius: '50%',
+                          border: '2px solid white',
+                        }}
+                      />
                     </div>
                   </div>
                 )}
@@ -1347,20 +1536,22 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 {/* Bounding Box Controls */}
                 <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                   <span className="text-sm font-medium text-gray-700">Subtitle Area:</span>
-                  <button
-                    onClick={() => {
-                      initializeDefaultBounds();
-                      setIsEditingBounds(!isEditingBounds);
-                    }}
-                    className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm transition-colors ${
-                      isEditingBounds 
-                        ? 'bg-purple-600 text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    <Settings2 className="w-4 h-4" />
-                    {isEditingBounds ? 'Finish Editing' : 'Edit Bounds'}
-                  </button>
+                  {subtitlesGenerated && (
+                    <button
+                      onClick={() => {
+                        initializeDefaultBounds();
+                        setIsEditingBounds(!isEditingBounds);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm transition-colors ${
+                        isEditingBounds 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      <Settings2 className="w-4 h-4" />
+                      {isEditingBounds ? 'Finish Editing' : 'Set Boundary'}
+                    </button>
+                  )}
                   {customBounds && (
                     <button
                       onClick={() => {
@@ -1496,6 +1687,8 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                     </button>
                   </div>
                 </div>
+                
+                {/* Style Controls */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Font Family</label>
@@ -1519,7 +1712,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       type="range"
                       min="12"
                       max="48"
-                      value={generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.fontSize || defaultStyle.fontSize}
+                      value={generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.fontSize || 24}
                       onChange={(e) => updateSubtitleStyle(selectedSubtitle, { fontSize: parseInt(e.target.value) })}
                       className="w-full"
                     />
@@ -1529,7 +1722,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                     <label className="block text-sm font-medium text-gray-700 mb-2">Text Color</label>
                     <input
                       type="color"
-                      value={convertToValidHex(generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.color || defaultStyle.color)}
+                      value={convertToValidHex(generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.color || '#FFFFFF')}
                       onChange={(e) => updateSubtitleStyle(selectedSubtitle, { color: e.target.value })}
                       className="w-full h-8 rounded border"
                     />
@@ -1636,68 +1829,6 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 </button>
               </div>
             )}
-
-            {/* Rendered video status and link */}
-            {videoProcessingResult?.status === 'processing' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
-                  <span className="font-medium text-blue-900">Rendering video with subtitles...</span>
-                </div>
-                <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
-                  <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: '100%' }}></div>
-                </div>
-                <div className="flex justify-between text-sm text-blue-700">
-                  <span>Rendering in progress...</span>
-                </div>
-              </div>
-            )}
-            {videoProcessingResult?.status === 'completed' && videoProcessingResult?.rendered_video_path && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="font-medium text-green-900">Video rendered successfully!</span>
-                </div>
-                <a href={videoProcessingResult.rendered_video_path} target="_blank" rel="noopener noreferrer" className="text-green-700 underline">Download or view rendered video</a>
-              </div>
-            )}
-
-            {/* Debug Panel */}
-            {generationData && (
-              <div className="mt-4 p-3 bg-gray-50 rounded text-xs space-y-2">
-                <p><strong>Debug Info:</strong></p>
-                <p>Generation ID: {generationData?.generation_id || 'None'}</p>
-                <p>Status: {generationData?.processing_status || 'None'}</p>
-                <p>Subtitles: {generationData?.subtitles?.length || 0}</p>
-                <p>Video Time: {currentTime.toFixed(2)}s</p>
-                <p>Active Subtitle: {getCurrentSubtitle()?.text || 'None'}</p>
-                <p>Active Subtitle Words: {getCurrentSubtitle()?.words?.length || 0}</p>
-                <p>Current Style: {getCurrentSubtitle()?.style?.preset || 'None'}</p>
-                
-                {generationData?.generation_id && (
-                  <button
-                    onClick={() => {
-                      console.log('Manual word timing reload triggered');
-                      loadWordTimingData(generationData.generation_id);
-                    }}
-                    className="mt-2 px-2 py-1 bg-blue-500 text-white rounded text-xs"
-                  >
-                    Reload Word Timing
-                  </button>
-                )}
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {/* No Data State - Only show when no video */}
-        {!videoPath && (
-          <div className="text-center py-12">
-            <Mic className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Video Available</h3>
-            <p className="text-gray-600 mb-4">
-              Upload a video to start using the subtitle generator.
-            </p>
           </div>
         )}
       </div>

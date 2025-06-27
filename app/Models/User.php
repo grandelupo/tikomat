@@ -28,6 +28,8 @@ class User extends Authenticatable
         'allowed_platforms',
         'is_admin',
         'completed_tutorials',
+        'notifications',
+        'notification_settings',
     ];
 
     /**
@@ -53,6 +55,8 @@ class User extends Authenticatable
             'has_subscription' => 'boolean',
             'allowed_platforms' => 'array',
             'completed_tutorials' => 'array',
+            'notifications' => 'array',
+            'notification_settings' => 'array',
         ];
     }
 
@@ -101,8 +105,8 @@ class User extends Authenticatable
      */
     public function getAllowedPlatforms(): array
     {
-        // Free users only get YouTube, paid users get all platforms
-        if ($this->hasActiveSubscription()) {
+        // Free users get full access for 30 days, then limited to YouTube
+        if ($this->hasActiveSubscription() || $this->isInFreeTrialPeriod()) {
             return ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'];
         }
         
@@ -133,8 +137,8 @@ class User extends Authenticatable
      */
     public function getMaxChannels(): int
     {
-        // Free users get 1 channel, paid users get more
-        if ($this->hasActiveSubscription()) {
+        // Free users get unlimited channels during trial, paid users get more
+        if ($this->hasActiveSubscription() || $this->isInFreeTrialPeriod()) {
             // Pro users get 3 base channels plus any additional channels
             $subscription = $this->subscription('default');
             if ($subscription && $subscription->hasPrice(env('STRIPE_PRICE_ADDITIONAL_CHANNEL'))) {
@@ -171,12 +175,38 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user is in free trial period (30 days from registration).
+     */
+    public function isInFreeTrialPeriod(): bool
+    {
+        $trialEndDate = $this->created_at->addDays(30);
+        return now()->lt($trialEndDate);
+    }
+
+    /**
+     * Get days remaining in free trial.
+     */
+    public function getFreeTrialDaysRemaining(): int
+    {
+        if (!$this->isInFreeTrialPeriod()) {
+            return 0;
+        }
+        
+        $trialEndDate = $this->created_at->addDays(30);
+        return max(0, now()->diffInDays($trialEndDate, false));
+    }
+
+    /**
      * Get the current subscription plan.
      */
     public function getCurrentPlan(): string
     {
         if ($this->hasActiveSubscription()) {
             return 'pro';
+        }
+        
+        if ($this->isInFreeTrialPeriod()) {
+            return 'free_trial';
         }
         
         return 'free';
@@ -204,5 +234,101 @@ class User extends Authenticatable
     public function getDailyCost(): float
     {
         return $this->getMonthlyCost() / 30;
+    }
+
+    /**
+     * Get notifications for this user.
+     */
+    public function getNotifications(): array
+    {
+        return $this->notifications ?? [];
+    }
+
+    /**
+     * Add a notification.
+     */
+    public function addNotification(string $type, string $title, string $message, array $data = []): void
+    {
+        $notifications = $this->getNotifications();
+        $notifications[] = [
+            'id' => uniqid(),
+            'type' => $type, // 'error', 'warning', 'success', 'info'
+            'title' => $title,
+            'message' => $message,
+            'data' => $data,
+            'read' => false,
+            'created_at' => now()->toISOString(),
+        ];
+        
+        $this->update(['notifications' => $notifications]);
+    }
+
+    /**
+     * Mark notification as read.
+     */
+    public function markNotificationAsRead(string $notificationId): void
+    {
+        $notifications = $this->getNotifications();
+        $notifications = array_map(function ($notification) use ($notificationId) {
+            if ($notification['id'] === $notificationId) {
+                $notification['read'] = true;
+            }
+            return $notification;
+        }, $notifications);
+        
+        $this->update(['notifications' => $notifications]);
+    }
+
+    /**
+     * Mark all notifications as read.
+     */
+    public function markAllNotificationsAsRead(): void
+    {
+        $notifications = $this->getNotifications();
+        $notifications = array_map(function ($notification) {
+            $notification['read'] = true;
+            return $notification;
+        }, $notifications);
+        
+        $this->update(['notifications' => $notifications]);
+    }
+
+    /**
+     * Clear all notifications.
+     */
+    public function clearNotifications(): void
+    {
+        $this->update(['notifications' => []]);
+    }
+
+    /**
+     * Get unread notifications count.
+     */
+    public function getUnreadNotificationsCount(): int
+    {
+        $notifications = $this->getNotifications();
+        return count(array_filter($notifications, fn($n) => !$n['read']));
+    }
+
+    /**
+     * Get notification settings.
+     */
+    public function getNotificationSettings(): array
+    {
+        return $this->notification_settings ?? [
+            'ai_errors' => true,
+            'upload_errors' => true,
+            'platform_errors' => true,
+            'success_notifications' => false,
+            'email_notifications' => false,
+        ];
+    }
+
+    /**
+     * Update notification settings.
+     */
+    public function updateNotificationSettings(array $settings): void
+    {
+        $this->update(['notification_settings' => array_merge($this->getNotificationSettings(), $settings)]);
     }
 }

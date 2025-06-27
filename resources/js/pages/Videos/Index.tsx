@@ -165,7 +165,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                             Manage all your uploaded videos and their publishing status
                         </p>
                     </div>
-                    {channels.length > 0 && (
+                    {channels.length > 0 && getDefaultChannel() && getDefaultChannel()?.slug && (
                         <Link href={`/channels/${getDefaultChannel()?.slug}/videos/create`}>
                             <Button size="lg">
                                 <Plus className="mr-2 h-4 w-4" />
@@ -279,7 +279,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                 <p className="mt-1 text-sm text-gray-500">
                                     {Object.values(filters).some(f => f) ? 'Try adjusting your filters.' : 'Get started by uploading your first video.'}
                                 </p>
-                                {!Object.values(filters).some(f => f) && channels.length > 0 && (
+                                {!Object.values(filters).some(f => f) && channels.length > 0 && getDefaultChannel() && getDefaultChannel()?.slug && (
                                     <div className="mt-6">
                                         <Link href={`/channels/${getDefaultChannel()?.slug}/videos/create`}>
                                             <Button>

@@ -282,6 +282,32 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('{provider}/disconnect', [CloudStorageController::class, 'disconnect'])->name('disconnect');
         Route::get('connected', [CloudStorageController::class, 'getConnectedAccounts'])->name('connected');
     });
+    
+    // Notification routes
+    Route::prefix('api/notifications')->name('notifications.')->group(function () {
+        Route::get('unread-count', function () {
+            return response()->json([
+                'count' => auth()->user()->getUnreadNotificationsCount()
+            ]);
+        })->name('unread-count');
+        Route::get('list', function () {
+            return response()->json([
+                'notifications' => auth()->user()->getNotifications()
+            ]);
+        })->name('list');
+        Route::post('mark-read/{id}', function (string $id) {
+            auth()->user()->markNotificationAsRead($id);
+            return response()->json(['success' => true]);
+        })->name('mark-read');
+        Route::post('mark-all-read', function () {
+            auth()->user()->markAllNotificationsAsRead();
+            return response()->json(['success' => true]);
+        })->name('mark-all-read');
+        Route::delete('clear', function () {
+            auth()->user()->clearNotifications();
+            return response()->json(['success' => true]);
+        })->name('clear');
+    });
 });
 
 // Stripe webhooks (outside auth middleware)

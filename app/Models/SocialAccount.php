@@ -114,4 +114,88 @@ class SocialAccount extends Model
     {
         return $this->platform_channel_data ?? [];
     }
+
+    /**
+     * Check if this social account is already connected to another user.
+     */
+    public static function isAccountAlreadyConnected(string $platform, string $platformAccountId, ?int $excludeUserId = null): bool
+    {
+        $query = self::where('platform', $platform)
+            ->where('platform_channel_id', $platformAccountId);
+        
+        if ($excludeUserId) {
+            $query->where('user_id', '!=', $excludeUserId);
+        }
+        
+        return $query->exists();
+    }
+
+    /**
+     * Check if this social account is already connected to another user by profile username.
+     */
+    public static function isAccountAlreadyConnectedByUsername(string $platform, string $username, ?int $excludeUserId = null): bool
+    {
+        $query = self::where('platform', $platform)
+            ->where('profile_username', $username);
+        
+        if ($excludeUserId) {
+            $query->where('user_id', '!=', $excludeUserId);
+        }
+        
+        return $query->exists();
+    }
+
+    /**
+     * Check if this social account is already connected to another user by Facebook page ID.
+     */
+    public static function isFacebookPageAlreadyConnected(string $facebookPageId, ?int $excludeUserId = null): bool
+    {
+        $query = self::where('platform', 'facebook')
+            ->where('facebook_page_id', $facebookPageId);
+        
+        if ($excludeUserId) {
+            $query->where('user_id', '!=', $excludeUserId);
+        }
+        
+        return $query->exists();
+    }
+
+    /**
+     * Get the user who owns this social account (for admin bypass).
+     */
+    public static function getAccountOwner(string $platform, string $platformAccountId): ?User
+    {
+        $socialAccount = self::where('platform', $platform)
+            ->where('platform_channel_id', $platformAccountId)
+            ->with('user')
+            ->first();
+        
+        return $socialAccount?->user;
+    }
+
+    /**
+     * Get the user who owns this social account by username (for admin bypass).
+     */
+    public static function getAccountOwnerByUsername(string $platform, string $username): ?User
+    {
+        $socialAccount = self::where('platform', $platform)
+            ->where('profile_username', $username)
+            ->with('user')
+            ->first();
+        
+        return $socialAccount?->user;
+    }
+
+    /**
+     * Get the user who owns this Facebook page (for admin bypass).
+     */
+    public static function getFacebookPageOwner(string $facebookPageId): ?User
+    {
+        $socialAccount = self::where('platform', 'facebook')
+            ->where('facebook_page_id', $facebookPageId)
+            ->with('user')
+            ->first();
+        
+        return $socialAccount?->user;
+    }
 }

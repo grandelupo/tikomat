@@ -200,18 +200,41 @@ class SocialAccountController extends Controller
                 ->where('channel_id', $channel->id)
                 ->where('platform', $platform)
                 ->delete();
-            
-            // Now create the new social account
+
+            // Check if this social account is already connected to another user
+            $existingAccount = SocialAccount::where('platform', $platform)
+                ->where('platform_channel_id', $socialUser->getId())
+                ->where('user_id', '!=', Auth::id())
+                ->first();
+
+            if ($existingAccount) {
+                $this->errorHandler->logConnectionFailure(
+                    $platform, 
+                    $channel->slug, 
+                    new \Exception('Account already connected to another user'), 
+                    $request,
+                    ['existing_user_id' => $existingAccount->user_id]
+                );
+                
+                return $this->redirectToErrorPage(
+                    $platform,
+                    $channel->slug,
+                    'This ' . ucfirst($platform) . ' account is already connected to another Filmate account. Please use a different account or contact support if you believe this is an error.',
+                    'account_already_connected'
+                );
+            }
+
+            // Create new social account
             $socialAccount = $this->createSocialAccount($channel->id, $platform, $socialUser);
 
-            $this->errorHandler->logConnectionSuccess($platform, $channel->slug, [
+            \Log::info('Social account connected successfully', [
+                'platform' => $platform,
+                'channel_slug' => $channel->slug,
+                'user_id' => Auth::id(),
                 'social_account_id' => $socialAccount->id,
-                'has_refresh_token' => !empty($socialAccount->refresh_token),
-                'expires_at' => $socialAccount->token_expires_at?->toISOString() ?? 'never',
             ]);
 
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('success', ucfirst($platform) . ' account connected successfully!');
+            return redirect()->route('connections')->with('success', ucfirst($platform) . ' account connected successfully!');
 
         } catch (\Exception $e) {
             $this->errorHandler->logConnectionFailure($platform, $channel->slug, $e, $request);
@@ -810,8 +833,54 @@ class SocialAccountController extends Controller
             'profile_email' => $socialUser->email ?? null,
         ]);
 
+        // Check for duplicate social accounts (prevent trial bypass)
+        $currentUserId = Auth::id();
+        $isAdmin = Auth::user()->is_admin;
+
+        // Check by platform channel ID if available
+        if (!empty($socialUser->id)) {
+            if (SocialAccount::isAccountAlreadyConnected($platform, $socialUser->id, $currentUserId)) {
+                $existingOwner = SocialAccount::getAccountOwner($platform, $socialUser->id);
+                
+                if (!$isAdmin) {
+                    throw new \Exception(
+                        "This {$platform} account is already connected to another Filmate account. " .
+                        "Each social media account can only be connected to one Filmate account to prevent trial period bypass."
+                    );
+                } else {
+                    \Log::warning('Admin bypassing duplicate account restriction', [
+                        'platform' => $platform,
+                        'account_id' => $socialUser->id,
+                        'existing_owner_id' => $existingOwner?->id,
+                        'new_owner_id' => $currentUserId,
+                    ]);
+                }
+            }
+        }
+
+        // Check by username if available
+        if (!empty($socialUser->nickname)) {
+            if (SocialAccount::isAccountAlreadyConnectedByUsername($platform, $socialUser->nickname, $currentUserId)) {
+                $existingOwner = SocialAccount::getAccountOwnerByUsername($platform, $socialUser->nickname);
+                
+                if (!$isAdmin) {
+                    throw new \Exception(
+                        "This {$platform} account (@{$socialUser->nickname}) is already connected to another Filmate account. " .
+                        "Each social media account can only be connected to one Filmate account to prevent trial period bypass."
+                    );
+                } else {
+                    \Log::warning('Admin bypassing duplicate username restriction', [
+                        'platform' => $platform,
+                        'username' => $socialUser->nickname,
+                        'existing_owner_id' => $existingOwner?->id,
+                        'new_owner_id' => $currentUserId,
+                    ]);
+                }
+            }
+        }
+
         $accountData = [
-            'user_id' => Auth::id(),
+            'user_id' => $currentUserId,
             'channel_id' => $channelId,
             'platform' => $platform,
             'access_token' => $socialUser->token,
@@ -1034,60 +1103,72 @@ class SocialAccountController extends Controller
     protected function completeFacebookConnection(Channel $channel, $socialUser, array $selectedPage): RedirectResponse
     {
         try {
-            // Validate that the selected page has a valid numeric ID
-            if (empty($selectedPage['id']) || !is_numeric($selectedPage['id'])) {
-                \Log::error('Invalid Facebook page ID received during connection', [
-                    'channel_slug' => $channel->slug,
-                    'selected_page' => $selectedPage,
-                    'page_id' => $selectedPage['id'] ?? 'null',
-                    'page_id_type' => gettype($selectedPage['id'] ?? null),
-                ]);
-                throw new \Exception('Invalid Facebook page ID received. Please try connecting again.');
+            // Check if this Facebook page is already connected to another user
+            $existingAccount = SocialAccount::where('platform', 'facebook')
+                ->where('facebook_page_id', $selectedPage['id'])
+                ->where('user_id', '!=', Auth::id())
+                ->first();
+
+            if ($existingAccount) {
+                $this->errorHandler->logConnectionFailure(
+                    'facebook', 
+                    $channel->slug, 
+                    new \Exception('Facebook page already connected to another user'), 
+                    request(),
+                    ['existing_user_id' => $existingAccount->user_id]
+                );
+                
+                return $this->redirectToErrorPage(
+                    'facebook',
+                    $channel->slug,
+                    'This Facebook page is already connected to another Filmate account. Please use a different page or contact support if you believe this is an error.',
+                    'facebook_page_already_connected'
+                );
             }
 
-            // First, delete any existing Facebook social account for this user+channel+platform combination
+            // Delete any existing Facebook account for this user+channel
             SocialAccount::where('user_id', Auth::id())
                 ->where('channel_id', $channel->id)
                 ->where('platform', 'facebook')
                 ->delete();
-            
-            // Create the new social account with page information
-            $socialAccount = SocialAccount::create([
-                'user_id' => Auth::id(),
-                'channel_id' => $channel->id,
-                'platform' => 'facebook',
-                'access_token' => $socialUser->token,
-                'refresh_token' => $socialUser->refreshToken,
-                'token_expires_at' => $socialUser->expiresIn ? 
-                    now()->addSeconds($socialUser->expiresIn) : null,
-                'facebook_page_id' => $selectedPage['id'],
-                'facebook_page_name' => $selectedPage['name'],
-                'facebook_page_access_token' => $selectedPage['access_token'],
-                // Also set platform-specific fields for consistency
-                'platform_channel_id' => $selectedPage['id'],
-                'platform_channel_name' => $selectedPage['name'],
-                'platform_channel_handle' => null, // Facebook pages don't have handles like @username
-                'platform_channel_url' => 'https://www.facebook.com/' . $selectedPage['id'],
-                'is_platform_channel_specific' => true,
-            ]);
 
-            $this->errorHandler->logConnectionSuccess('facebook', $channel->slug, [
+            // Create new social account with Facebook page details
+            $socialAccount = new SocialAccount();
+            $socialAccount->user_id = Auth::id();
+            $socialAccount->channel_id = $channel->id;
+            $socialAccount->platform = 'facebook';
+            $socialAccount->access_token = $socialUser->token;
+            $socialAccount->refresh_token = $socialUser->refreshToken;
+            $socialAccount->token_expires_at = $socialUser->expiresIn ? now()->addSeconds($socialUser->expiresIn) : null;
+            $socialAccount->facebook_page_id = $selectedPage['id'];
+            $socialAccount->facebook_page_name = $selectedPage['name'];
+            $socialAccount->facebook_page_access_token = $selectedPage['access_token'];
+            $socialAccount->profile_name = $selectedPage['name'];
+            $socialAccount->platform_channel_id = $selectedPage['id'];
+            $socialAccount->platform_channel_name = $selectedPage['name'];
+            $socialAccount->platform_channel_url = "https://facebook.com/{$selectedPage['id']}";
+            $socialAccount->is_platform_channel_specific = true;
+            $socialAccount->save();
+
+            \Log::info('Facebook page connected successfully', [
+                'platform' => 'facebook',
+                'channel_slug' => $channel->slug,
+                'user_id' => Auth::id(),
                 'social_account_id' => $socialAccount->id,
                 'facebook_page_id' => $selectedPage['id'],
                 'facebook_page_name' => $selectedPage['name'],
-                'has_refresh_token' => !empty($socialAccount->refresh_token),
-                'expires_at' => $socialAccount->token_expires_at?->toISOString() ?? 'never',
             ]);
 
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('success', 'Facebook account connected successfully to page: ' . $selectedPage['name']);
+            return redirect()->route('connections')->with('success', 'Facebook page "' . $selectedPage['name'] . '" connected successfully!');
 
         } catch (\Exception $e) {
+            $this->errorHandler->logConnectionFailure('facebook', $channel->slug, $e, request());
+            
             return $this->redirectToErrorPage(
-                'facebook',
-                $channel->slug,
-                'Failed to complete Facebook connection: ' . $e->getMessage(),
-                'connection_completion_failed'
+                'facebook', 
+                $channel->slug, 
+                'Failed to connect Facebook page. Please try again.',
+                'facebook_connection_failure'
             );
         }
     }
@@ -1277,61 +1358,76 @@ class SocialAccountController extends Controller
     protected function completeYouTubeChannelConnection(Channel $channel, $socialUser, array $selectedChannel): RedirectResponse
     {
         try {
-            // First, delete any existing YouTube social account for this user+channel combination
+            // Check if this YouTube channel is already connected to another user
+            $existingAccount = SocialAccount::where('platform', 'youtube')
+                ->where('platform_channel_id', $selectedChannel['id'])
+                ->where('user_id', '!=', Auth::id())
+                ->first();
+
+            if ($existingAccount) {
+                $this->errorHandler->logConnectionFailure(
+                    'youtube', 
+                    $channel->slug, 
+                    new \Exception('YouTube channel already connected to another user'), 
+                    request(),
+                    ['existing_user_id' => $existingAccount->user_id]
+                );
+                
+                return $this->redirectToErrorPage(
+                    'youtube',
+                    $channel->slug,
+                    'This YouTube channel is already connected to another Filmate account. Please use a different channel or contact support if you believe this is an error.',
+                    'youtube_channel_already_connected'
+                );
+            }
+
+            // Delete any existing YouTube account for this user+channel
             SocialAccount::where('user_id', Auth::id())
                 ->where('channel_id', $channel->id)
                 ->where('platform', 'youtube')
                 ->delete();
 
-            // Create the new social account with YouTube channel information
-            $socialAccount = SocialAccount::create([
-                'user_id' => Auth::id(),
-                'channel_id' => $channel->id,
-                'platform' => 'youtube',
-                'access_token' => $socialUser->token,
-                'refresh_token' => $socialUser->refreshToken,
-                'token_expires_at' => $socialUser->expiresIn ?
-                    now()->addSeconds($socialUser->expiresIn) : null,
-                'profile_name' => $socialUser->name,
-                'profile_avatar_url' => $socialUser->avatar,
-                'platform_channel_id' => $selectedChannel['id'],
-                'platform_channel_name' => $selectedChannel['snippet']['title'],
-                'platform_channel_handle' => $selectedChannel['snippet']['customUrl'] ?? null,
-                'platform_channel_url' => 'https://www.youtube.com/channel/' . $selectedChannel['id'],
-                'platform_channel_data' => [
-                    'description' => $selectedChannel['snippet']['description'] ?? '',
-                    'published_at' => $selectedChannel['snippet']['publishedAt'] ?? null,
-                    'thumbnail_url' => $selectedChannel['snippet']['thumbnails']['default']['url'] ?? null,
-                    'subscriber_count' => $selectedChannel['statistics']['subscriberCount'] ?? 0,
-                ],
-                'is_platform_channel_specific' => true,
-            ]);
+            // Create new social account with YouTube channel details
+            $socialAccount = new SocialAccount();
+            $socialAccount->user_id = Auth::id();
+            $socialAccount->channel_id = $channel->id;
+            $socialAccount->platform = 'youtube';
+            $socialAccount->access_token = $socialUser->token;
+            $socialAccount->refresh_token = $socialUser->refreshToken;
+            $socialAccount->token_expires_at = $socialUser->expiresIn ? now()->addSeconds($socialUser->expiresIn) : null;
+            $socialAccount->profile_name = $selectedChannel['title'];
+            $socialAccount->profile_username = $selectedChannel['customUrl'] ?? null;
+            $socialAccount->platform_channel_id = $selectedChannel['id'];
+            $socialAccount->platform_channel_name = $selectedChannel['title'];
+            $socialAccount->platform_channel_handle = $selectedChannel['customUrl'] ?? null;
+            $socialAccount->platform_channel_url = "https://youtube.com/channel/{$selectedChannel['id']}";
+            $socialAccount->platform_channel_data = [
+                'subscriber_count' => $selectedChannel['statistics']['subscriberCount'] ?? 0,
+                'video_count' => $selectedChannel['statistics']['videoCount'] ?? 0,
+                'view_count' => $selectedChannel['statistics']['viewCount'] ?? 0,
+            ];
+            $socialAccount->is_platform_channel_specific = true;
+            $socialAccount->save();
 
-            $this->errorHandler->logConnectionSuccess('youtube', $channel->slug, [
+            \Log::info('YouTube channel connected successfully', [
+                'platform' => 'youtube',
+                'channel_slug' => $channel->slug,
+                'user_id' => Auth::id(),
                 'social_account_id' => $socialAccount->id,
                 'youtube_channel_id' => $selectedChannel['id'],
-                'youtube_channel_name' => $selectedChannel['snippet']['title'],
-                'has_refresh_token' => !empty($socialAccount->refresh_token),
-                'expires_at' => $socialAccount->token_expires_at?->toISOString() ?? 'never',
-                'is_platform_channel_specific' => true,
+                'youtube_channel_title' => $selectedChannel['title'],
             ]);
 
-            return redirect()->route('channels.show', $channel->slug)
-                ->with('success', 'YouTube channel connected successfully: ' . $selectedChannel['snippet']['title']);
+            return redirect()->route('connections')->with('success', 'YouTube channel "' . $selectedChannel['title'] . '" connected successfully!');
 
         } catch (\Exception $e) {
-            \Log::error('YouTube channel connection completion failed', [
-                'channel_slug' => $channel->slug,
-                'youtube_channel_id' => $selectedChannel['id'] ?? 'unknown',
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
+            $this->errorHandler->logConnectionFailure('youtube', $channel->slug, $e, request());
+            
             return $this->redirectToErrorPage(
-                'youtube',
-                $channel->slug,
-                'Failed to complete YouTube channel connection: ' . $e->getMessage(),
-                'connection_completion_failed'
+                'youtube', 
+                $channel->slug, 
+                'Failed to connect YouTube channel. Please try again.',
+                'youtube_connection_failure'
             );
         }
     }

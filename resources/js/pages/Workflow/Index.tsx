@@ -24,7 +24,6 @@ import {
     Zap,
     Info,
     Facebook,
-
     Camera,
     Palette
 } from 'lucide-react';
@@ -77,7 +76,7 @@ const platformIcons = {
     instagram: Instagram,
     tiktok: VideoIcon,
     facebook: Facebook,
-    twitter: Twitter,
+    x: XIcon,
     snapchat: Camera,
     pinterest: Palette,
 };
