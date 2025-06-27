@@ -657,13 +657,7 @@ class SocialAccountController extends Controller
                 ->redirect();
         } elseif ($platform === 'facebook') {
             // Facebook requires pages and video publishing permissions
-            // Override redirect URL to use channel-specific callback
-            $stateData = json_decode(base64_decode($state), true);
-            $channelSlug = $stateData['channel_slug'] ?? '';
-            $redirectUrl = rtrim(config('app.url'), '/') . '/channels/' . $channelSlug . '/auth/facebook/callback';
-            
             return Socialite::driver($driver)
-                ->redirectUrl($redirectUrl)
                 ->scopes([
                     'pages_manage_posts',           // Required for posting to pages
                     'pages_read_engagement',        // Required for reading page data
