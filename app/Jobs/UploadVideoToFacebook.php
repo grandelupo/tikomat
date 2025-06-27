@@ -399,6 +399,30 @@ class UploadVideoToFacebook implements ShouldQueue
         // Use the first page as fallback
         $firstPage = $data['data'][0];
         
+        // Additional validation for the page ID from API
+        if (!is_numeric($firstPage['id']) || !ctype_digit($firstPage['id'])) {
+            Log::error('Invalid Facebook page ID received from API', [
+                'video_target_id' => $this->videoTarget->id,
+                'invalid_page_id' => $firstPage['id'],
+                'page_id_type' => gettype($firstPage['id']),
+                'page_id_length' => strlen($firstPage['id']),
+            ]);
+            throw new \Exception('Invalid Facebook page ID received from API. Please reconnect your Facebook account.');
+        }
+
+        // Check for invalid patterns in API response
+        $invalidPatterns = ['instagram', 'facebook', 'twitter', 'tiktok', 'youtube', 'snapchat', 'pinterest'];
+        foreach ($invalidPatterns as $pattern) {
+            if (stripos($firstPage['id'], $pattern) !== false) {
+                Log::error('Facebook page ID from API contains invalid platform name', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'invalid_page_id' => $firstPage['id'],
+                    'detected_pattern' => $pattern,
+                ]);
+                throw new \Exception("Invalid Facebook page ID received from API (contains '{$pattern}'). Please reconnect your Facebook account.");
+            }
+        }
+        
         Log::info('Using first Facebook page as fallback', [
             'video_target_id' => $this->videoTarget->id,
             'page_id' => $firstPage['id'],
@@ -441,6 +465,17 @@ class UploadVideoToFacebook implements ShouldQueue
                 ]);
                 throw new \Exception("Invalid Facebook page ID for upload (contains '{$pattern}'). Please reconnect your Facebook account.");
             }
+        }
+
+        // Additional validation: ensure page ID is a reasonable length (Facebook page IDs are typically 10-20 digits)
+        if (strlen($pageId) < 5 || strlen($pageId) > 25) {
+            Log::error('Facebook page ID has unreasonable length', [
+                'video_target_id' => $this->videoTarget->id,
+                'page_id' => $pageId,
+                'page_id_length' => strlen($pageId),
+                'social_account_id' => $socialAccount->id,
+            ]);
+            throw new \Exception('Invalid Facebook page ID length. Please reconnect your Facebook account.');
         }
 
         // Get advanced options for this platform
