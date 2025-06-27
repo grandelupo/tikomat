@@ -498,28 +498,14 @@ class UploadVideoToFacebook implements ShouldQueue
             'page_access_token_length' => strlen($pageAccessToken),
         ]);
 
-        // Prepare description with hashtag validation
+        // Prepare description (no hashtag validation for Facebook)
         $description = $options['message'] ?? $this->videoTarget->video->description;
-        
-        // Validate and filter hashtags in description
-        $validationResult = $this->hashtagValidator->validateAndFilterHashtags('facebook', $description);
-        $filteredDescription = $validationResult['filtered_content'];
-        
-        if ($validationResult['has_changes']) {
-            Log::info('Facebook hashtags filtered', [
-                'video_target_id' => $this->videoTarget->id,
-                'removed_hashtags' => $validationResult['removed_hashtags'],
-                'warnings' => $validationResult['warnings'],
-                'original_length' => strlen($description),
-                'filtered_length' => strlen($filteredDescription),
-            ]);
-        }
 
-        // Prepare video data with advanced options
+        // Prepare video data with only title and description
         $videoData = [
             'file_url' => $videoUrl,
             'title' => $this->videoTarget->video->title,
-            'description' => $filteredDescription,
+            'description' => $description,
             'access_token' => $pageAccessToken
         ];
 
@@ -541,56 +527,6 @@ class UploadVideoToFacebook implements ShouldQueue
             ]);
         }
 
-        // Add tags if provided (validate hashtags in tags as well)
-        if (!empty($options['tags'])) {
-            $tags = $options['tags'];
-            
-            // If tags is a string, validate it
-            if (is_string($tags)) {
-                $tagValidation = $this->hashtagValidator->validateAndFilterHashtags('facebook', $tags);
-                $tags = $tagValidation['filtered_content'];
-                
-                if ($tagValidation['has_changes']) {
-                    Log::info('Facebook tags filtered', [
-                        'video_target_id' => $this->videoTarget->id,
-                        'removed_hashtags' => $tagValidation['removed_hashtags'],
-                        'warnings' => $tagValidation['warnings'],
-                    ]);
-                }
-            }
-            
-            $videoData['tags'] = $tags;
-            Log::info('Facebook tags setting applied', [
-                'video_target_id' => $this->videoTarget->id,
-                'tags' => $tags,
-            ]);
-        } elseif (!empty($this->videoTarget->video->tags)) {
-            // Use tags from video database field if no advanced options tags
-            $videoTags = $this->videoTarget->video->tags;
-            if (is_array($videoTags) && !empty($videoTags)) {
-                $tagsString = implode(' ', array_map(function($tag) {
-                    return '#' . str_replace('#', '', $tag);
-                }, $videoTags));
-                
-                $tagValidation = $this->hashtagValidator->validateAndFilterHashtags('facebook', $tagsString);
-                $filteredTags = $tagValidation['filtered_content'];
-                
-                if ($tagValidation['has_changes']) {
-                    Log::info('Facebook video tags filtered', [
-                        'video_target_id' => $this->videoTarget->id,
-                        'removed_hashtags' => $tagValidation['removed_hashtags'],
-                        'warnings' => $tagValidation['warnings'],
-                    ]);
-                }
-                
-                $videoData['tags'] = $filteredTags;
-                Log::info('Facebook video tags applied', [
-                    'video_target_id' => $this->videoTarget->id,
-                    'tags' => $filteredTags,
-                ]);
-            }
-        }
-
         // Add branded content settings
         if ($options['brandedContent'] ?? false) {
             $videoData['is_branded_content'] = true;
@@ -608,7 +544,6 @@ class UploadVideoToFacebook implements ShouldQueue
             'description_length' => strlen($videoData['description'] ?? ''),
             'has_privacy' => isset($videoData['privacy']),
             'has_place' => isset($videoData['place']),
-            'has_tags' => isset($videoData['tags']),
             'is_branded_content' => isset($videoData['is_branded_content']),
         ]);
 
