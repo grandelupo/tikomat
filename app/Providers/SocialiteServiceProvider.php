@@ -103,7 +103,7 @@ class XProvider extends AbstractProvider
 
     public function getScopes()
     {
-        return ['tweet.read', 'users.read', 'offline.access'];
+        return ['tweet.read', 'tweet.write', 'users.read', 'offline.access'];
     }
 }
 

@@ -477,6 +477,28 @@ class SocialAccountController extends Controller
                 );
             }
 
+            // Handle Facebook page selection if platform is Facebook
+            if ($platform === 'facebook') {
+                \Log::info('Facebook OAuth general callback - starting page selection', [
+                    'channel_slug' => $channel->slug,
+                    'user_id' => Auth::id(),
+                    'has_token' => !empty($socialUser->token),
+                    'has_refresh_token' => !empty($socialUser->refreshToken),
+                ]);
+                return $this->handleFacebookPageSelection($channel, $socialUser);
+            }
+
+            // Handle YouTube channel selection if platform is YouTube
+            if ($platform === 'youtube') {
+                \Log::info('YouTube OAuth general callback - starting channel selection', [
+                    'channel_slug' => $channel->slug,
+                    'user_id' => Auth::id(),
+                    'has_token' => !empty($socialUser->token),
+                    'has_refresh_token' => !empty($socialUser->refreshToken),
+                ]);
+                return $this->handleYouTubeChannelSelection($channel, $socialUser);
+            }
+
             // Store or update social account
             // First, delete any existing social account for this user+platform combination
             // to avoid conflicts with the old unique constraint
@@ -635,7 +657,13 @@ class SocialAccountController extends Controller
                 ->redirect();
         } elseif ($platform === 'facebook') {
             // Facebook requires pages and video publishing permissions
+            // Override redirect URL to use channel-specific callback
+            $stateData = json_decode(base64_decode($state), true);
+            $channelSlug = $stateData['channel_slug'] ?? '';
+            $redirectUrl = rtrim(config('app.url'), '/') . '/channels/' . $channelSlug . '/auth/facebook/callback';
+            
             return Socialite::driver($driver)
+                ->redirectUrl($redirectUrl)
                 ->scopes([
                     'pages_manage_posts',           // Required for posting to pages
                     'pages_read_engagement',        // Required for reading page data
