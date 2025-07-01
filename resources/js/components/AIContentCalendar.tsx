@@ -302,22 +302,22 @@ const AIContentCalendar: React.FC<AIContentCalendarProps> = ({ userId, className
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        <p className="text-gray-600 mb-4">
+                        <p className="text-muted-foreground mb-4">
                             Follow these steps to unlock AI-powered personalized insights:
                         </p>
 
                         <div className="space-y-3">
                             {setup_guide.steps.map((step, index) => (
-                                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                <div key={index} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
                                     <div className={cn(
                                         "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-                                        step.importance === 'high' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                        step.importance === 'high' ? 'bg-red-950/20 text-red-300' : 'bg-blue-950/20 text-blue-300'
                                     )}>
                                         {index + 1}
                                     </div>
                                     <div className="flex-1">
                                         <h4 className="font-medium">{step.title}</h4>
-                                        <p className="text-sm text-gray-600 mt-1">{step.description}</p>
+                                        <p className="text-sm text-muted-foreground mt-1">{step.description}</p>
                                         <Badge variant="outline" className="mt-2 text-xs">
                                             {step.action}
                                         </Badge>
@@ -326,17 +326,17 @@ const AIContentCalendar: React.FC<AIContentCalendarProps> = ({ userId, className
                             ))}
                         </div>
 
-                        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                            <h4 className="font-medium text-blue-900">Benefits of Setup:</h4>
+                        <div className="mt-6 p-4 bg-blue-950/20 rounded-lg">
+                            <h4 className="font-medium text-blue-300">Benefits of Setup:</h4>
                             <ul className="mt-2 space-y-1">
                                 {setup_guide.benefits.map((benefit, index) => (
-                                    <li key={index} className="text-sm text-blue-700 flex items-center gap-2">
+                                    <li key={index} className="text-sm text-blue-200 flex items-center gap-2">
                                         <Star className="h-3 w-3" />
                                         {benefit}
                                     </li>
                                 ))}
                             </ul>
-                            <p className="text-xs text-blue-600 mt-3">
+                            <p className="text-xs text-blue-300 mt-3">
                                 Estimated time: {setup_guide.estimated_time}
                             </p>
                         </div>
@@ -425,7 +425,7 @@ const AIContentCalendar: React.FC<AIContentCalendarProps> = ({ userId, className
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 {Object.values(day.platforms).map((platform) => (
-                                    <div key={platform.platform} className="p-3 bg-gray-50 rounded-lg">
+                                    <div key={platform.platform} className="p-3 bg-muted rounded-lg">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span>{getPlatformIcon(platform.platform)}</span>
                                             <span className="font-medium capitalize">{platform.platform}</span>
@@ -440,14 +440,14 @@ const AIContentCalendar: React.FC<AIContentCalendarProps> = ({ userId, className
                                             <p>Best times: {platform.optimal_times.join(', ')}</p>
                                             
                                             {calendarData.has_data && platform.video_count !== undefined && (
-                                                <p className="text-gray-600">
+                                                <p className="text-muted-foreground">
                                                     Based on {platform.video_count} videos
                                                     {platform.success_rate && ` (${platform.success_rate}% success rate)`}
                                                 </p>
                                             )}
                                             
                                             {platform.note && (
-                                                <p className="text-xs text-gray-500 italic">{platform.note}</p>
+                                                <p className="text-xs text-muted-foreground italic">{platform.note}</p>
                                             )}
                                         </div>
                                     </div>

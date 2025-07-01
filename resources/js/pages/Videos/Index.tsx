@@ -368,7 +368,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                                             <div key={target.id} className="flex items-center">
                                                                 <Badge 
                                                                     variant="secondary"
-                                                                    className={`${statusColors[target.status]} flex items-center gap-1 text-xs`}
+                                                                    className={`${statusColors[target.status]} flex items-center gap-1 text-xs text-foreground`}
                                                                 >
                                                                     <PlatformIcon className="h-3 w-3" />
                                                                     <StatusIcon className="h-3 w-3" />

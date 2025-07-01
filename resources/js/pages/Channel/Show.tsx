@@ -268,7 +268,7 @@ export default function ChannelShow({
                                         const PlatformIcon = platformIcons[platform.name as keyof typeof platformIcons];
                                         
                                         return (
-                                            <Card key={platform.name} className={`transition-all ${isConnected ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
+                                            <Card key={platform.name} className={`transition-all ${isConnected ? 'border-green-800 bg-green-950/20' : 'border-gray-200'}`}>
                                                 <CardContent className="p-4">
                                                     {/* Platform Icon and Name */}
                                                     <div className="flex items-center space-x-3 mb-4">
@@ -342,15 +342,15 @@ export default function ChannelShow({
                                 
                                 {/* Upgrade banner if there are restricted platforms */}
                                 {availablePlatforms.filter(p => !p.allowed).length > 0 && (
-                                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <div className="mt-4 p-4 bg-blue-950/20 border border-blue-800 rounded-lg">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3">
-                                                <div className="p-2 bg-blue-100 rounded-lg">
-                                                    <Crown className="w-4 h-4 text-blue-600" />
+                                                <div className="p-2 bg-blue-950/20 rounded-lg">
+                                                    <Crown className="w-4 h-4 text-blue-400" />
                                                 </div>
                                                 <div>
-                                                    <h4 className="font-medium text-blue-900 text-sm">Unlock More Platforms</h4>
-                                                    <p className="text-xs text-blue-700">
+                                                    <h4 className="font-medium text-blue-300 text-sm">Unlock More Platforms</h4>
+                                                    <p className="text-xs text-blue-200">
                                                         Upgrade to Pro to access Instagram, TikTok, and more platforms for just $0.60/day
                                                     </p>
                                                 </div>
@@ -380,7 +380,7 @@ export default function ChannelShow({
                                 const PlatformIcon = platformIcons[account.platform as keyof typeof platformIcons];
                                 
                                 return (
-                                    <Card key={account.id} className="border-green-200 bg-green-50">
+                                    <Card key={account.id} className="border-green-800 bg-green-950/20">
                                         <CardContent className="p-4">
                                             {/* Profile Header */}
                                             <div className="flex items-center space-x-3 mb-4">
@@ -401,7 +401,7 @@ export default function ChannelShow({
                                                                 : account.profile_name || 'Profile'
                                                         } 
                                                     />
-                                                    <AvatarFallback className="bg-white">
+                                                    <AvatarFallback className="bg-background">
                                                         {account.platform === 'youtube' && account.platform_channel_name
                                                             ? getInitials(account.platform_channel_name)
                                                             : account.platform === 'facebook' && account.facebook_page_name
@@ -461,17 +461,17 @@ export default function ChannelShow({
                             })}
                         </div>
                     ) : (
-                        <Card className="border-gray-200 bg-gray-50">
+                        <Card className="border-gray-200 bg-muted">
                             <CardContent className="text-center py-8">
                                 <div className="flex flex-col items-center space-y-4">
                                     <div className="p-4 bg-gray-100 rounded-full">
                                         <Users className="w-8 h-8 text-gray-600" />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Platforms Connected</h3>
-                                        <p className="text-sm text-gray-600 mb-4">
-                                            Connect your social media accounts to start publishing videos across platforms.
-                                        </p>
+                                        <h3 className="text-lg font-medium text-foreground mb-2">No Platforms Connected</h3>
+                                                                <p className="text-sm text-muted-foreground mb-4">
+                            Connect your social media accounts to start publishing videos across platforms.
+                        </p>
                                         <Button 
                                             onClick={() => setIsConnectPlatformsOpen(true)}
                                             className="bg-blue-600 hover:bg-blue-700"
@@ -579,7 +579,7 @@ export default function ChannelShow({
                                                             <div key={target.id} className="flex items-center">
                                                                 <Badge 
                                                                     variant="secondary"
-                                                                    className={`${statusColors[target.status as keyof typeof statusColors]} flex items-center gap-1 text-xs`}
+                                                                    className={`${statusColors[target.status as keyof typeof statusColors]} flex items-center gap-1 text-xs text-foreground`}
                                                                 >
                                                                     <PlatformIcon className="h-3 w-3" />
                                                                     <StatusIcon className="h-3 w-3" />
@@ -647,7 +647,7 @@ export default function ChannelShow({
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             <div className="space-y-3">
-                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
+                                                                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
                                     <input
                                         type="radio"
                                         id="delete-tikomat-channel"
@@ -667,7 +667,7 @@ export default function ChannelShow({
                                     </div>
                                 </div>
                                 
-                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('all')}>
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted cursor-pointer" onClick={() => setDeleteOption('all')}>
                                     <input
                                         type="radio"
                                         id="delete-all-channel"

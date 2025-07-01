@@ -328,7 +328,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                     <Button
                         onClick={detectWatermarks}
                         disabled={loading || !videoPath}
-                        className="bg-white text-blue-600 hover:bg-blue-50"
+                                                            className="bg-background text-blue-400 hover:bg-blue-950/20"
                     >
                         <Scan className="w-4 h-4 mr-2" />
                         {loading ? 'Detecting...' : 'Detect Watermarks'}
@@ -441,7 +441,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                             key={method.id}
                             className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
                                 removalSettings.method === method.id 
-                                    ? 'border-blue-500 bg-blue-50' 
+                                    ? 'border-blue-500 bg-blue-950/20' 
                                     : 'border-gray-200 hover:border-gray-300'
                             }`}
                             onClick={() => setRemovalSettings(prev => ({ ...prev, method: method.id }))}
@@ -522,7 +522,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                     <Button
                         onClick={removeWatermarks}
                         disabled={loading || selectedWatermarks.length === 0}
-                        className="bg-white text-red-600 hover:bg-red-50"
+                                                            className="bg-background text-red-400 hover:bg-red-950/20"
                     >
                         <Trash2 className="w-4 h-4 mr-2" />
                         {loading ? 'Processing...' : 'Remove Watermarks'}
@@ -599,7 +599,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                             <h3 className="text-lg font-semibold mb-4">Removal Results</h3>
                             <div className="space-y-3">
                                 {removalProgress.removal_results.map((result, index) => (
-                                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                                         <div className="flex items-center space-x-3">
                                             {result.removal_success ? (
                                                 <CheckCircle className="w-5 h-5 text-green-600" />
@@ -623,7 +623,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                     )}
                 </>
             ) : (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <div className="text-center py-12 bg-muted rounded-lg">
                     <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No Active Removal</h3>
                     <p className="text-gray-600">Start watermark removal to see progress here.</p>
@@ -634,7 +634,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
 
     const renderQualityTab = () => (
         <div className="space-y-6">
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
+                            <div className="text-center py-12 bg-muted rounded-lg">
                 <Eye className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Quality Analysis</h3>
                 <p className="text-gray-600">Complete watermark removal to see quality analysis.</p>

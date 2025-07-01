@@ -440,7 +440,7 @@ export default function AITrendAnalyzer({
                                                 <h5 className="font-medium text-sm mb-2">Platforms:</h5>
                                                 <div className="flex flex-wrap gap-1">
                                                     {topic.platforms.map((platform, platformIndex) => (
-                                                        <div key={platformIndex} className="flex items-center gap-1 text-xs bg-gray-100 rounded px-2 py-1">
+                                                        <div key={platformIndex} className="flex items-center gap-1 text-xs bg-muted rounded px-2 py-1">
                                                             <span>{getPlatformIcon(platform)}</span>
                                                             <span className="capitalize">{platform}</span>
                                                         </div>
@@ -462,7 +462,7 @@ export default function AITrendAnalyzer({
 
                                         <div className="flex items-center justify-between pt-3 border-t mt-3">
                                             <div className="text-sm">
-                                                <span className="text-gray-600">Competition: </span>
+                                                <span className="text-muted-foreground">Competition: </span>
                                                 <span className="font-medium">{topic.competitor_adoption}%</span>
                                             </div>
                                             <div className="text-sm font-medium text-green-600">
@@ -486,7 +486,7 @@ export default function AITrendAnalyzer({
                                                     <Flame className="w-4 h-4 text-red-500" />
                                                     {content.content_type}
                                                 </h4>
-                                                <p className="text-sm text-gray-600">
+                                                <p className="text-sm text-muted-foreground">
                                                     {content.target_demographic} • {content.implementation_ease} to create
                                                 </p>
                                             </div>
@@ -501,20 +501,20 @@ export default function AITrendAnalyzer({
                                         </div>
 
                                         <div className="grid md:grid-cols-3 gap-4 mb-4">
-                                            <div className="text-center p-3 bg-red-50 rounded-lg">
-                                                <Eye className="w-6 h-6 text-red-600 mx-auto mb-1" />
+                                            <div className="text-center p-3 bg-red-950/20 rounded-lg">
+                                                <Eye className="w-6 h-6 text-red-400 mx-auto mb-1" />
                                                 <div className="text-lg font-bold">{content.estimated_reach.toLocaleString()}</div>
-                                                <div className="text-xs text-gray-600">Est. Reach</div>
+                                                <div className="text-xs text-muted-foreground">Est. Reach</div>
                                             </div>
-                                            <div className="text-center p-3 bg-orange-50 rounded-lg">
-                                                <Heart className="w-6 h-6 text-orange-600 mx-auto mb-1" />
+                                            <div className="text-center p-3 bg-orange-950/20 rounded-lg">
+                                                <Heart className="w-6 h-6 text-orange-400 mx-auto mb-1" />
                                                 <div className="text-lg font-bold">{content.engagement_rate}%</div>
-                                                <div className="text-xs text-gray-600">Engagement</div>
+                                                <div className="text-xs text-muted-foreground">Engagement</div>
                                             </div>
-                                            <div className="text-center p-3 bg-blue-50 rounded-lg">
-                                                <Clock className="w-6 h-6 text-blue-600 mx-auto mb-1" />
+                                            <div className="text-center p-3 bg-blue-950/20 rounded-lg">
+                                                <Clock className="w-6 h-6 text-blue-400 mx-auto mb-1" />
                                                 <div className="text-lg font-bold">{content.optimal_timing}</div>
-                                                <div className="text-xs text-gray-600">Best Time</div>
+                                                <div className="text-xs text-muted-foreground">Best Time</div>
                                             </div>
                                         </div>
 
@@ -522,7 +522,7 @@ export default function AITrendAnalyzer({
                                             <h5 className="font-medium text-sm mb-2">Success Factors:</h5>
                                             <div className="space-y-1">
                                                 {content.success_factors.map((factor, factorIndex) => (
-                                                    <div key={factorIndex} className="text-sm text-gray-600 flex items-start gap-2">
+                                                    <div key={factorIndex} className="text-sm text-muted-foreground flex items-start gap-2">
                                                         <CheckCircle className="w-3 h-3 mt-0.5 text-green-500 flex-shrink-0" />
                                                         {factor}
                                                     </div>
@@ -535,7 +535,7 @@ export default function AITrendAnalyzer({
                                                 <h5 className="font-medium text-sm mb-1">Platforms:</h5>
                                                 <div className="flex flex-wrap gap-1">
                                                     {content.platforms.map((platform, platformIndex) => (
-                                                        <div key={platformIndex} className="flex items-center gap-1 text-xs bg-gray-100 rounded px-2 py-1">
+                                                        <div key={platformIndex} className="flex items-center gap-1 text-xs bg-muted rounded px-2 py-1">
                                                             <span>{getPlatformIcon(platform)}</span>
                                                             <span className="capitalize">{platform}</span>
                                                         </div>
@@ -570,7 +570,7 @@ export default function AITrendAnalyzer({
                                                     <Hash className="w-4 h-4 text-blue-500" />
                                                     {hashtag.hashtag}
                                                 </h4>
-                                                <p className="text-sm text-gray-600">
+                                                <p className="text-sm text-muted-foreground">
                                                     {hashtag.usage_count.toLocaleString()} uses • {hashtag.target_demographic}
                                                 </p>
                                             </div>
@@ -586,21 +586,21 @@ export default function AITrendAnalyzer({
                                         </div>
 
                                         <div className="grid md:grid-cols-4 gap-4 mb-4">
-                                            <div className="text-center p-3 bg-blue-50 rounded-lg">
-                                                <div className="text-lg font-bold text-blue-600">{hashtag.growth_rate}</div>
-                                                <div className="text-xs text-gray-600">Growth Rate</div>
+                                            <div className="text-center p-3 bg-blue-950/20 rounded-lg">
+                                                <div className="text-lg font-bold text-blue-400">{hashtag.growth_rate}</div>
+                                                <div className="text-xs text-muted-foreground">Growth Rate</div>
                                             </div>
-                                            <div className="text-center p-3 bg-green-50 rounded-lg">
-                                                <div className="text-lg font-bold text-green-600">{hashtag.engagement_boost}x</div>
-                                                <div className="text-xs text-gray-600">Engagement Boost</div>
+                                            <div className="text-center p-3 bg-green-950/20 rounded-lg">
+                                                <div className="text-lg font-bold text-green-400">{hashtag.engagement_boost}x</div>
+                                                <div className="text-xs text-muted-foreground">Engagement Boost</div>
                                             </div>
-                                            <div className="text-center p-3 bg-purple-50 rounded-lg">
-                                                <div className="text-lg font-bold text-purple-600 capitalize">{hashtag.optimal_usage}</div>
-                                                <div className="text-xs text-gray-600">Usage Type</div>
+                                            <div className="text-center p-3 bg-purple-950/20 rounded-lg">
+                                                <div className="text-lg font-bold text-purple-400 capitalize">{hashtag.optimal_usage}</div>
+                                                <div className="text-xs text-muted-foreground">Usage Type</div>
                                             </div>
-                                            <div className="text-center p-3 bg-orange-50 rounded-lg">
-                                                <div className="text-lg font-bold text-orange-600">{hashtag.longevity_prediction}</div>
-                                                <div className="text-xs text-gray-600">Lifespan</div>
+                                            <div className="text-center p-3 bg-orange-950/20 rounded-lg">
+                                                <div className="text-lg font-bold text-orange-400">{hashtag.longevity_prediction}</div>
+                                                <div className="text-xs text-muted-foreground">Lifespan</div>
                                             </div>
                                         </div>
 

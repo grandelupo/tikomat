@@ -291,7 +291,7 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
                                 <p className="text-sm text-gray-600">Total Competitors</p>
                             </div>
                             <div className="text-center">
-                                <p className="text-2xl font-bold text-green-600">
+                                <p className="text-2xl font-bold text-green-400">
                                     {strategyData.competitive_analysis.market_landscape.active_competitors}
                                 </p>
                                 <p className="text-sm text-gray-600">Active Competitors</p>
@@ -472,8 +472,8 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
                         <CardTitle>Budget Recommendations</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="text-center p-4 bg-green-50 rounded-lg">
-                            <p className="text-sm text-gray-600">Recommended Monthly Budget</p>
+                                                        <div className="text-center p-4 bg-green-950/20 rounded-lg">
+                                                          <p className="text-sm text-muted-foreground">Recommended Monthly Budget</p>
                             <p className="text-2xl font-bold text-green-600">
                                 {strategyData.budget_recommendations.monthly_budget_range}
                             </p>

@@ -748,13 +748,13 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
                 {/* Unsaved Changes Window - Show when there are unsaved changes */}
                 {hasUnsavedChanges && (
-                    <Card className="border-orange-200 bg-orange-50">
-                        <CardContent className="p-6">
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-orange-500 rounded-full">
-                                        <AlertCircle className="w-5 h-5 text-white" />
-                                    </div>
+                                         <Card className="border-orange-800 bg-orange-950/20">
+                         <CardContent className="p-6">
+                             <div className="space-y-4">
+                                 <div className="flex items-center gap-3">
+                                     <div className="p-2 bg-orange-500 rounded-full">
+                                         <AlertCircle className="w-5 h-5 text-white" />
+                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-orange-900 text-lg">Unsaved Changes Detected</h3>
                                         <p className="text-sm text-orange-700">The following changes have been made to your video:</p>
@@ -764,7 +764,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                 {/* List of Changes */}
                                 <div className="space-y-2">
                                     {changes.map((change, index) => (
-                                        <div key={index} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-orange-200">
+                                                                                 <div key={index} className="flex items-center gap-3 p-3 bg-background rounded-lg border border-orange-800">
                                             <div className="flex-shrink-0">
                                                 {change.type === 'title' && <Type className="w-4 h-4 text-blue-600" />}
                                                 {change.type === 'description' && <FileText className="w-4 h-4 text-green-600" />}
@@ -798,7 +798,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                     <Button 
                                         onClick={discardAllChanges}
                                         variant="outline"
-                                        className="border-red-300 text-red-700 hover:bg-red-50"
+                                                                                 className="border-red-800 text-red-300 hover:bg-red-950/20"
                                     >
                                         <X className="w-4 h-4 mr-2" />
                                         Discard All Changes
@@ -936,12 +936,12 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-4">
-                                            <div className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
+                                            <div className="p-4 border border-orange-800 bg-orange-950/20 rounded-lg">
                                                 <div className="flex items-start gap-3">
-                                                    <TrendingUp className="w-5 h-5 text-orange-600 mt-0.5" />
+                                                    <TrendingUp className="w-5 h-5 text-orange-400 mt-0.5" />
                                                     <div>
-                                                        <h4 className="font-medium text-orange-900">Increase Engagement</h4>
-                                                        <p className="text-sm text-orange-700">Add a call-to-action in the first 5 seconds to boost viewer retention.</p>
+                                                        <h4 className="font-medium text-orange-300">Increase Engagement</h4>
+                                                        <p className="text-sm text-orange-200">Add a call-to-action in the first 5 seconds to boost viewer retention.</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -956,12 +956,12 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                 </div>
                                             </div>
                                             
-                                            <div className="p-4 border border-green-200 bg-green-50 rounded-lg">
+                                            <div className="p-4 border border-green-800 bg-green-950/20 rounded-lg">
                                                 <div className="flex items-start gap-3">
-                                                    <Tag className="w-5 h-5 text-green-600 mt-0.5" />
+                                                    <Tag className="w-5 h-5 text-green-400 mt-0.5" />
                                                     <div>
-                                                        <h4 className="font-medium text-green-900">Add More Tags</h4>
-                                                        <p className="text-sm text-green-700">Include platform-specific hashtags to improve discoverability.</p>
+                                                        <h4 className="font-medium text-green-300">Add More Tags</h4>
+                                                        <p className="text-sm text-green-200">Include platform-specific hashtags to improve discoverability.</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1251,8 +1251,8 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         </div>
                                         
                                         {selectedThumbnail && (
-                                            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                                <p className="text-sm text-green-700">
+                                            <div className="mt-4 p-3 bg-green-950/20 border border-green-800 rounded-lg">
+                                                <p className="text-sm text-green-300">
                                                     ✓ Thumbnail has been set for this video
                                                 </p>
                                             </div>

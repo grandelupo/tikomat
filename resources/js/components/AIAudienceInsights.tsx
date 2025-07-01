@@ -129,18 +129,18 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
 
         return (
             <div className="max-w-4xl mx-auto p-6">
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-6">
+                <div className="bg-amber-950/20 border border-amber-800 rounded-lg p-6 mb-6">
                     <div className="flex items-center mb-4">
-                        <AlertTriangle className="w-6 h-6 text-amber-600 mr-3" />
-                        <h3 className="text-lg font-semibold text-amber-800">Not Enough Data for Analysis</h3>
+                        <AlertTriangle className="w-6 h-6 text-amber-400 mr-3" />
+                        <h3 className="text-lg font-semibold text-amber-300">Not Enough Data for Analysis</h3>
                     </div>
-                    <p className="text-amber-700 mb-4">{insights.message}</p>
+                    <p className="text-amber-200 mb-4">{insights.message}</p>
                     
                     {insights.data_sufficiency && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <div className="bg-background rounded-lg p-4 border border-amber-200">
+                            <div className="bg-background rounded-lg p-4 border border-amber-800">
                                 <div className="text-sm text-muted-foreground">Videos Created</div>
-                                <div className="text-2xl font-bold text-amber-800">
+                                <div className="text-2xl font-bold text-amber-300">
                                     {insights.data_sufficiency.metrics.video_count}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
@@ -148,9 +148,9 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
                                 </div>
                             </div>
                             
-                            <div className="bg-background rounded-lg p-4 border border-amber-200">
+                            <div className="bg-background rounded-lg p-4 border border-amber-800">
                                 <div className="text-sm text-muted-foreground">Connected Platforms</div>
-                                <div className="text-2xl font-bold text-amber-800">
+                                <div className="text-2xl font-bold text-amber-300">
                                     {insights.data_sufficiency.metrics.connected_platforms}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
@@ -158,9 +158,9 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
                                 </div>
                             </div>
                             
-                            <div className="bg-background rounded-lg p-4 border border-amber-200">
+                            <div className="bg-background rounded-lg p-4 border border-amber-800">
                                 <div className="text-sm text-muted-foreground">Publishing History</div>
-                                <div className="text-2xl font-bold text-amber-800">
+                                <div className="text-2xl font-bold text-amber-300">
                                     {insights.data_sufficiency.metrics.publishing_history}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
@@ -172,29 +172,29 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
                 </div>
 
                 {insights.recommendations && insights.recommendations.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                        <h4 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                    <div className="bg-blue-950/20 border border-blue-800 rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-blue-300 mb-4 flex items-center">
                             <Zap className="w-5 h-5 mr-2" />
                             Recommended Actions
                         </h4>
                         <div className="space-y-4">
                             {insights.recommendations.map((recommendation, index) => (
-                                <div key={index} className="bg-white rounded-lg p-4 border border-blue-200">
+                                <div key={index} className="bg-background rounded-lg p-4 border border-blue-800">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <h5 className="font-medium text-blue-900 mb-1">
+                                            <h5 className="font-medium text-blue-300 mb-1">
                                                 {recommendation.action}
                                             </h5>
-                                            <p className="text-blue-700 text-sm mb-2">
+                                            <p className="text-blue-200 text-sm mb-2">
                                                 {recommendation.description}
                                             </p>
-                                            <div className="flex items-center space-x-4 text-xs text-blue-600">
+                                            <div className="flex items-center space-x-4 text-xs text-blue-300">
                                                 <span className={`px-2 py-1 rounded-full ${
                                                     recommendation.priority === 'critical' 
-                                                        ? 'bg-red-100 text-red-800' 
+                                                        ? 'bg-red-950/20 text-red-300' 
                                                         : recommendation.priority === 'high'
-                                                        ? 'bg-orange-100 text-orange-800'
-                                                        : 'bg-blue-100 text-blue-800'
+                                                        ? 'bg-orange-950/20 text-orange-300'
+                                                        : 'bg-blue-950/20 text-blue-300'
                                                 }`}>
                                                     {recommendation.priority} priority
                                                 </span>
@@ -243,28 +243,28 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
                 {insights?.data_sufficiency && (
                     <div className={`rounded-lg p-4 ${
                         insights.data_sufficiency.confidence === 'high' 
-                            ? 'bg-green-50 border border-green-200' 
+                            ? 'bg-green-950/20 border border-green-800' 
                             : insights.data_sufficiency.confidence === 'medium'
-                            ? 'bg-yellow-50 border border-yellow-200'
-                            : 'bg-red-50 border border-red-200'
+                            ? 'bg-yellow-950/20 border border-yellow-800'
+                            : 'bg-red-950/20 border border-red-800'
                     }`}>
                         <div className="flex items-center justify-between">
                             <div>
                                 <h3 className={`font-medium ${
                                     insights.data_sufficiency.confidence === 'high' 
-                                        ? 'text-green-800' 
+                                        ? 'text-green-300' 
                                         : insights.data_sufficiency.confidence === 'medium'
-                                        ? 'text-yellow-800'
-                                        : 'text-red-800'
+                                        ? 'text-yellow-300'
+                                        : 'text-red-300'
                                 }`}>
                                     Data Quality: {insights.data_sufficiency.confidence.charAt(0).toUpperCase() + insights.data_sufficiency.confidence.slice(1)} Confidence
                                 </h3>
                                 <p className={`text-sm ${
                                     insights.data_sufficiency.confidence === 'high' 
-                                        ? 'text-green-600' 
+                                        ? 'text-green-200' 
                                         : insights.data_sufficiency.confidence === 'medium'
-                                        ? 'text-yellow-600'
-                                        : 'text-red-600'
+                                        ? 'text-yellow-200'
+                                        : 'text-red-200'
                                 }`}>
                                     Based on {insights.data_sufficiency.metrics.video_count} videos and {insights.data_sufficiency.metrics.publishing_history} publications
                                 </p>
@@ -299,14 +299,14 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
 
                 {/* Key Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                    <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-gray-600">Success Rate</p>
-                                <p className="text-2xl font-bold text-gray-900">
+                                <p className="text-sm text-foreground">Success Rate</p>
+                                <p className="text-2xl font-bold text-foreground">
                                     {insights?.engagement_insights?.overall_metrics?.success_rate || 0}%
                                 </p>
-                                <p className="text-sm text-green-600 flex items-center mt-1">
+                                <p className="text-sm text-muted-foreground flex items-center mt-1">
                                     <ArrowUp className="w-4 h-4 mr-1" />
                                     Publishing success
                                 </p>
@@ -315,27 +315,27 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                    <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-gray-600">Total Publications</p>
-                                <p className="text-2xl font-bold text-gray-900">
+                                <p className="text-sm text-foreground">Total Publications</p>
+                                <p className="text-2xl font-bold text-foreground">
                                     {insights?.engagement_insights?.overall_metrics?.total_publications || 0}
                                 </p>
-                                <p className="text-sm text-gray-500 mt-1">Across platforms</p>
+                                <p className="text-sm text-muted-foreground mt-1">Across platforms</p>
                             </div>
                             <Target className="w-8 h-8 text-blue-500" />
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                    <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-gray-600">Platform Coverage</p>
-                                <p className="text-2xl font-bold text-gray-900">
+                                <p className="text-sm text-foreground">Platform Coverage</p>
+                                <p className="text-2xl font-bold text-foreground">
                                     {insights?.engagement_insights?.overall_metrics?.platform_coverage || settings.platforms.length}
                                 </p>
-                                <p className="text-sm text-gray-500 mt-1">Platforms active</p>
+                                <p className="text-sm text-muted-foreground mt-1">Platforms active</p>
                             </div>
                             <Globe className="w-8 h-8 text-green-500" />
                         </div>
@@ -343,15 +343,15 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
                 </div>
 
                 {/* Platform Distribution */}
-                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                     <h3 className="text-lg font-semibold mb-4">Platform Distribution</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {settings.platforms.map((platform) => (
-                            <div key={platform} className="flex items-center p-3 bg-gray-50 rounded-lg">
+                            <div key={platform} className="flex items-center p-3 bg-muted rounded-lg">
                                 <span className="text-2xl mr-3">{platformIcons[platform as keyof typeof platformIcons]}</span>
                                 <div>
                                     <p className="font-medium capitalize">{platform}</p>
-                                    <p className="text-sm text-gray-600">Active</p>
+                                    <p className="text-sm text-muted-foreground">Active</p>
                                 </div>
                             </div>
                         ))}
@@ -371,13 +371,13 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
                 {renderDataWarning(insights?.demographic_breakdown, 'Demographics')}
                 
                 {insights?.demographic_breakdown?.status ? (
-                    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                    <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                         <h3 className="text-lg font-semibold mb-4">Demographics Analysis</h3>
-                        <p className="text-gray-600">
+                        <p className="text-muted-foreground">
                             {insights.demographic_breakdown.message || 'No demographic data available yet.'}
                         </p>
-                        <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                            <p className="text-blue-800 text-sm">
+                        <div className="mt-4 p-4 bg-background rounded-lg">
+                            <p className="text-foreground text-sm">
                                 💡 <strong>Tip:</strong> Connect more social media accounts and publish videos to gather demographic insights.
                             </p>
                         </div>
@@ -385,25 +385,25 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
                 ) : (
                     <>
                         {/* Platform Activity */}
-                        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                        <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                             <h3 className="text-lg font-semibold mb-4">Platform Activity</h3>
                             <div className="space-y-4">
                                 {Object.entries(insights?.demographic_breakdown || {})
                                     .filter(([key]) => !['overall', 'analysis_period'].includes(key))
                                     .map(([platform, data]: [string, any]) => (
-                                    <div key={platform} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div key={platform} className="flex items-center justify-between p-4 bg-muted rounded-lg">
                                         <div className="flex items-center">
                                             <span className="text-2xl mr-3">{platformIcons[platform as keyof typeof platformIcons]}</span>
                                             <div>
                                                 <div className="font-medium capitalize">{platform}</div>
-                                                <div className="text-sm text-gray-600">
+                                                <div className="text-sm text-muted-foreground">
                                                     {data.publishing_count} publications
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-lg font-bold text-green-600">{data.success_rate}%</div>
-                                            <div className="text-sm text-gray-500">Success rate</div>
+                                            <div className="text-lg font-bold text-foreground">{data.success_rate}%</div>
+                                            <div className="text-sm text-muted-foreground">Success rate</div>
                                         </div>
                                     </div>
                                 ))}
@@ -412,32 +412,32 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
 
                         {/* Overall Demographics */}
                         {insights?.demographic_breakdown?.overall && (
-                            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                            <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                                 <h3 className="text-lg font-semibold mb-4">Overall Statistics</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                                        <div className="text-2xl font-bold text-blue-600">
+                                    <div className="text-center p-4 bg-muted rounded-lg">
+                                        <div className="text-2xl font-bold text-foreground">
                                             {insights.demographic_breakdown.overall.total_publications}
                                         </div>
-                                        <div className="text-sm text-gray-600">Total Publications</div>
+                                        <div className="text-sm text-muted-foreground">Total Publications</div>
                                     </div>
-                                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                                        <div className="text-2xl font-bold text-green-600">
+                                    <div className="text-center p-4 bg-muted rounded-lg">
+                                        <div className="text-2xl font-bold text-foreground">
                                             {insights.demographic_breakdown.overall.average_success_rate}%
                                         </div>
-                                        <div className="text-sm text-gray-600">Avg Success Rate</div>
+                                        <div className="text-sm text-muted-foreground">Avg Success Rate</div>
                                     </div>
-                                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                                        <div className="text-2xl font-bold text-purple-600">
+                                    <div className="text-center p-4 bg-muted rounded-lg">
+                                        <div className="text-2xl font-bold text-foreground">
                                             {insights.demographic_breakdown.overall.platform_diversity}
                                         </div>
-                                        <div className="text-sm text-gray-600">Platforms Used</div>
+                                        <div className="text-sm text-muted-foreground">Platforms Used</div>
                                     </div>
-                                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                                        <div className="text-lg font-bold text-orange-600 capitalize">
+                                    <div className="text-center p-4 bg-muted rounded-lg">
+                                        <div className="text-lg font-bold text-foreground capitalize">
                                             {insights.demographic_breakdown.overall.most_active_platform}
                                         </div>
-                                        <div className="text-sm text-gray-600">Most Active</div>
+                                        <div className="text-sm text-muted-foreground">Most Active</div>
                                     </div>
                                 </div>
                             </div>
@@ -456,9 +456,9 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
         return (
             <div className="space-y-6">
                 {renderDataWarning(insights?.audience_segments, 'Segmentation')}
-                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                     <h3 className="text-lg font-semibold mb-4">Audience Segments</h3>
-                    <p className="text-gray-600">Segment analysis based on your content and publishing patterns.</p>
+                    <p className="text-muted-foreground">Segment analysis based on your content and publishing patterns.</p>
                 </div>
             </div>
         );
@@ -472,9 +472,9 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
         return (
             <div className="space-y-6">
                 {renderDataWarning(insights?.behavior_patterns, 'Behavior')}
-                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                     <h3 className="text-lg font-semibold mb-4">Behavior Patterns</h3>
-                    <p className="text-gray-600">Analysis of content creation and publishing behavior.</p>
+                    <p className="text-muted-foreground">Analysis of content creation and publishing behavior.</p>
                 </div>
             </div>
         );
@@ -488,9 +488,9 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
         return (
             <div className="space-y-6">
                 {renderDataWarning(insights?.growth_opportunities, 'Growth')}
-                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                <div className="bg-background rounded-lg p-6 shadow-sm border border-gray-800">
                     <h3 className="text-lg font-semibold mb-4">Growth Opportunities</h3>
-                    <p className="text-gray-600">Recommendations for expanding your audience reach.</p>
+                    <p className="text-muted-foreground">Recommendations for expanding your audience reach.</p>
                 </div>
             </div>
         );

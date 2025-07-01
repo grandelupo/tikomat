@@ -542,12 +542,12 @@ export default function AIPerformanceOptimizer({
                             <CardContent>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     {Object.entries(analysis.platform_breakdown || {}).map(([platform, data]) => (
-                                        <div key={platform} className="text-center p-4 bg-gray-50 rounded-lg">
+                                        <div key={platform} className="text-center p-4 bg-muted rounded-lg">
                                             <div className="text-2xl mb-2">{getPlatformIcon(platform)}</div>
                                             <div className="font-medium capitalize mb-1">{platform}</div>
-                                            <div className="text-sm text-gray-600">#{data?.ranking || 0}</div>
-                                            <div className="text-lg font-bold text-blue-600">{data?.performance_score || 0}/100</div>
-                                            <div className="text-xs text-gray-500">{formatNumber(data?.views || 0)} views</div>
+                                            <div className="text-sm text-muted-foreground">#{data?.ranking || 0}</div>
+                                            <div className="text-lg font-bold text-blue-400">{data?.performance_score || 0}/100</div>
+                                            <div className="text-xs text-muted-foreground">{formatNumber(data?.views || 0)} views</div>
                                         </div>
                                     ))}
                                 </div>
@@ -574,20 +574,20 @@ export default function AIPerformanceOptimizer({
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div className="grid md:grid-cols-3 gap-4">
-                                            <div className="text-center p-3 bg-blue-50 rounded-lg">
-                                                <Eye className="w-6 h-6 text-blue-600 mx-auto mb-1" />
+                                            <div className="text-center p-3 bg-blue-950/20 rounded-lg">
+                                                <Eye className="w-6 h-6 text-blue-400 mx-auto mb-1" />
                                                 <div className="text-lg font-bold">{formatNumber(data?.views || 0)}</div>
-                                                <div className="text-xs text-gray-600">Views</div>
+                                                <div className="text-xs text-muted-foreground">Views</div>
                                             </div>
-                                            <div className="text-center p-3 bg-green-50 rounded-lg">
-                                                <Heart className="w-6 h-6 text-green-600 mx-auto mb-1" />
+                                            <div className="text-center p-3 bg-green-950/20 rounded-lg">
+                                                <Heart className="w-6 h-6 text-green-400 mx-auto mb-1" />
                                                 <div className="text-lg font-bold">{formatNumber(data?.engagement || 0)}</div>
-                                                <div className="text-xs text-gray-600">Total Engagement</div>
+                                                <div className="text-xs text-muted-foreground">Total Engagement</div>
                                             </div>
-                                            <div className="text-center p-3 bg-purple-50 rounded-lg">
-                                                <TrendingUp className="w-6 h-6 text-purple-600 mx-auto mb-1" />
+                                            <div className="text-center p-3 bg-purple-950/20 rounded-lg">
+                                                <TrendingUp className="w-6 h-6 text-purple-400 mx-auto mb-1" />
                                                 <div className="text-lg font-bold">{data?.engagement_rate || 0}%</div>
-                                                <div className="text-xs text-gray-600">Engagement Rate</div>
+                                                <div className="text-xs text-muted-foreground">Engagement Rate</div>
                                             </div>
                                         </div>
 
