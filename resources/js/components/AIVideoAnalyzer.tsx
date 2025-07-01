@@ -283,27 +283,27 @@ export default function AIVideoAnalyzer({
                     <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                         AI Video Analyzer
                     </CardTitle>
-                    <p className="text-gray-600">
+                    <p className="text-muted-foreground">
                         Get comprehensive insights about your video content using advanced AI analysis
                     </p>
                 </CardHeader>
                 <CardContent className="text-center space-y-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div className="p-3 bg-white rounded-lg border">
+                        <div className="p-3 bg-background rounded-lg border">
                             <Video className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-                            <p className="font-medium">Video Quality</p>
+                            <p className="font-medium text-foreground">Video Quality</p>
                         </div>
-                        <div className="p-3 bg-white rounded-lg border">
+                        <div className="p-3 bg-background rounded-lg border">
                             <FileText className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                            <p className="font-medium">Transcription</p>
+                            <p className="font-medium text-foreground">Transcription</p>
                         </div>
-                        <div className="p-3 bg-white rounded-lg border">
+                        <div className="p-3 bg-background rounded-lg border">
                             <Image className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                            <p className="font-medium">Scene Analysis</p>
+                            <p className="font-medium text-foreground">Scene Analysis</p>
                         </div>
-                        <div className="p-3 bg-white rounded-lg border">
+                        <div className="p-3 bg-background rounded-lg border">
                             <TrendingUp className="w-6 h-6 text-pink-600 mx-auto mb-2" />
-                            <p className="font-medium">Engagement Prediction</p>
+                            <p className="font-medium text-foreground">Engagement Prediction</p>
                         </div>
                     </div>
                     
@@ -318,7 +318,7 @@ export default function AIVideoAnalyzer({
                     </Button>
                     
                     {!videoPath && (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                             Upload a video first to enable AI analysis
                         </p>
                     )}
@@ -335,24 +335,24 @@ export default function AIVideoAnalyzer({
                         <Brain className="w-10 h-10 text-white" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Analyzing Your Video...</h3>
-                        <p className="text-gray-600 mb-4">
+                        <h3 className="text-xl font-bold text-foreground mb-2">Analyzing Your Video...</h3>
+                        <p className="text-muted-foreground mb-4">
                             Our AI is processing your video to extract valuable insights
                         </p>
                         <Progress value={75} className="w-full max-w-md mx-auto" />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div className="flex items-center justify-center gap-2 p-3 bg-white rounded-lg">
+                        <div className="flex items-center justify-center gap-2 p-3 bg-background rounded-lg">
                             <RefreshCw className="w-4 h-4 animate-spin text-purple-600" />
-                            <span>Extracting audio...</span>
+                            <span className="text-foreground">Extracting audio...</span>
                         </div>
-                        <div className="flex items-center justify-center gap-2 p-3 bg-white rounded-lg">
+                        <div className="flex items-center justify-center gap-2 p-3 bg-background rounded-lg">
                             <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
-                            <span>Analyzing scenes...</span>
+                            <span className="text-foreground">Analyzing scenes...</span>
                         </div>
-                        <div className="flex items-center justify-center gap-2 p-3 bg-white rounded-lg">
+                        <div className="flex items-center justify-center gap-2 p-3 bg-background rounded-lg">
                             <RefreshCw className="w-4 h-4 animate-spin text-green-600" />
-                            <span>Predicting engagement...</span>
+                            <span className="text-foreground">Predicting engagement...</span>
                         </div>
                     </div>
                 </CardContent>

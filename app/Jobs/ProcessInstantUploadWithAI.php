@@ -20,16 +20,19 @@ class ProcessInstantUploadWithAI implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected Video $video;
-    protected array $platforms;
+    public $timeout = 300;
+    public $tries = 3;
+    public $userId;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(Video $video, array $platforms)
-    {
-        $this->video = $video;
-        $this->platforms = $platforms;
+    public function __construct(
+        public Video $video,
+        public array $options = [],
+        public array $platforms = []
+    ) {
+        $this->userId = $video->user_id;
     }
 
     /**
@@ -42,10 +45,14 @@ class ProcessInstantUploadWithAI implements ShouldQueue
         VideoUploadService $uploadService
     ): void {
         try {
-            Log::info('Processing instant upload with AI', [
+            Log::info('Starting instant upload AI processing', [
                 'video_id' => $this->video->id,
+                'user_id' => $this->userId,
                 'platforms' => $this->platforms,
             ]);
+
+            // Process video with AI
+            $this->video->update(['status' => 'processing']);
 
             // Get video file path
             $videoPath = Storage::path($this->video->original_file_path);
@@ -279,8 +286,11 @@ class ProcessInstantUploadWithAI implements ShouldQueue
                 $uploadService->dispatchUploadJob($target);
             }
 
-            Log::info('Instant upload AI processing completed successfully', [
+            $this->video->update(['status' => 'completed']);
+
+            Log::info('Instant upload AI processing completed', [
                 'video_id' => $this->video->id,
+                'user_id' => $this->userId,
                 'platforms_count' => count($this->platforms),
                 'has_watermarks' => $needsWatermarkRemoval,
                 'has_subtitles' => $needsSubtitles,
@@ -289,10 +299,12 @@ class ProcessInstantUploadWithAI implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('Instant upload AI processing failed', [
                 'video_id' => $this->video->id,
+                'user_id' => $this->userId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
             
+            $this->video->update(['status' => 'failed']);
             $this->handleProcessingFailure($e->getMessage());
         }
     }
@@ -753,6 +765,7 @@ class ProcessInstantUploadWithAI implements ShouldQueue
     {
         Log::error('AI processing failed completely', [
             'video_id' => $this->video->id,
+            'user_id' => $this->userId,
             'error' => $error,
         ]);
 
@@ -782,5 +795,13 @@ class ProcessInstantUploadWithAI implements ShouldQueue
             'video_id' => $this->video->id,
             'error' => $error,
         ]);
+    }
+
+    /**
+     * Get the user ID for notification targeting.
+     */
+    public function getUserId(): ?int
+    {
+        return $this->userId;
     }
 } 

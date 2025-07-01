@@ -53,7 +53,7 @@ export default function Contact({ auth }: ContactProps) {
             <Head title="Contact Us - Tikomat" />
             
             {/* Header */}
-            <header className="border-b bg-white">
+            <header className="border-b bg-background">
                 <div className="container mx-auto px-4 py-4 flex items-center justify-between">
                     <Link href="/" className="flex items-center space-x-2">
                         <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
@@ -93,7 +93,7 @@ export default function Contact({ auth }: ContactProps) {
             </header>
 
             {/* Breadcrumb */}
-            <section className="bg-gray-50 py-4">
+            <section className="bg-muted py-4">
                 <div className="container mx-auto px-4">
                     <div className="flex items-center space-x-2 text-sm">
                         <Link href="/" className="text-gray-500 hover:text-gray-700 flex items-center">
@@ -120,7 +120,7 @@ export default function Contact({ auth }: ContactProps) {
             </section>
 
             {/* Contact Form & Info */}
-            <section className="py-20 bg-white">
+            <section className="py-20 bg-background">
                 <div className="container mx-auto px-4">
                     <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
                         {/* Contact Form */}
@@ -334,7 +334,7 @@ export default function Contact({ auth }: ContactProps) {
             </section>
 
             {/* FAQ Section */}
-            <section className="py-20 bg-gray-50">
+            <section className="py-20 bg-muted">
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-12">
                         <h2 className="text-3xl font-bold text-gray-900 mb-4">

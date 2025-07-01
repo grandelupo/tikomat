@@ -166,7 +166,7 @@ export default function Connections({
                                             <div className="space-y-2">
                                                 <p className="text-sm font-medium">Connected Channels:</p>
                                                 {connectedChannels.map((account) => (
-                                                    <div key={account.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                    <div key={account.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                                                         <div className="flex items-center space-x-3 flex-1">
                                                             <Avatar className="h-8 w-8">
                                                                 <AvatarImage 
@@ -185,7 +185,7 @@ export default function Connections({
                                                                             : account.profile_name || account.channel_name
                                                                     } 
                                                                 />
-                                                                <AvatarFallback className="text-xs bg-white">
+                                                                <AvatarFallback className="text-xs bg-background">
                                                                     {account.platform === 'youtube' && account.platform_channel_name
                                                                         ? getInitials(account.platform_channel_name)
                                                                         : account.platform === 'facebook' && account.facebook_page_name

@@ -41,9 +41,9 @@ const ThumbnailOptimizerPopup: React.FC<ThumbnailOptimizerPopupProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="bg-background rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="p-6 border-b bg-gradient-to-r from-purple-50 to-blue-50">
+                  <div className="p-6 border-b bg-gradient-to-r from-muted/50 to-muted/30">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg">

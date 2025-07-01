@@ -9,11 +9,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, Billable;
+    use HasApiTokens, HasFactory, Notifiable, Billable;
 
     /**
      * The attributes that are mass assignable.
@@ -57,6 +58,7 @@ class User extends Authenticatable
             'completed_tutorials' => 'array',
             'notifications' => 'array',
             'notification_settings' => 'array',
+            'is_admin' => 'boolean',
         ];
     }
 
@@ -375,5 +377,33 @@ class User extends Authenticatable
             'UploadVideoToPinterest', 'UploadVideoToX' => 'upload_errors',
             default => 'ai_errors',
         };
+    }
+
+    /**
+     * Check if user is admin.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->is_admin === true;
+    }
+
+    /**
+     * Check if user has completed a specific tutorial.
+     */
+    public function hasCompletedTutorial(string $tutorialName): bool
+    {
+        return in_array($tutorialName, $this->completed_tutorials ?? []);
+    }
+
+    /**
+     * Mark a tutorial as completed.
+     */
+    public function markTutorialAsCompleted(string $tutorialName): void
+    {
+        $completed = $this->completed_tutorials ?? [];
+        if (!in_array($tutorialName, $completed)) {
+            $completed[] = $tutorialName;
+            $this->update(['completed_tutorials' => $completed]);
+        }
     }
 }

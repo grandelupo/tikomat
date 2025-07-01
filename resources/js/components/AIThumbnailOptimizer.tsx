@@ -198,27 +198,27 @@ export default function AIThumbnailOptimizer({
                     <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                         AI Thumbnail Optimizer
                     </CardTitle>
-                    <p className="text-gray-600">
+                    <p className="text-muted-foreground">
                         Generate eye-catching thumbnails with AI-powered optimization and CTR predictions
                     </p>
                 </CardHeader>
                 <CardContent className="text-center space-y-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div className="p-3 bg-white rounded-lg border">
+                        <div className="p-3 bg-background rounded-lg border">
                             <Eye className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-                            <p className="font-medium">CTR Prediction</p>
+                            <p className="font-medium text-foreground">CTR Prediction</p>
                         </div>
-                        <div className="p-3 bg-white rounded-lg border">
+                        <div className="p-3 bg-background rounded-lg border">
                                                             <User className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                            <p className="font-medium">Face Detection</p>
+                            <p className="font-medium text-foreground">Face Detection</p>
                         </div>
-                        <div className="p-3 bg-white rounded-lg border">
+                        <div className="p-3 bg-background rounded-lg border">
                             <Palette className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                            <p className="font-medium">Color Analysis</p>
+                            <p className="font-medium text-foreground">Color Analysis</p>
                         </div>
-                        <div className="p-3 bg-white rounded-lg border">
+                        <div className="p-3 bg-background rounded-lg border">
                             <Type className="w-6 h-6 text-orange-600 mx-auto mb-2" />
-                            <p className="font-medium">Text Optimization</p>
+                            <p className="font-medium text-foreground">Text Optimization</p>
                         </div>
                     </div>
                     
@@ -233,7 +233,7 @@ export default function AIThumbnailOptimizer({
                     </Button>
                     
                     {!videoId && (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                             Video ID required for thumbnail analysis
                         </p>
                     )}
@@ -250,8 +250,8 @@ export default function AIThumbnailOptimizer({
                         <Image className="w-10 h-10 text-white" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Optimizing Thumbnails...</h3>
-                        <p className="text-gray-600 mb-4">
+                        <h3 className="text-xl font-bold text-foreground mb-2">Optimizing Thumbnails...</h3>
+                        <p className="text-muted-foreground mb-4">
                             AI is analyzing frames, detecting faces, and predicting CTR
                         </p>
                         <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2">
@@ -259,17 +259,17 @@ export default function AIThumbnailOptimizer({
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div className="flex items-center justify-center gap-2 p-3 bg-white rounded-lg">
+                        <div className="flex items-center justify-center gap-2 p-3 bg-background rounded-lg">
                             <RefreshCw className="w-4 h-4 animate-spin text-purple-600" />
-                            <span>Extracting frames...</span>
+                            <span className="text-foreground">Extracting frames...</span>
                         </div>
-                        <div className="flex items-center justify-center gap-2 p-3 bg-white rounded-lg">
+                        <div className="flex items-center justify-center gap-2 p-3 bg-background rounded-lg">
                             <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
-                            <span>Analyzing faces...</span>
+                            <span className="text-foreground">Analyzing faces...</span>
                         </div>
-                        <div className="flex items-center justify-center gap-2 p-3 bg-white rounded-lg">
+                        <div className="flex items-center justify-center gap-2 p-3 bg-background rounded-lg">
                             <RefreshCw className="w-4 h-4 animate-spin text-green-600" />
-                            <span>Predicting CTR...</span>
+                            <span className="text-foreground">Predicting CTR...</span>
                         </div>
                     </div>
                 </CardContent>
@@ -327,8 +327,12 @@ export default function AIThumbnailOptimizer({
                                                     className="w-32 h-18 object-cover rounded-lg border-2 border-gray-200"
                                                     onError={(e) => {
                                                         const target = e.target as HTMLImageElement;
+                                                        console.error('Thumbnail failed to load:', suggestion.preview_url);
                                                         target.style.display = 'none';
                                                         target.nextElementSibling?.classList.remove('hidden');
+                                                    }}
+                                                    onLoad={() => {
+                                                        console.log('Thumbnail loaded successfully:', suggestion.preview_url);
                                                     }}
                                                 />
                                                 <div className="w-32 h-18 bg-gray-200 rounded-lg flex items-center justify-center hidden">

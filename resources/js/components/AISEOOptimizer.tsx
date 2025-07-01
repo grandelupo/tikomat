@@ -682,7 +682,7 @@ const AISEOOptimizer: React.FC<AISEOOptimizerProps> = ({ video, contentId, conte
                             <h4 className="font-semibold text-gray-900 mb-2">Top Performing Competitors</h4>
                             <div className="space-y-2">
                                 {['TechChannel Pro', 'Code Academy', 'Dev Tutorials'].map((competitor, index) => (
-                                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                                         <span className="font-medium">{competitor}</span>
                                         <div className="flex items-center space-x-2">
                                             <Badge className="bg-green-100 text-green-800">

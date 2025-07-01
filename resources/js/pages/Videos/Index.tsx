@@ -436,7 +436,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             <div className="space-y-3">
-                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
                                     <input
                                         type="radio"
                                         id="delete-tikomat-videos"
@@ -456,7 +456,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                     </div>
                                 </div>
                                 
-                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setDeleteOption('all')}>
+                                <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted cursor-pointer" onClick={() => setDeleteOption('all')}>
                                     <input
                                         type="radio"
                                         id="delete-all-videos"

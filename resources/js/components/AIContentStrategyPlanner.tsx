@@ -434,7 +434,7 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
                             <h5 className="font-medium mb-3">Primary Metrics</h5>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {Object.entries(strategyData.success_metrics.primary_metrics || {}).map(([metric, target]: [string, any]) => (
-                                    <div key={metric} className="text-center p-3 bg-blue-50 rounded-lg">
+                                    <div key={metric} className="text-center p-3 bg-blue-950/20 rounded-lg">
                                         <p className="text-sm font-medium text-gray-600 mb-1">
                                             {metric.replace('_', ' ').toUpperCase()}
                                         </p>
@@ -448,7 +448,7 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
                             <h5 className="font-medium mb-3">Milestone Targets</h5>
                             <div className="space-y-3">
                                 {Object.entries(strategyData.success_metrics.milestone_targets || {}).map(([timeframe, targets]: [string, any]) => (
-                                    <div key={timeframe} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
+                                    <div key={timeframe} className="flex items-center space-x-4 p-3 bg-muted rounded-lg">
                                         <div className="flex items-center space-x-2">
                                             <Clock className="h-4 w-4 text-gray-600" />
                                             <span className="font-medium">{timeframe.replace('_', ' ')}</span>

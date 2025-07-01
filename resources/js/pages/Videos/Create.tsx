@@ -295,8 +295,8 @@ export default function CreateVideo({
                 )}
 
                 {allowedPlatforms.length === 1 && (
-                    <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
-                        <AlertDescription className="text-blue-800 dark:text-blue-200">
+                    <Alert className="bg-blue-950/20 border-blue-800">
+                        <AlertDescription className="text-blue-200">
                             <strong>Free Plan:</strong> You currently have access to YouTube only. 
                             Upgrade to Pro to unlock Instagram and TikTok publishing.
                         </AlertDescription>
@@ -318,7 +318,7 @@ export default function CreateVideo({
                                 <div 
                                     className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                                         isDragOver 
-                                            ? 'border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20' 
+                                            ? 'border-blue-400 bg-blue-950/20' 
                                             : 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'
                                     }`}
                                     onDrop={handleFileDrop}
@@ -461,7 +461,7 @@ export default function CreateVideo({
                                                 key={platformKey} 
                                                 className={`flex items-center space-x-3 p-3 border rounded-lg ${
                                                     !isAvailable 
-                                                        ? 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700' 
+                                                        ? 'bg-muted border-border' 
                                                         : 'border-gray-300 dark:border-gray-600'
                                                 }`}
                                             >
@@ -535,7 +535,7 @@ export default function CreateVideo({
                                                 key={page.page_id}
                                                 className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                                                     selectedFacebookPageId === page.page_id
-                                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400'
+                                                        ? 'border-blue-500 bg-blue-950/20'
                                                         : 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'
                                                 }`}
                                                 onClick={() => handleFacebookPageChange(page.page_id)}

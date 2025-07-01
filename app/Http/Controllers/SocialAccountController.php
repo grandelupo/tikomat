@@ -1443,11 +1443,11 @@ class SocialAccountController extends Controller
             $socialAccount->access_token = $socialUser->token;
             $socialAccount->refresh_token = $socialUser->refreshToken;
             $socialAccount->token_expires_at = $socialUser->expiresIn ? now()->addSeconds($socialUser->expiresIn) : null;
-            $socialAccount->profile_name = $selectedChannel['title'];
-            $socialAccount->profile_username = $selectedChannel['customUrl'] ?? null;
+            $socialAccount->profile_name = $selectedChannel['snippet']['title'] ?? 'Unknown Channel';
+            $socialAccount->profile_username = $selectedChannel['snippet']['customUrl'] ?? null;
             $socialAccount->platform_channel_id = $selectedChannel['id'];
-            $socialAccount->platform_channel_name = $selectedChannel['title'];
-            $socialAccount->platform_channel_handle = $selectedChannel['customUrl'] ?? null;
+            $socialAccount->platform_channel_name = $selectedChannel['snippet']['title'] ?? 'Unknown Channel';
+            $socialAccount->platform_channel_handle = $selectedChannel['snippet']['customUrl'] ?? null;
             $socialAccount->platform_channel_url = "https://youtube.com/channel/{$selectedChannel['id']}";
             $socialAccount->platform_channel_data = [
                 'subscriber_count' => $selectedChannel['statistics']['subscriberCount'] ?? 0,
@@ -1463,10 +1463,10 @@ class SocialAccountController extends Controller
                 'user_id' => Auth::id(),
                 'social_account_id' => $socialAccount->id,
                 'youtube_channel_id' => $selectedChannel['id'],
-                'youtube_channel_title' => $selectedChannel['title'],
+                'youtube_channel_title' => $selectedChannel['snippet']['title'] ?? 'Unknown Channel',
             ]);
 
-            return redirect()->route('connections')->with('success', 'YouTube channel "' . $selectedChannel['title'] . '" connected successfully!');
+            return redirect()->route('connections')->with('success', 'YouTube channel "' . ($selectedChannel['snippet']['title'] ?? 'Unknown Channel') . '" connected successfully!');
 
         } catch (\Exception $e) {
             $this->errorHandler->logConnectionFailure('youtube', $channel->slug, $e, request());

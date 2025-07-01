@@ -373,12 +373,31 @@ Route::get('thumbnails/{path}', function ($path) {
     // Handle both direct files and subdirectory files
     $fullPath = 'public/thumbnails/' . $path;
     
+    \Log::info('Thumbnail route accessed', [
+        'requested_path' => $path,
+        'full_path' => $fullPath,
+        'storage_exists' => Storage::exists($fullPath),
+        'storage_path' => Storage::path($fullPath),
+        'file_exists' => file_exists(Storage::path($fullPath))
+    ]);
+    
     if (!Storage::exists($fullPath)) {
+        \Log::warning('Thumbnail not found', [
+            'requested_path' => $path,
+            'full_path' => $fullPath,
+            'storage_path' => Storage::path($fullPath)
+        ]);
         abort(404);
     }
     
     $file = Storage::get($fullPath);
     $mimeType = Storage::mimeType($fullPath);
+    
+    \Log::info('Thumbnail served successfully', [
+        'requested_path' => $path,
+        'file_size' => strlen($file),
+        'mime_type' => $mimeType
+    ]);
     
     return response($file, 200)
         ->header('Content-Type', $mimeType)
@@ -386,3 +405,130 @@ Route::get('thumbnails/{path}', function ($path) {
 })->where('path', '.*')->name('thumbnail.serve');
 
 Route::post('/ai/rendered-video-status', [\App\Http\Controllers\AIController::class, 'getRenderedVideoStatus'])->middleware(['auth']);
+
+// Debug route for thumbnail testing (remove in production)
+Route::get('/debug/thumbnails', function () {
+    if (!app()->environment('local')) {
+        abort(404);
+    }
+    
+    $thumbnails = Storage::files('public/thumbnails');
+    $thumbnailInfo = [];
+    
+    foreach ($thumbnails as $thumbnail) {
+        $publicPath = str_replace('public/thumbnails/', '', $thumbnail);
+        $thumbnailInfo[] = [
+            'storage_path' => $thumbnail,
+            'public_path' => $publicPath,
+            'url' => url('thumbnails/' . $publicPath),
+            'exists' => Storage::exists($thumbnail),
+            'size' => Storage::exists($thumbnail) ? Storage::size($thumbnail) : 0,
+            'mime_type' => Storage::exists($thumbnail) ? Storage::mimeType($thumbnail) : null,
+        ];
+    }
+    
+    return response()->json([
+        'thumbnails' => $thumbnailInfo,
+        'total_count' => count($thumbnails),
+        'storage_path' => Storage::path('public/thumbnails'),
+        'storage_exists' => Storage::exists('public/thumbnails'),
+    ]);
+})->middleware(['auth']);
+
+// Debug route for testing thumbnail generation (remove in production)
+Route::get('/debug/test-thumbnail-generation', function () {
+    if (!app()->environment('local')) {
+        abort(404);
+    }
+    
+    try {
+        // Find a video to test with
+        $video = \App\Models\Video::first();
+        if (!$video) {
+            return response()->json(['error' => 'No videos found']);
+        }
+        
+        $videoPath = Storage::path($video->original_file_path);
+        if (!file_exists($videoPath)) {
+            return response()->json(['error' => 'Video file not found: ' . $videoPath]);
+        }
+        
+        // Clear any existing cache for this video
+        $cacheKey = 'thumbnail_optimization_' . md5($videoPath . serialize([
+            'title' => $video->title,
+            'platforms' => ['youtube', 'instagram', 'tiktok']
+        ]));
+        \Illuminate\Support\Facades\Cache::forget($cacheKey);
+        
+        // Test the thumbnail optimizer service
+        $thumbnailService = new \App\Services\AIThumbnailOptimizerService(
+            new \App\Services\FFmpegService()
+        );
+        
+        $result = $thumbnailService->optimizeThumbnails($videoPath, [
+            'title' => $video->title,
+            'platforms' => ['youtube', 'instagram', 'tiktok']
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'video_id' => $video->id,
+            'video_path' => $videoPath,
+            'result' => $result,
+            'frames_count' => count($result['extracted_frames'] ?? []),
+            'suggestions_count' => count($result['thumbnail_suggestions'] ?? []),
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+    }
+})->middleware(['auth']);
+
+// Debug route for testing thumbnail route (remove in production)
+Route::get('/debug/test-thumbnail-route', function () {
+    if (!app()->environment('local')) {
+        abort(404);
+    }
+    
+    try {
+        // Create a simple test image
+        $testImagePath = storage_path('app/public/thumbnails/test_debug.jpg');
+        $testImageDir = dirname($testImagePath);
+        
+        if (!is_dir($testImageDir)) {
+            mkdir($testImageDir, 0755, true);
+        }
+        
+        // Create a simple test image using GD
+        $image = imagecreate(320, 240);
+        $red = imagecolorallocate($image, 255, 0, 0);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        imagefill($image, 0, 0, $red);
+        imagestring($image, 5, 100, 100, 'TEST', $white);
+        imagejpeg($image, $testImagePath, 90);
+        imagedestroy($image);
+        
+        // Test the thumbnail route
+        $testUrl = url('thumbnails/test_debug.jpg');
+        $storagePath = 'public/thumbnails/test_debug.jpg';
+        
+        return response()->json([
+            'success' => true,
+            'test_image_created' => file_exists($testImagePath),
+            'test_image_size' => file_exists($testImagePath) ? filesize($testImagePath) : 0,
+            'storage_exists' => Storage::exists($storagePath),
+            'storage_path' => Storage::path($storagePath),
+            'test_url' => $testUrl,
+            'message' => 'Test image created. You can test the URL: ' . $testUrl
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+    }
+})->middleware(['auth']);

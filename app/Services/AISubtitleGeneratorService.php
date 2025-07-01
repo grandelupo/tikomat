@@ -302,23 +302,38 @@ class AISubtitleGeneratorService
             mkdir(dirname($audioPath), 0755, true);
         }
         
-        // Use FFmpeg to extract audio
-        $command = sprintf(
-            'ffmpeg -i %s -acodec pcm_s16le -ac 1 -ar 16000 %s 2>&1',
-            escapeshellarg($videoPath),
-            escapeshellarg($audioPath)
-        );
-        
-        $output = [];
-        $returnCode = 0;
-        exec($command, $output, $returnCode);
-        
-        if ($returnCode !== 0 || !file_exists($audioPath)) {
-            throw new \Exception('Failed to extract audio from video. FFmpeg error: ' . implode(' ', $output));
+        // Use FFmpeg class to extract audio
+        $ffmpeg = $this->ffmpegService->getFFMpeg();
+        if (!$ffmpeg) {
+            throw new \Exception('FFmpeg not available for audio extraction');
         }
-        
-        Log::info('Audio extracted successfully', ['audio_path' => $audioPath]);
-        return $audioPath;
+
+        try {
+            $video = $ffmpeg->open($videoPath);
+            
+            // Create audio format with correct settings
+            $audioFormat = new \FFMpeg\Format\Audio\Wav();
+            $audioFormat->setAudioChannels(1);
+            $audioFormat->setAudioKiloBitrate(256);
+            
+            // Extract audio
+            $video->save($audioFormat, $audioPath);
+            
+            if (!file_exists($audioPath)) {
+                throw new \Exception('Audio extraction failed - output file not created');
+            }
+            
+            Log::info('Audio extracted successfully', ['audio_path' => $audioPath]);
+            return $audioPath;
+            
+        } catch (\Exception $e) {
+            Log::error('Audio extraction failed', [
+                'video_path' => $videoPath,
+                'audio_path' => $audioPath,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('Failed to extract audio from video: ' . $e->getMessage());
+        }
     }
 
     private function transcribeAudio(string $audioPath, string $language): array
@@ -623,27 +638,44 @@ class AISubtitleGeneratorService
         // Convert style to FFmpeg subtitle filter
         $subtitleFilter = $this->buildFFmpegSubtitleFilter($styleConfig, $positionConfig);
         
-        // Build FFmpeg command
-        $command = sprintf(
-            'ffmpeg -i %s -vf "subtitles=%s%s" -c:a copy %s 2>&1',
-            escapeshellarg($videoPath),
-            escapeshellarg($srtPath),
-            $subtitleFilter,
-            escapeshellarg($outputPath)
-        );
-        
-        Log::info('Burning subtitles into video', ['command' => $command]);
-        
-        $output = [];
-        $returnCode = 0;
-        exec($command, $output, $returnCode);
-        
-        if ($returnCode !== 0 || !file_exists($outputPath)) {
-            throw new \Exception('Failed to burn subtitles into video. FFmpeg error: ' . implode(' ', $output));
+        // Use FFmpeg class instead of shell command
+        $ffmpeg = $this->ffmpegService->getFFMpeg();
+        if (!$ffmpeg) {
+            throw new \Exception('FFmpeg not available for subtitle burning');
         }
-        
-        Log::info('Subtitles burned into video successfully', ['output_path' => $outputPath]);
-        return $outputPath;
+
+        try {
+            $video = $ffmpeg->open($videoPath);
+            
+            // Create video format
+            $videoFormat = new \FFMpeg\Format\Video\X264();
+            $videoFormat->setAudioCodec('copy'); // Copy audio without re-encoding
+            
+            // Build subtitle filter
+            $filter = "subtitles=" . escapeshellarg($srtPath) . $subtitleFilter;
+            
+            // Apply subtitle filter
+            $video->filters()->custom($filter);
+            
+            // Save the video with subtitles
+            $video->save($videoFormat, $outputPath);
+            
+            if (!file_exists($outputPath)) {
+                throw new \Exception('Subtitle burning failed - output file not created');
+            }
+            
+            Log::info('Subtitles burned into video successfully', ['output_path' => $outputPath]);
+            return $outputPath;
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to burn subtitles into video', [
+                'video_path' => $videoPath,
+                'srt_path' => $srtPath,
+                'output_path' => $outputPath,
+                'error' => $e->getMessage()
+            ]);
+            throw new \Exception('Failed to burn subtitles into video: ' . $e->getMessage());
+        }
     }
 
     private function buildFFmpegSubtitleFilter(array $styleConfig, array $positionConfig): string
@@ -703,13 +735,23 @@ class AISubtitleGeneratorService
 
     private function getVideoDuration(string $videoPath): float
     {
-        $command = sprintf(
-            'ffprobe -v quiet -show_entries format=duration -of csv="p=0" %s',
-            escapeshellarg($videoPath)
-        );
-        
-        $duration = exec($command);
-        return floatval($duration) ?: 0;
+        $ffprobe = $this->ffmpegService->getFFProbe();
+        if (!$ffprobe) {
+            Log::warning('FFProbe not available, using fallback duration');
+            return 0;
+        }
+
+        try {
+            $format = $ffprobe->format($videoPath);
+            $duration = (float) ($format->get('duration') ?? 0);
+            return $duration;
+        } catch (\Exception $e) {
+            Log::error('Failed to get video duration', [
+                'video_path' => $videoPath,
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
     }
 
     private function updateProgress(string $generationId, string $step, int $percentage)
@@ -1898,14 +1940,17 @@ class AISubtitleGeneratorService
         try {
             // Use FFMpeg class instead of command line
             $video = $ffmpeg->open($videoPath);
-            $overlayVideo = $ffmpeg->open($overlayDir . '/overlay_%08d.png');
+            
+            // Create video format
+            $videoFormat = new \FFMpeg\Format\Video\X264();
             
             // Create filter complex for overlay
+            $overlayPattern = $overlayDir . '/overlay_%08d.png';
             $filterComplex = "[1:v]fps={$fps}[overlay];[0:v][overlay]overlay=0:0:enable='between(t,0," . $this->getVideoDuration($videoPath) . ")'";
             
             // Apply the filter and save
             $video->filters()->custom($filterComplex);
-            $video->save(new \FFMpeg\Format\Video\X264(), $outputPath);
+            $video->save($videoFormat, $outputPath);
             
         } catch (\Exception $e) {
             Log::error('Advanced subtitle rendering failed', [
@@ -1934,12 +1979,15 @@ class AISubtitleGeneratorService
         try {
             $video = $ffmpeg->open($videoPath);
             
+            // Create video format
+            $videoFormat = new \FFMpeg\Format\Video\X264();
+            
             // Create filter for ASS subtitles
             $filter = "ass=" . escapeshellarg($assFilePath);
             
             // Apply the filter and save
             $video->filters()->custom($filter);
-            $video->save(new \FFMpeg\Format\Video\X264(), $outputPath);
+            $video->save($videoFormat, $outputPath);
             
             return $outputPath;
             

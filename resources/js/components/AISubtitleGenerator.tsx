@@ -64,9 +64,10 @@ interface AISubtitleGeneratorProps {
   videoPath: string;
   videoId?: number;
   videoTitle?: string;
+  onSubtitleGenerated?: () => void;
 }
 
-const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, videoId, videoTitle }) => {
+const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, videoId, videoTitle, onSubtitleGenerated }) => {
   const [generationData, setGenerationData] = useState<GenerationData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
@@ -274,6 +275,11 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
         
         console.log('Loaded subtitles with styles:', subtitlesWithStyles);
         
+        // Call the callback when subtitles are found
+        if (onSubtitleGenerated) {
+          onSubtitleGenerated();
+        }
+        
         // Load word timing data if available
         if (result.data.generation_id) {
           loadWordTimingData(result.data.generation_id);
@@ -466,6 +472,10 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
           // Load word timing data when generation completes
           if (result.data.processing_status === 'completed' && result.data.generation_id && !wordTimingData) {
             loadWordTimingData(result.data.generation_id);
+            // Call the callback when generation completes
+            if (onSubtitleGenerated) {
+              onSubtitleGenerated();
+            }
           }
           
           return newData;
@@ -1225,18 +1235,18 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   };
 
   return (
-    <div ref={containerRef} className={`bg-white shadow-sm border ${isFullscreen ? 'h-screen w-screen flex flex-col' : 'rounded-lg'}`}>
+    <div ref={containerRef} className={`bg-background shadow-sm border ${isFullscreen ? 'h-screen w-screen flex flex-col' : 'rounded-lg'}`}>
       {/* Hidden canvas for frame capture */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
       
       {/* Header */}
-      <div className="p-6 border-b bg-gradient-to-r from-purple-50 to-blue-50">
+      <div className="p-6 border-b bg-gradient-to-r from-muted/50 to-muted/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-between w-full">
             
             <button
               onClick={toggleFullscreen}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors"
               title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
             >
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
@@ -1247,14 +1257,14 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
           {!generationData && (
             <div className="flex items-center gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   <Languages className="w-4 h-4 inline mr-2" />
                   Language
                 </label>
                 <select
                   value={selectedLanguage}
                   onChange={(e) => setSelectedLanguage(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="border border-input rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
                   disabled={isGenerating}
                 >
                   {Object.entries(languages).map(([code, lang]) => (
@@ -1290,18 +1300,18 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
       {/* Content */}
       <div className={`p-6 ${isFullscreen ? 'flex-1 overflow-auto' : ''}`}>
         {generationData?.processing_status === 'processing' && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="bg-blue-950/50 border border-blue-800 rounded-lg p-4 mb-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
-              <span className="font-medium text-blue-900">Processing: {generationData.progress.current_step}</span>
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-400 border-t-transparent"></div>
+              <span className="font-medium text-blue-200">Processing: {generationData.progress.current_step}</span>
             </div>
-            <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+            <div className="w-full bg-blue-900/50 rounded-full h-2 mb-2">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-blue-400 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${generationData.progress.percentage}%` }}
               ></div>
             </div>
-            <div className="flex justify-between text-sm text-blue-700">
+            <div className="flex justify-between text-sm text-blue-300">
               <span>{generationData.progress.percentage}% complete</span>
               <span>{formatTime(generationData.progress.processed_duration)} / {formatTime(generationData.progress.total_duration)}</span>
             </div>
@@ -1498,7 +1508,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   <div className="flex-1">
                     <div
                       ref={progressRef}
-                      className="h-2 bg-gray-200 rounded-full cursor-pointer"
+                      className="h-2 bg-muted rounded-full cursor-pointer"
                       onClick={handleProgressClick}
                     >
                       <div
@@ -1508,7 +1518,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                     </div>
                   </div>
                   
-                  <span className="text-sm text-gray-600 min-w-0">
+                  <span className="text-sm text-muted-foreground min-w-0">
                     {formatTime(currentTime)} / {formatTime(duration)}
                   </span>
                   
@@ -1535,8 +1545,8 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
 
                 {/* Bounding Box Controls */}
                 {subtitlesGenerated && (
-                <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700">Subtitle Area:</span>
+                <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
+                  <span className="text-sm font-medium text-foreground">Subtitle Area:</span>
                   
                     <button
                       onClick={() => {
@@ -1546,7 +1556,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm transition-colors ${
                         isEditingBounds 
                           ? 'bg-purple-600 text-white' 
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          : 'bg-muted/50 text-foreground hover:bg-muted'
                       }`}
                     >
                       <Settings2 className="w-4 h-4" />
@@ -1558,14 +1568,14 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                         setCustomBounds(null);
                         setIsEditingBounds(false);
                       }}
-                      className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm transition-colors"
+                      className="flex items-center gap-2 px-3 py-1 bg-red-950/50 text-red-300 rounded-lg hover:bg-red-900/50 text-sm transition-colors"
                     >
                       <X className="w-4 h-4" />
                       Reset to Auto
                     </button>
                   )}
                   {customBounds && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground">
                       {Math.round(customBounds.width)}% × {Math.round(customBounds.height)}%
                     </span>
                   )}
@@ -1576,16 +1586,16 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
 
             {/* Subtitle Timeline - Only show when subtitles exist */}
             {generationData?.processing_status === 'completed' && generationData.subtitles && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Subtitle Timeline</h4>
+              <div className="bg-muted rounded-lg p-4">
+                <h4 className="text-lg font-medium text-foreground mb-4">Subtitle Timeline</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {generationData.subtitles.map((subtitle) => (
                     <div
                       key={subtitle.id}
-                      className={`flex items-center gap-4 p-3 border rounded-lg hover:bg-white transition-colors cursor-pointer ${
+                      className={`flex items-center gap-4 p-3 border rounded-lg hover:bg-background transition-colors cursor-pointer ${
                         currentTime >= subtitle.start_time && currentTime <= subtitle.end_time
-                          ? 'border-purple-300 bg-purple-50'
-                          : 'border-gray-200 bg-white'
+                          ? 'border-purple-300 bg-purple-950/20'
+                          : 'border-border bg-background'
                       }`}
                       onClick={() => {
                         if (videoRef.current) {
@@ -1594,12 +1604,12 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       }}
                     >
                       <div className="flex-shrink-0">
-                        <span className="text-sm font-mono text-gray-500">
+                        <span className="text-sm font-mono text-muted-foreground">
                           {formatTime(subtitle.start_time)} → {formatTime(subtitle.end_time)}
                         </span>
                       </div>
                       <div className="flex-grow">
-                        <p className="text-gray-900">{subtitle.text}</p>
+                        <p className="text-foreground">{subtitle.text}</p>
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-2">
                         <button
@@ -1607,7 +1617,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                             e.stopPropagation();
                             startEditingSubtitle(subtitle.id);
                           }}
-                          className="p-1 text-gray-400 hover:text-purple-600 transition-colors"
+                          className="p-1 text-muted-foreground hover:text-purple-400 transition-colors"
                           title="Edit subtitle"
                         >
                           <Type className="w-4 h-4" />
@@ -1617,7 +1627,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                             e.stopPropagation();
                             setSelectedSubtitle(subtitle.id);
                           }}
-                          className="p-1 text-gray-400 hover:text-purple-600 transition-colors"
+                          className="p-1 text-muted-foreground hover:text-purple-400 transition-colors"
                           title="Style subtitle"
                         >
                           <Palette className="w-4 h-4" />
@@ -1630,18 +1640,16 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
             )}
 
             {/* Subtitle Style Editor - Only show when subtitles exist and one is selected */}
-            {selectedSubtitle && generationData?.subtitles && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Subtitle Style</h4>
+            {generationData?.processing_status === 'completed' && selectedSubtitle && (
+              <div className="bg-muted rounded-lg p-4">
+                <h4 className="text-lg font-medium text-foreground mb-4">Subtitle Style Editor</h4>
                 
                 {/* Style Presets */}
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Style Presets</label>
+                  <h5 className="text-sm font-medium text-foreground mb-3">Style Presets</h5>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {Object.entries(subtitleStylePresets).map(([key, preset]) => {
-                      const selectedSubtitleData = generationData.subtitles.find(s => s.id === selectedSubtitle);
-                      const isActive = selectedSubtitleData?.style?.preset === key;
-                      
+                      const isActive = generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.preset === key;
                       return (
                         <button
                           key={key}
@@ -1651,8 +1659,8 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                           }}
                           className={`p-3 border rounded-lg text-sm font-medium transition-all ${
                             isActive 
-                              ? 'border-purple-500 bg-purple-50 text-purple-700' 
-                              : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:bg-purple-50'
+                              ? 'border-purple-500 bg-purple-950/20 text-purple-300' 
+                              : 'border-border bg-background text-foreground hover:border-purple-300 hover:bg-purple-950/10'
                           }`}
                         >
                           <div className="text-center">
@@ -1692,11 +1700,11 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 {/* Style Controls */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Font Family</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Font Family</label>
                     <select
                       value={generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.fontFamily?.split(',')[0] || 'Arial'}
                       onChange={(e) => updateSubtitleStyle(selectedSubtitle, { fontFamily: e.target.value + ', sans-serif' })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-background text-foreground"
                     >
                       <option value="Arial">Arial</option>
                       <option value="Comic Sans MS">Comic Sans MS</option>
@@ -1708,7 +1716,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Font Size</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Font Size</label>
                     <input
                       type="range"
                       min="12"
@@ -1720,7 +1728,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Text Color</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Text Color</label>
                     <input
                       type="color"
                       value={convertToValidHex(generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.color || '#FFFFFF')}
@@ -1730,7 +1738,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Background</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Background</label>
                     <div className="flex gap-2">
                       <input
                         type="color"
@@ -1744,7 +1752,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       />
                       <button
                         onClick={() => updateSubtitleStyle(selectedSubtitle, { backgroundColor: 'transparent' })}
-                        className="px-3 py-1 text-xs border rounded hover:bg-gray-100"
+                        className="px-3 py-1 text-xs border rounded hover:bg-muted text-foreground"
                         title="Make background transparent"
                       >
                         None
@@ -1753,23 +1761,23 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Alignment</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Alignment</label>
                     <div className="flex gap-1">
                       <button
                         onClick={() => updateSubtitleStyle(selectedSubtitle, { textAlign: 'left' })}
-                        className="p-2 border rounded hover:bg-gray-100"
+                        className="p-2 border rounded hover:bg-muted text-foreground"
                       >
                         <AlignLeft className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => updateSubtitleStyle(selectedSubtitle, { textAlign: 'center' })}
-                        className="p-2 border rounded hover:bg-gray-100"
+                        className="p-2 border rounded hover:bg-muted text-foreground"
                       >
                         <AlignCenter className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => updateSubtitleStyle(selectedSubtitle, { textAlign: 'right' })}
-                        className="p-2 border rounded hover:bg-gray-100"
+                        className="p-2 border rounded hover:bg-muted text-foreground"
                       >
                         <AlignRight className="w-4 h-4" />
                       </button>
@@ -1780,19 +1788,19 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 <div className="mt-4 flex gap-2">
                   <button
                     onClick={() => updateSubtitleStyle(selectedSubtitle, { bold: !generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.bold })}
-                    className={`p-2 border rounded hover:bg-gray-100 ${generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.bold ? 'bg-purple-100 border-purple-300' : ''}`}
+                    className={`p-2 border rounded hover:bg-muted text-foreground ${generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.bold ? 'bg-purple-950/20 border-purple-300' : ''}`}
                   >
                     <Bold className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => updateSubtitleStyle(selectedSubtitle, { italic: !generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.italic })}
-                    className={`p-2 border rounded hover:bg-gray-100 ${generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.italic ? 'bg-purple-100 border-purple-300' : ''}`}
+                    className={`p-2 border rounded hover:bg-muted text-foreground ${generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.italic ? 'bg-purple-950/20 border-purple-300' : ''}`}
                   >
                     <Italic className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => updateSubtitleStyle(selectedSubtitle, { underline: !generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.underline })}
-                    className={`p-2 border rounded hover:bg-gray-100 ${generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.underline ? 'bg-purple-100 border-purple-300' : ''}`}
+                    className={`p-2 border rounded hover:bg-muted text-foreground ${generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.underline ? 'bg-purple-950/20 border-purple-300' : ''}`}
                   >
                     <Underline className="w-4 h-4" />
                   </button>
@@ -1805,7 +1813,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
               <div className="flex items-center justify-between pt-6 border-t">
                 <button
                   onClick={exportTranscript}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 border border-input text-foreground rounded-lg hover:bg-muted transition-colors"
                 >
                   <Download className="w-4 h-4" />
                   Export Transcript

@@ -51,11 +51,6 @@ const aiToolsNavItems: NavItem[] = [
         href: '/ai/audience-insights',
         icon: Users,
     },
-    {
-        title: 'Strategy Planner',
-        href: '/ai/strategy-planner',
-        icon: Target,
-    },
 ];
 
 const footerNavItems: NavItem[] = [];

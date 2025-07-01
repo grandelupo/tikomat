@@ -82,7 +82,7 @@ export default function Stats({ stats, subscription, allowedPlatforms }: Props) 
                     </div>
                 </div>
 
-                <div className="bg-white p-4 rounded border">
+                <div className="bg-background p-4 rounded border">
                     <h2 className="text-xl font-semibold mb-4">Overview</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
@@ -105,11 +105,7 @@ export default function Stats({ stats, subscription, allowedPlatforms }: Props) 
                 </div>
 
                 {/* AI Audience Insights */}
-                <div className="bg-white rounded-lg border">
-                    <div className="p-4 border-b">
-                        <h2 className="text-xl font-semibold">AI Audience Insights</h2>
-                        <p className="text-sm text-gray-600">Deep audience analysis and personalization recommendations</p>
-                    </div>
+                <div className="bg-background rounded-lg border">
                     <div className="-m-6">
                         <AIAudienceInsights />
                     </div>

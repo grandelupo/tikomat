@@ -179,12 +179,25 @@ class AIThumbnailOptimizerService
                 Log::warning('FFMpeg not available for frame extraction');
                 return [];
             }
+            
+            Log::info('FFMpeg initialized successfully', [
+                'video_path' => $videoPath,
+                'ffmpeg_available' => $ffmpeg !== null,
+                'ffmpeg_service_available' => $this->ffmpegService->isAvailable()
+            ]);
 
             $video = $ffmpeg->open($videoPath);
             
             // Get video duration
             $duration = $video->getFormat()->get('duration');
             Log::info('Video duration', ['duration' => $duration]);
+            
+            Log::info('Video opened successfully', [
+                'video_path' => $videoPath,
+                'duration' => $duration,
+                'format' => $video->getFormat()->get('format_name'),
+                'bitrate' => $video->getFormat()->get('bit_rate')
+            ]);
 
             // Determine frame extraction timestamps (every 10% of video duration)
             $frameCount = min(8, floor($duration / 5)); // Extract up to 8 frames, at least every 5 seconds
@@ -208,7 +221,7 @@ class AIThumbnailOptimizerService
             }
 
             $frames = [];
-            $thumbnailDir = 'public/thumbnails/' . basename($videoPath, '.mp4');
+            $thumbnailDir = 'public/thumbnails';
             
             // Ensure thumbnails directory exists
             Storage::makeDirectory($thumbnailDir);
@@ -222,6 +235,15 @@ class AIThumbnailOptimizerService
                     // Extract frame at timestamp
                     $frame = $video->frame(TimeCode::fromSeconds($timestamp));
                     $frame->save($absoluteFramePath);
+                    
+                    Log::info('Frame extraction attempt', [
+                        'timestamp' => $timestamp,
+                        'frame_id' => $frameId,
+                        'absolute_path' => $absoluteFramePath,
+                        'frame_path' => $framePath,
+                        'video_path' => $videoPath,
+                        'ffmpeg_available' => $ffmpeg !== null
+                    ]);
 
                     if (file_exists($absoluteFramePath)) {
                         // Analyze the extracted frame
@@ -251,7 +273,22 @@ class AIThumbnailOptimizerService
                         Log::info('Frame extracted successfully', [
                             'frame_id' => $frameId,
                             'timestamp' => $timestamp,
-                            'file_size' => filesize($absoluteFramePath)
+                            'file_size' => filesize($absoluteFramePath),
+                            'frame_path' => $framePath,
+                            'public_path' => $publicPath,
+                            'preview_url' => url('thumbnails/' . $publicPath),
+                            'absolute_path' => $absoluteFramePath,
+                            'file_exists' => file_exists($absoluteFramePath),
+                            'storage_exists' => Storage::exists($framePath)
+                        ]);
+                    } else {
+                        Log::warning('Frame file not created', [
+                            'frame_id' => $frameId,
+                            'timestamp' => $timestamp,
+                            'absolute_path' => $absoluteFramePath,
+                            'frame_path' => $framePath,
+                            'directory_exists' => is_dir(dirname($absoluteFramePath)),
+                            'directory_writable' => is_writable(dirname($absoluteFramePath))
                         ]);
                     }
                 } catch (\Exception $e) {

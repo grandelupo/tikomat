@@ -254,23 +254,23 @@ const AIContentCalendar: React.FC<AIContentCalendarProps> = ({ userId, className
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                            <div className="text-2xl font-bold">{data_sources.total_videos}</div>
-                            <div className="text-sm text-gray-600">Total Videos</div>
+                        <div className="text-center p-3 bg-muted rounded-lg">
+                            <div className="text-2xl font-bold text-foreground">{data_sources.total_videos}</div>
+                            <div className="text-sm text-muted-foreground">Total Videos</div>
                         </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                            <div className="text-2xl font-bold">{data_sources.published_videos}</div>
-                            <div className="text-sm text-gray-600">Published Videos</div>
+                        <div className="text-center p-3 bg-muted rounded-lg">
+                            <div className="text-2xl font-bold text-foreground">{data_sources.published_videos}</div>
+                            <div className="text-sm text-muted-foreground">Published Videos</div>
                         </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                            <div className="text-2xl font-bold">{data_sources.connected_platforms.length}</div>
-                            <div className="text-sm text-gray-600">Connected Platforms</div>
+                        <div className="text-center p-3 bg-muted rounded-lg">
+                            <div className="text-2xl font-bold text-foreground">{data_sources.connected_platforms.length}</div>
+                            <div className="text-sm text-muted-foreground">Connected Platforms</div>
                         </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <div className="text-center p-3 bg-muted rounded-lg">
                             <Badge className={cn("text-xs", getDataQualityColor(data_sources.data_quality))}>
                                 {data_sources.data_quality}
                             </Badge>
-                            <div className="text-sm text-gray-600 mt-1">Data Quality</div>
+                            <div className="text-sm text-muted-foreground mt-1">Data Quality</div>
                         </div>
                     </div>
 

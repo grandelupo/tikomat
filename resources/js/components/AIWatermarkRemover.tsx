@@ -347,10 +347,10 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                     </div>
 
                     {detection.detected_watermarks.length === 0 ? (
-                        <div className="text-center py-12 bg-gray-50 rounded-lg">
+                        <div className="text-center py-12 bg-muted rounded-lg">
                             <Scan className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Watermarks Detected</h3>
-                            <p className="text-gray-600">The video appears to be clean of watermarks.</p>
+                            <h3 className="text-lg font-semibold text-foreground mb-2">No Watermarks Detected</h3>
+                            <p className="text-muted-foreground">The video appears to be clean of watermarks.</p>
                         </div>
                     ) : (
                         <div className="space-y-4">
@@ -433,7 +433,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
     const renderRemovalTab = () => (
         <div className="space-y-6">
             {/* Removal Method Selection */}
-            <div className="bg-white rounded-lg p-6 border">
+            <div className="bg-background rounded-lg p-6 border">
                 <h3 className="text-lg font-semibold mb-4">Removal Method</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {removalMethods.map((method) => (
@@ -477,13 +477,13 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
 
             {/* Selected Watermarks */}
             {detection && selectedWatermarks.length > 0 && (
-                <div className="bg-white rounded-lg p-6 border">
+                <div className="bg-background rounded-lg p-6 border">
                     <h3 className="text-lg font-semibold mb-4">Selected for Removal</h3>
                     <div className="space-y-3">
                         {detection.detected_watermarks
                             .filter(w => selectedWatermarks.includes(w.id))
                             .map((watermark, index) => (
-                                <div key={watermark.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div key={watermark.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                                     <div className="flex items-center space-x-3">
                                         <div className="text-xl">
                                             {watermark.type === 'logo' && '🎨'}

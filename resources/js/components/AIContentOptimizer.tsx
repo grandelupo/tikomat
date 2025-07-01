@@ -60,8 +60,8 @@ export default function AIContentOptimizer({
     const platformColors = {
         youtube: 'bg-red-50 border-red-200 text-red-800',
         instagram: 'bg-pink-50 border-pink-200 text-pink-800',
-        tiktok: 'bg-gray-50 border-gray-200 text-gray-800',
-        facebook: 'bg-blue-50 border-blue-200 text-blue-800',
+            tiktok: 'bg-muted border-border text-foreground',
+    facebook: 'bg-muted border-border text-foreground',
         twitter: 'bg-sky-50 border-sky-200 text-sky-800',
         snapchat: 'bg-yellow-50 border-yellow-200 text-yellow-800',
         pinterest: 'bg-red-50 border-red-200 text-red-800',
@@ -312,7 +312,7 @@ export default function AIContentOptimizer({
                 {currentOptimization && (
                     <div className="space-y-4">
                         {/* Optimization Score */}
-                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                        <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
                             <div className="flex items-center gap-2">
                                 <BarChart3 className="w-5 h-5 text-blue-600" />
                                 <span className="font-medium">Optimization Score</span>
@@ -416,7 +416,7 @@ export default function AIContentOptimizer({
 
                 {/* AI Suggestions */}
                 {showSuggestions && currentOptimization && (
-                    <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="space-y-3 p-4 bg-blue-950/20 rounded-lg border border-blue-800">
                         <div className="flex items-center gap-2">
                             <Lightbulb className="w-5 h-5 text-blue-600" />
                             <h4 className="font-medium text-blue-900">AI Suggestions</h4>

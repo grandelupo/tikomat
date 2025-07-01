@@ -138,32 +138,32 @@ const AIAudienceInsights: React.FC<AudienceInsightsProps> = ({ videoId, onClose 
                     
                     {insights.data_sufficiency && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <div className="bg-white rounded-lg p-4 border border-amber-200">
-                                <div className="text-sm text-gray-600">Videos Created</div>
+                            <div className="bg-background rounded-lg p-4 border border-amber-200">
+                                <div className="text-sm text-muted-foreground">Videos Created</div>
                                 <div className="text-2xl font-bold text-amber-800">
                                     {insights.data_sufficiency.metrics.video_count}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-muted-foreground">
                                     Need {insights.data_sufficiency.requirements.min_videos}+
                                 </div>
                             </div>
                             
-                            <div className="bg-white rounded-lg p-4 border border-amber-200">
-                                <div className="text-sm text-gray-600">Connected Platforms</div>
+                            <div className="bg-background rounded-lg p-4 border border-amber-200">
+                                <div className="text-sm text-muted-foreground">Connected Platforms</div>
                                 <div className="text-2xl font-bold text-amber-800">
                                     {insights.data_sufficiency.metrics.connected_platforms}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-muted-foreground">
                                     Need {insights.data_sufficiency.requirements.min_platforms}+
                                 </div>
                             </div>
                             
-                            <div className="bg-white rounded-lg p-4 border border-amber-200">
-                                <div className="text-sm text-gray-600">Publishing History</div>
+                            <div className="bg-background rounded-lg p-4 border border-amber-200">
+                                <div className="text-sm text-muted-foreground">Publishing History</div>
                                 <div className="text-2xl font-bold text-amber-800">
                                     {insights.data_sufficiency.metrics.publishing_history}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-muted-foreground">
                                     Need 1+ successful publish
                                 </div>
                             </div>

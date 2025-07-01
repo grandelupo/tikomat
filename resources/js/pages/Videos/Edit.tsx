@@ -17,7 +17,7 @@ import AIWatermarkRemover from '@/components/AIWatermarkRemover';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm, router } from '@inertiajs/react';
-import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Play, Clock, CheckCircle, XCircle, AlertCircle, Youtube, Instagram, Video as VideoIcon, ExternalLink, X, Trash2, Upload, Zap, Star, Eye, Heart, Share, ThumbsUp, Camera, Palette, Type, Target, Layers, TrendingUp, Plus, Minus, Settings2, Sparkles, Tag, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Play, Clock, CheckCircle, XCircle, AlertCircle, Youtube, Instagram, Video as VideoIcon, ExternalLink, X, Trash2, Upload, Zap, Star, Eye, Heart, Share, ThumbsUp, Camera, Palette, Type, Target, Layers, TrendingUp, Plus, Minus, Settings2, Sparkles, Tag, RefreshCw, FileText, Subtitles } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ThumbnailOptimizerPopup from '@/components/ThumbnailOptimizerPopup';
 
@@ -50,6 +50,15 @@ interface Video {
 
 interface VideoEditProps {
     video: Video;
+}
+
+// Change tracking interface
+interface VideoChange {
+    type: 'title' | 'description' | 'tags' | 'thumbnail' | 'subtitles' | 'watermark_removal';
+    field: string;
+    oldValue: any;
+    newValue: any;
+    timestamp: Date;
 }
 
 // Enhanced platform icons and status mapping
@@ -125,9 +134,75 @@ export default function VideoEdit({ video }: VideoEditProps) {
     const [isGeneratingTags, setIsGeneratingTags] = useState(false);
     const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
     const [availablePlatforms] = useState(['youtube', 'instagram', 'tiktok', 'facebook', 'x', 'pinterest', 'snapchat']);
+    const [changes, setChanges] = useState<VideoChange[]>([]);
+    const [originalData, setOriginalData] = useState({
+        title: video.title || '',
+        description: video.description || '',
+        tags: video.tags || [],
+        thumbnail: video.thumbnail || null,
+        subtitles: false,
+        watermark_removal: false
+    });
+    const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const videoQuality = getVideoQualityStatus(video.width, video.height);
+
+    // Change tracking functions
+    const addChange = (type: VideoChange['type'], field: string, oldValue: any, newValue: any) => {
+        const change: VideoChange = {
+            type,
+            field,
+            oldValue,
+            newValue,
+            timestamp: new Date()
+        };
+        
+        setChanges(prev => {
+            // Remove any existing change of the same type
+            const filtered = prev.filter(c => c.type !== type);
+            return [...filtered, change];
+        });
+        
+        setHasUnsavedChanges(true);
+    };
+
+    const removeChange = (type: VideoChange['type']) => {
+        setChanges(prev => prev.filter(c => c.type !== type));
+        setHasUnsavedChanges(changes.length > 1);
+    };
+
+    const clearAllChanges = () => {
+        setChanges([]);
+        setHasUnsavedChanges(false);
+    };
+
+    const saveChangesImmediately = async (changeData: any) => {
+        setIsSaving(true);
+        try {
+            const response = await fetch(`/videos/${video.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify(changeData),
+            });
+            
+            if (response.ok) {
+                // Update original data to reflect the saved state
+                setOriginalData(prev => ({ ...prev, ...changeData }));
+                // Remove the change from tracking since it's now saved
+                removeChange(changeData.type || 'title');
+            } else {
+                console.error('Failed to save changes:', response.statusText);
+            }
+        } catch (error) {
+            console.error('Error saving changes:', error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -199,7 +274,14 @@ export default function VideoEdit({ video }: VideoEditProps) {
             if (response.ok) {
                 const result = await response.json();
                 if (result.success && result.data.optimized_title) {
-                    setData('title', result.data.optimized_title);
+                    const oldTitle = data.title;
+                    const newTitle = result.data.optimized_title;
+                    
+                    setData('title', newTitle);
+                    addChange('title', 'title', oldTitle, newTitle);
+                    
+                    // Save immediately
+                    await saveChangesImmediately({ title: newTitle });
                     
                     // Show analysis info if available
                     const analysis = result.data.analysis_summary;
@@ -250,7 +332,14 @@ export default function VideoEdit({ video }: VideoEditProps) {
             if (response.ok) {
                 const result = await response.json();
                 if (result.success && result.data.optimized_description) {
-                    setData('description', result.data.optimized_description);
+                    const oldDescription = data.description;
+                    const newDescription = result.data.optimized_description;
+                    
+                    setData('description', newDescription);
+                    addChange('description', 'description', oldDescription, newDescription);
+                    
+                    // Save immediately
+                    await saveChangesImmediately({ description: newDescription });
                     
                     // Show analysis info if available
                     const analysis = result.data.analysis_summary;
@@ -326,7 +415,11 @@ export default function VideoEdit({ video }: VideoEditProps) {
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
-                    setSelectedThumbnail(result.thumbnail_url);
+                    const oldThumbnail = selectedThumbnail;
+                    const newThumbnail = result.thumbnail_url;
+                    
+                    setSelectedThumbnail(newThumbnail);
+                    addChange('thumbnail', 'thumbnail', oldThumbnail, newThumbnail);
                     
                     // Show success message
                     const successElement = document.createElement('div');
@@ -427,15 +520,8 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
     // Track changes for platform update button
     useEffect(() => {
-        const initialData = {
-            title: video.title || '',
-            description: video.description || '',
-            tags: video.tags || []
-        };
-        
-        const hasChanges = JSON.stringify(data) !== JSON.stringify(initialData);
-        setHasUnsavedChanges(hasChanges);
-    }, [data, video]);
+        setHasUnsavedChanges(changes.length > 0);
+    }, [changes]);
 
     const generateTags = async () => {
         setIsGeneratingTags(true);
@@ -508,7 +594,14 @@ export default function VideoEdit({ video }: VideoEditProps) {
                 console.log('Tag generation response:', result);
                 
                 if (result.success && result.data && result.data.analysis.tags) {
-                    setData('tags', result.data.analysis.tags);
+                    const oldTags = data.tags;
+                    const newTags = result.data.analysis.tags;
+                    
+                    setData('tags', newTags);
+                    addChange('tags', 'tags', oldTags, newTags);
+                    
+                    // Save immediately
+                    await saveChangesImmediately({ tags: newTags });
                 } else {
                     console.warn('Unexpected response structure:', result);
                     // Show user-friendly error message
@@ -558,12 +651,16 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
     const addTag = (tag: string) => {
         if (!data.tags.includes(tag)) {
-            setData('tags', [...data.tags, tag]);
+            const newTags = [...data.tags, tag];
+            setData('tags', newTags);
+            addChange('tags', 'tags', originalData.tags, newTags);
         }
     };
 
     const removeTag = (tagToRemove: string) => {
-        setData('tags', data.tags.filter(tag => tag !== tagToRemove));
+        const newTags = data.tags.filter(tag => tag !== tagToRemove);
+        setData('tags', newTags);
+        addChange('tags', 'tags', originalData.tags, newTags);
     };
 
     const updateAllPlatforms = async () => {
@@ -582,7 +679,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
             });
             
             if (response.ok) {
-                setHasUnsavedChanges(false);
+                clearAllChanges();
                 // Show success message
                 const confirmElement = document.createElement('div');
                 confirmElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
@@ -598,6 +695,23 @@ export default function VideoEdit({ video }: VideoEditProps) {
         } catch (error) {
             console.error('Failed to update platforms:', error);
         }
+    };
+
+    const discardAllChanges = () => {
+        // Revert all changes to original state
+        setData('title', originalData.title);
+        setData('description', originalData.description);
+        setData('tags', originalData.tags);
+        setSelectedThumbnail(originalData.thumbnail);
+        clearAllChanges();
+    };
+
+    const handleSubtitleGenerated = () => {
+        addChange('subtitles', 'subtitles', false, true);
+    };
+
+    const handleWatermarkRemoved = () => {
+        addChange('watermark_removal', 'watermark_removal', false, true);
     };
 
     return (
@@ -632,34 +746,69 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     </div>
                 </div>
 
-                {/* Update Platforms Button - Show when there are unsaved changes */}
+                {/* Unsaved Changes Window - Show when there are unsaved changes */}
                 {hasUnsavedChanges && (
-                    <Card className="border-blue-200 bg-blue-50">
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
+                    <Card className="border-orange-200 bg-orange-50">
+                        <CardContent className="p-6">
+                            <div className="space-y-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-blue-500 rounded-full">
-                                        <RefreshCw className="w-4 h-4 text-white" />
+                                    <div className="p-2 bg-orange-500 rounded-full">
+                                        <AlertCircle className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-blue-900">Unsaved Changes Detected</p>
-                                        <p className="text-sm text-blue-700">Update all connected platforms with your changes</p>
+                                        <h3 className="font-semibold text-orange-900 text-lg">Unsaved Changes Detected</h3>
+                                        <p className="text-sm text-orange-700">The following changes have been made to your video:</p>
                                     </div>
                                 </div>
-                                <div className="flex gap-2">
+                                
+                                {/* List of Changes */}
+                                <div className="space-y-2">
+                                    {changes.map((change, index) => (
+                                        <div key={index} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-orange-200">
+                                            <div className="flex-shrink-0">
+                                                {change.type === 'title' && <Type className="w-4 h-4 text-blue-600" />}
+                                                {change.type === 'description' && <FileText className="w-4 h-4 text-green-600" />}
+                                                {change.type === 'tags' && <Tag className="w-4 h-4 text-purple-600" />}
+                                                {change.type === 'thumbnail' && <Image className="w-4 h-4 text-pink-600" />}
+                                                {change.type === 'subtitles' && <Subtitles className="w-4 h-4 text-indigo-600" />}
+                                                {change.type === 'watermark_removal' && <Trash2 className="w-4 h-4 text-red-600" />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900 capitalize">
+                                                    {change.type.replace('_', ' ')} Updated
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    {change.type === 'title' && `"${change.oldValue}" → "${change.newValue}"`}
+                                                    {change.type === 'description' && 'Description content modified'}
+                                                    {change.type === 'tags' && `${change.oldValue.length} → ${change.newValue.length} tags`}
+                                                    {change.type === 'thumbnail' && 'Custom thumbnail uploaded'}
+                                                    {change.type === 'subtitles' && 'Subtitles generated and applied'}
+                                                    {change.type === 'watermark_removal' && 'Watermarks detected and removed'}
+                                                </p>
+                                            </div>
+                                            <div className="text-xs text-gray-500">
+                                                {change.timestamp.toLocaleTimeString()}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                {/* Action Buttons */}
+                                <div className="flex gap-3 pt-2">
                                     <Button 
-                                        onClick={updateAllPlatforms}
-                                        className="bg-blue-600 hover:bg-blue-700"
+                                        onClick={discardAllChanges}
+                                        variant="outline"
+                                        className="border-red-300 text-red-700 hover:bg-red-50"
                                     >
-                                        <RefreshCw className="w-4 h-4 mr-2" />
-                                        Update All Platforms
+                                        <X className="w-4 h-4 mr-2" />
+                                        Discard All Changes
                                     </Button>
                                     <Button 
-                                        variant="outline"
-                                        onClick={() => {/* Add platform manager */}}
+                                        onClick={updateAllPlatforms}
+                                        className="bg-orange-600 hover:bg-orange-700"
                                     >
-                                        <Settings2 className="w-4 h-4 mr-2" />
-                                        Manage Platforms
+                                        <Upload className="w-4 h-4 mr-2" />
+                                        Upload Changes to All Platforms
                                     </Button>
                                 </div>
                             </div>
@@ -693,6 +842,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                 videoPath={video.video_path || video.file_path || ''}
                                                 videoId={video.id}
                                                 videoTitle={video.title}
+                                                onSubtitleGenerated={handleSubtitleGenerated}
                                             />
                                         </ErrorBoundary>
                                     </CardContent>
@@ -715,6 +865,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                 videoPath={video.original_file_path || video.file_path || ''}
                                                 onRemovalComplete={(result) => {
                                                     console.log('Watermark removal completed:', result);
+                                                    handleWatermarkRemoved();
                                                     // Show success message
                                                     const successElement = document.createElement('div');
                                                     successElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
@@ -795,7 +946,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                 </div>
                                             </div>
                                             
-                                            <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg">
+                                            <div className="p-4 border border-blue-800 bg-blue-950/20 rounded-lg">
                                                 <div className="flex items-start gap-3">
                                                     <Eye className="w-5 h-5 text-blue-600 mt-0.5" />
                                                     <div>
@@ -895,7 +1046,11 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                             <div className="flex gap-2">
                                                 <Input
                                                     value={data.title}
-                                                    onChange={(e) => setData('title', e.target.value)}
+                                                    onChange={(e) => {
+                                                        const newTitle = e.target.value;
+                                                        setData('title', newTitle);
+                                                        addChange('title', 'title', originalData.title, newTitle);
+                                                    }}
                                                     placeholder="Enter video title"
                                                     className="flex-1"
                                                 />
@@ -928,7 +1083,11 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                             <div className="space-y-2">
                                                 <Textarea
                                                     value={data.description}
-                                                    onChange={(e) => setData('description', e.target.value)}
+                                                    onChange={(e) => {
+                                                        const newDescription = e.target.value;
+                                                        setData('description', newDescription);
+                                                        addChange('description', 'description', originalData.description, newDescription);
+                                                    }}
                                                     placeholder="Enter video description"
                                                     rows={4}
                                                 />
@@ -1022,17 +1181,6 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         </CardContent>
                                     </Card>
 
-                                    {/* Submit Button */}
-                                    <div className="flex justify-end">
-                                        <Button type="submit" disabled={processing}>
-                                            {processing ? (
-                                                <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
-                                            ) : (
-                                                <Save className="w-4 h-4 mr-2" />
-                                            )}
-                                            Save Changes
-                                        </Button>
-                                    </div>
                                 </form>
 
                                 {/* 5. Video Details Section */}
@@ -1117,7 +1265,15 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                     src={`${video.thumbnail}`} 
                                                     alt="Current thumbnail" 
                                                     className="w-32 h-20 object-cover rounded-lg border"
+                                                    onError={(e) => {
+                                                        const target = e.target as HTMLImageElement;
+                                                        target.style.display = 'none';
+                                                        target.nextElementSibling?.classList.remove('hidden');
+                                                    }}
                                                 />
+                                                <div className="w-32 h-20 bg-gray-200 rounded-lg flex items-center justify-center hidden">
+                                                    <Image className="w-6 h-6 text-gray-400" />
+                                                </div>
                                             </div>
                                         )}
                                     </CardContent>
@@ -1189,7 +1345,10 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     videoPath={video.original_file_path || video.file_path || ''}
                     title={data.title}
                     onThumbnailSet={() => {
-                        setSelectedThumbnail('optimized');
+                        const oldThumbnail = selectedThumbnail;
+                        const newThumbnail = 'optimized';
+                        setSelectedThumbnail(newThumbnail);
+                        addChange('thumbnail', 'thumbnail', oldThumbnail, newThumbnail);
                         setShowThumbnailOptimizer(false);
                     }}
                 />
