@@ -16,6 +16,7 @@
         "intervention/image": "^3.11",
         "laravel/cashier": "^15.6",
         "laravel/framework": "^12.0",
+        "laravel/sanctum": "^4.1",
         "laravel/socialite": "^5.21",
         "laravel/tinker": "^2.10.1",
         "openai-php/client": "^0.13.0",
