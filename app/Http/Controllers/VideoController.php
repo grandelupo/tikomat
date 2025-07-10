@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Video;
 use App\Models\VideoTarget;
+use App\Models\VideoVersion;
 use App\Models\Channel;
 use App\Models\SocialAccount;
 use App\Services\VideoProcessingService;
 use App\Services\VideoUploadService;
+use App\Jobs\UpdateVideoMetadataJob;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
@@ -149,6 +151,8 @@ class VideoController extends Controller
             'publish_at' => 'required_if:publish_type,scheduled|nullable|date|after:now',
             'cloud_providers' => 'nullable|array',
             'cloud_providers.*' => 'in:google_drive,dropbox',
+            'cloud_folders' => 'nullable|array',
+            'cloud_folders.*' => 'nullable|string',
             'advanced_options' => 'nullable|array',
             'facebook_page_id' => 'nullable|string|exists:social_accounts,facebook_page_id',
         ]);
@@ -208,24 +212,28 @@ class VideoController extends Controller
             $this->videoService->validateVideo($request->file('video'));
             Log::info('Video validation passed');
 
-            // Process video with cloud storage if providers are selected
-            $cloudProviders = $request->cloud_providers ?? [];
-            if (!empty($cloudProviders)) {
-                Log::info('Processing video with cloud storage', ['providers' => $cloudProviders]);
-                $videoInfo = $this->videoService->processVideoWithCloudStorage($request->file('video'), $cloudProviders);
-            } else {
-                $videoInfo = $this->videoService->processVideo($request->file('video'));
-            }
+            // Process video normally (cloud upload will happen in background)
+            $videoInfo = $this->videoService->processVideo($request->file('video'));
             
             Log::info('Video processing completed', [
                 'duration' => $videoInfo['duration'],
                 'thumbnail_path' => $videoInfo['thumbnail_path'] ?? 'none',
                 'file_path' => $videoInfo['path'],
-                'cloud_storage' => isset($videoInfo['cloud_storage']) ? 'enabled' : 'disabled',
             ]);
 
             $video = null;
             DB::transaction(function () use ($request, $videoInfo, $channel, &$video) {
+                // Prepare cloud upload data
+                $cloudProviders = $request->cloud_providers ?? [];
+                $cloudFolders = $request->cloud_folders ?? [];
+                $cloudUploadStatus = [];
+                $cloudUploadFolders = [];
+
+                foreach ($cloudProviders as $provider) {
+                    $cloudUploadStatus[$provider] = 'pending';
+                    $cloudUploadFolders[$provider] = $cloudFolders[$provider] ?? null;
+                }
+
                 // Create video record
                 $video = Video::create([
                     'user_id' => $request->user()->id,
@@ -238,12 +246,16 @@ class VideoController extends Controller
                     'thumbnail_path' => $videoInfo['thumbnail_path'] ?? null,
                     'video_width' => $videoInfo['width'] ?? null,
                     'video_height' => $videoInfo['height'] ?? null,
+                    'cloud_upload_providers' => !empty($cloudProviders) ? $cloudProviders : null,
+                    'cloud_upload_status' => !empty($cloudUploadStatus) ? $cloudUploadStatus : null,
+                    'cloud_upload_folders' => !empty($cloudUploadFolders) ? $cloudUploadFolders : null,
                 ]);
 
                 Log::info('Video record created', [
                     'video_id' => $video->id,
                     'duration' => $video->duration,
                     'thumbnail_path' => $video->thumbnail_path,
+                    'cloud_providers' => $cloudProviders,
                 ]);
 
                 // Create video targets for each platform
@@ -294,6 +306,41 @@ class VideoController extends Controller
                     'video_id' => $video->id,
                     'publish_at' => $request->publish_at,
                 ]);
+            }
+
+            // Dispatch cloud upload jobs if cloud providers are selected
+            $cloudProviders = $request->cloud_providers ?? [];
+            if (!empty($cloudProviders)) {
+                $cloudFolders = $request->cloud_folders ?? [];
+                Log::info('Dispatching cloud upload jobs', [
+                    'video_id' => $video->id,
+                    'providers' => $cloudProviders,
+                ]);
+                
+                foreach ($cloudProviders as $provider) {
+                    $folderPath = $cloudFolders[$provider] ?? null;
+                    
+                    try {
+                        \App\Jobs\UploadVideoToCloudStorage::dispatch($video, $provider, $folderPath);
+                        Log::info('Dispatched cloud upload job', [
+                            'video_id' => $video->id,
+                            'provider' => $provider,
+                            'folder_path' => $folderPath,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to dispatch cloud upload job', [
+                            'video_id' => $video->id,
+                            'provider' => $provider,
+                            'error' => $e->getMessage(),
+                        ]);
+                        
+                        // Mark as failed immediately
+                        $video->updateCloudUploadStatus($provider, 'failed', [
+                            'error' => 'Failed to dispatch upload job: ' . $e->getMessage(),
+                            'failed_at' => now()->toISOString(),
+                        ]);
+                    }
+                }
             }
 
             Log::info('Video upload process completed successfully', ['video_id' => $video->id]);
@@ -783,5 +830,340 @@ class VideoController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Check if video has unsaved changes.
+     */
+    public function checkUnsavedChanges(Request $request, Video $video): JsonResponse
+    {
+        $this->authorize('update', $video);
+
+        try {
+            $hasUnsavedChanges = $video->hasUnsavedChanges();
+            $currentVersion = $video->currentVersion();
+            $changes = [];
+
+            if ($hasUnsavedChanges && $currentVersion) {
+                $backupVersion = $video->backupVersion();
+                
+                if ($backupVersion) {
+                    $differences = $currentVersion->getDifferences($backupVersion);
+                    
+                    foreach ($differences as $field => $diff) {
+                        $changes[] = [
+                            'type' => $field,
+                            'field' => $field,
+                            'oldValue' => $diff['old'],
+                            'newValue' => $diff['new'],
+                            'timestamp' => $currentVersion->created_at,
+                        ];
+                    }
+
+                    if ($currentVersion->has_subtitle_changes) {
+                        $changes[] = [
+                            'type' => 'subtitles',
+                            'field' => 'subtitles',
+                            'oldValue' => false,
+                            'newValue' => true,
+                            'timestamp' => $currentVersion->created_at,
+                        ];
+                    }
+
+                    if ($currentVersion->has_watermark_removal) {
+                        $changes[] = [
+                            'type' => 'watermark_removal',
+                            'field' => 'watermark_removal',
+                            'oldValue' => false,
+                            'newValue' => true,
+                            'timestamp' => $currentVersion->created_at,
+                        ];
+                    }
+                }
+            }
+
+            return response()->json([
+                'has_unsaved_changes' => $hasUnsavedChanges,
+                'changes' => $changes,
+                'latest_data' => $currentVersion ? [
+                    'title' => $currentVersion->title,
+                    'description' => $currentVersion->description,
+                    'tags' => $currentVersion->tags,
+                    'thumbnail' => $currentVersion->thumbnail_path,
+                ] : null,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to check unsaved changes', [
+                'video_id' => $video->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'has_unsaved_changes' => false,
+                'changes' => [],
+                'latest_data' => null,
+            ]);
+        }
+    }
+
+    /**
+     * Auto-save video changes.
+     */
+    public function autoSave(Request $request, Video $video): JsonResponse
+    {
+        $this->authorize('update', $video);
+
+        try {
+            $request->validate([
+                'type' => 'required|string',
+                'field' => 'required|string',
+                'value' => 'nullable',
+                'title' => 'nullable|string|max:255',
+                'description' => 'nullable|string|max:1000',
+                'tags' => 'nullable|array',
+                'tags.*' => 'string|max:50',
+                'thumbnail' => 'nullable|string',
+                'has_subtitle_changes' => 'nullable|boolean',
+                'has_watermark_removal' => 'nullable|boolean',
+            ]);
+
+            // Create backup version if it doesn't exist
+            if (!$video->backupVersion()) {
+                VideoVersion::createBackup($video);
+                Log::info('Created backup version for video', ['video_id' => $video->id]);
+            }
+
+            // Get or create current version
+            $currentVersion = $video->currentVersion();
+            
+            $changes = [
+                'title' => $request->title ?? $video->title,
+                'description' => $request->description ?? $video->description,
+                'tags' => $request->tags ?? $video->tags,
+                'thumbnail' => $request->thumbnail ?? $video->thumbnail_path,
+                'has_subtitle_changes' => $request->has_subtitle_changes ?? false,
+                'has_watermark_removal' => $request->has_watermark_removal ?? false,
+            ];
+
+            $changesSummary = [
+                'type' => $request->type,
+                'field' => $request->field,
+                'timestamp' => now(),
+                'change_description' => $this->getChangeDescription($request->type, $request->field),
+            ];
+
+            if ($currentVersion) {
+                // Update existing current version
+                $currentVersion->update([
+                    'title' => $changes['title'],
+                    'description' => $changes['description'],
+                    'tags' => $changes['tags'],
+                    'thumbnail_path' => $changes['thumbnail'],
+                    'has_subtitle_changes' => $changes['has_subtitle_changes'],
+                    'has_watermark_removal' => $changes['has_watermark_removal'],
+                    'changes_summary' => array_merge(
+                        $currentVersion->changes_summary ?? [],
+                        [$changesSummary]
+                    ),
+                ]);
+            } else {
+                // Create new current version
+                VideoVersion::createCurrent($video, $changes, [$changesSummary]);
+            }
+
+            // Update the actual video record for immediate UI consistency
+            $video->update([
+                'title' => $changes['title'],
+                'description' => $changes['description'],
+                'tags' => $changes['tags'],
+                'thumbnail_path' => $changes['thumbnail'],
+            ]);
+
+            Log::info('Auto-saved video changes', [
+                'video_id' => $video->id,
+                'type' => $request->type,
+                'field' => $request->field,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Changes auto-saved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Auto-save failed', [
+                'video_id' => $video->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to auto-save changes: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Publish changes to all platforms.
+     */
+    public function publishChanges(Request $request, Video $video): JsonResponse
+    {
+        $this->authorize('update', $video);
+
+        try {
+            if (!$video->hasUnsavedChanges()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No changes to publish',
+                    'jobs_created' => 0,
+                ]);
+            }
+
+            $currentVersion = $video->currentVersion();
+            
+            if (!$currentVersion) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No current version found',
+                ], 400);
+            }
+
+            // Apply current version to the main video record
+            $currentVersion->applyToVideo();
+
+            // Get all successful targets for platform updates
+            $successfulTargets = $video->targets()->where('status', 'success')->get();
+            $jobsCreated = 0;
+            $failedPlatforms = [];
+
+            foreach ($successfulTargets as $target) {
+                try {
+                    // Dispatch update job
+                    UpdateVideoMetadataJob::dispatch($target, $currentVersion->changes_summary ?? []);
+                    $jobsCreated++;
+                    
+                    Log::info('Dispatched metadata update job', [
+                        'video_id' => $video->id,
+                        'target_id' => $target->id,
+                        'platform' => $target->platform,
+                    ]);
+                } catch (\Exception $e) {
+                    $failedPlatforms[] = ucfirst($target->platform);
+                    Log::error('Failed to dispatch update job', [
+                        'video_id' => $video->id,
+                        'target_id' => $target->id,
+                        'platform' => $target->platform,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Clean up versions after successful publishing
+            $video->versions()->delete();
+
+            $message = 'Changes published successfully!';
+            if (!empty($failedPlatforms)) {
+                $message .= ' (Failed to update: ' . implode(', ', $failedPlatforms) . ')';
+            }
+
+            Log::info('Video changes published', [
+                'video_id' => $video->id,
+                'jobs_created' => $jobsCreated,
+                'failed_platforms' => $failedPlatforms,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'jobs_created' => $jobsCreated,
+                'failed_platforms' => $failedPlatforms,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to publish changes', [
+                'video_id' => $video->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to publish changes: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Discard all changes and restore backup.
+     */
+    public function discardChanges(Request $request, Video $video): JsonResponse
+    {
+        $this->authorize('update', $video);
+
+        try {
+            $backupVersion = $video->backupVersion();
+            
+            if (!$backupVersion) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No backup version found to restore',
+                ], 400);
+            }
+
+            // Restore the backup version to the main video record
+            $backupVersion->applyToVideo();
+
+            $originalData = [
+                'title' => $backupVersion->title,
+                'description' => $backupVersion->description,
+                'tags' => $backupVersion->tags,
+                'thumbnail' => $backupVersion->thumbnail_path,
+            ];
+
+            // Delete all versions (both backup and current)
+            $video->versions()->delete();
+
+            Log::info('Video changes discarded and backup restored', [
+                'video_id' => $video->id,
+                'restored_title' => $backupVersion->title,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All changes discarded and original version restored',
+                'original_data' => $originalData,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to discard changes', [
+                'video_id' => $video->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to discard changes: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get a user-friendly description of the change.
+     */
+    private function getChangeDescription(string $type, string $field): string
+    {
+        return match ($type) {
+            'title' => 'Title updated',
+            'description' => 'Description updated',
+            'tags' => 'Tags updated',
+            'thumbnail' => 'Custom thumbnail uploaded',
+            'subtitles' => 'Subtitles generated',
+            'watermark_removal' => 'Watermarks removed',
+            default => ucfirst($field) . ' updated',
+        };
     }
 }

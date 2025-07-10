@@ -1,0 +1,8 @@
+# Ignore all watermark cutout images (they are temporary)
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# But keep this .gitignore file
+!.gitignore 

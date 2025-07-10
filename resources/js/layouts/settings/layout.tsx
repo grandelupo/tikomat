@@ -22,6 +22,11 @@ const sidebarNavItems: NavItem[] = [
         href: '/settings/appearance',
         icon: null,
     },
+    {
+        title: 'Cloud Storage',
+        href: '/settings/cloud-storage',
+        icon: null,
+    },
 ];
 
 export default function SettingsLayout({ children }: PropsWithChildren) {

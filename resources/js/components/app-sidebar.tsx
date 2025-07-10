@@ -46,11 +46,6 @@ const aiToolsNavItems: NavItem[] = [
         href: '/ai/trend-analyzer',
         icon: TrendingUp,
     },
-    {
-        title: 'Audience Insights',
-        href: '/ai/audience-insights',
-        icon: Users,
-    },
 ];
 
 const footerNavItems: NavItem[] = [];
@@ -73,9 +68,8 @@ export function AppSidebar() {
             <SidebarContent>
                 <NavMain items={mainNavItems} />
                 <div className="mt-6">
-                    <div className="px-3 py-2">
+                    <div className="px-4 py-2">
                         <div className="flex items-center gap-2 text-sm font-medium text-sidebar-foreground/70">
-                            <Brain className="h-4 w-4" />
                             AI Tools
                         </div>
                     </div>

@@ -11,6 +11,8 @@ use Illuminate\Http\RedirectResponse;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
+use Inertia\Response;
 use Exception;
 
 class CloudStorageController extends Controller
@@ -18,18 +20,23 @@ class CloudStorageController extends Controller
     /**
      * Redirect to cloud storage provider for authentication.
      */
-    public function redirect(string $provider): RedirectResponse
+    public function redirect(string $provider, Request $request): RedirectResponse
     {
         if (!in_array($provider, ['google_drive', 'dropbox'])) {
             return redirect()->route('dashboard')
                 ->with('error', 'Invalid cloud storage provider.');
         }
 
+        // Store redirect information in session
+        $redirectTo = $request->input('redirect', 'dashboard');
+        session(['cloud_storage_redirect' => $redirectTo]);
+
         try {
             if ($provider === 'google_drive') {
                 return Socialite::driver('google_drive')
                     ->scopes([
                         'https://www.googleapis.com/auth/drive.readonly',
+                        'https://www.googleapis.com/auth/drive.file',
                         'https://www.googleapis.com/auth/userinfo.profile',
                         'https://www.googleapis.com/auth/userinfo.email'
                     ])
@@ -40,7 +47,7 @@ class CloudStorageController extends Controller
                     ->redirect();
             } elseif ($provider === 'dropbox') {
                 return Socialite::driver('dropbox')
-                    ->scopes(['files.content.read'])
+                    ->scopes(['files.content.read', 'files.content.write'])
                     ->redirect();
             }
         } catch (Exception $e) {
@@ -80,13 +87,47 @@ class CloudStorageController extends Controller
                 ]
             );
 
+            // Get redirect information from session
+            $redirectTo = session('cloud_storage_redirect', 'dashboard');
+            session()->forget('cloud_storage_redirect');
+
+            $successMessage = ucfirst(str_replace('_', ' ', $provider)) . ' connected successfully!';
+
+            // Handle different redirect scenarios
+            if ($redirectTo === 'folder_picker') {
+                // For folder picker, we need to redirect back to the previous page with a flag
+                $referer = session('_previous.url', route('dashboard'));
+                return redirect($referer . (strpos($referer, '?') !== false ? '&' : '?') . 'oauth_completed=cloud_storage')
+                    ->with('success', $successMessage);
+            } elseif ($redirectTo === 'settings') {
+                // For settings page
+                return redirect()->route('settings.cloud-storage')
+                    ->with('success', $successMessage);
+            }
+
+            // Default redirect to dashboard
             return redirect()->route('dashboard')
-                ->with('success', ucfirst(str_replace('_', ' ', $provider)) . ' connected successfully!');
+                ->with('success', $successMessage);
 
         } catch (Exception $e) {
             Log::error('Cloud storage OAuth callback failed: ' . $e->getMessage());
+            
+            $redirectTo = session('cloud_storage_redirect', 'dashboard');
+            session()->forget('cloud_storage_redirect');
+            
+            $errorMessage = 'Failed to connect ' . ucfirst(str_replace('_', ' ', $provider)) . ': ' . $e->getMessage();
+
+            if ($redirectTo === 'folder_picker') {
+                $referer = session('_previous.url', route('dashboard'));
+                return redirect($referer)
+                    ->with('error', $errorMessage);
+            } elseif ($redirectTo === 'settings') {
+                return redirect()->route('settings.cloud-storage')
+                    ->with('error', $errorMessage);
+            }
+
             return redirect()->route('dashboard')
-                ->with('error', 'Failed to connect ' . ucfirst(str_replace('_', ' ', $provider)) . ': ' . $e->getMessage());
+                ->with('error', $errorMessage);
         }
     }
 
@@ -210,9 +251,39 @@ class CloudStorageController extends Controller
     }
 
     /**
+     * Display cloud storage settings page.
+     */
+    public function settingsIndex(): Response
+    {
+        $connectedAccounts = CloudStorage::where('user_id', Auth::id())
+            ->select('provider', 'provider_name', 'provider_email', 'created_at')
+            ->get();
+
+        $availableProviders = [
+            [
+                'id' => 'google_drive',
+                'name' => 'Google Drive',
+                'description' => 'Store and sync your videos with Google Drive',
+                'icon' => 'google-drive'
+            ],
+            [
+                'id' => 'dropbox',
+                'name' => 'Dropbox',
+                'description' => 'Store and sync your videos with Dropbox',
+                'icon' => 'dropbox'
+            ]
+        ];
+
+        return Inertia::render('settings/cloud-storage', [
+            'connectedAccounts' => $connectedAccounts,
+            'availableProviders' => $availableProviders,
+        ]);
+    }
+
+    /**
      * Disconnect cloud storage account.
      */
-    public function disconnect(string $provider): RedirectResponse
+    public function disconnect(string $provider, Request $request): RedirectResponse
     {
         if (!in_array($provider, ['google_drive', 'dropbox'])) {
             return redirect()->route('dashboard')
@@ -223,8 +294,16 @@ class CloudStorageController extends Controller
             ->where('provider', $provider)
             ->delete();
 
+        $successMessage = ucfirst(str_replace('_', ' ', $provider)) . ' disconnected successfully!';
+        
+        // Check if the request came from settings page
+        if ($request->input('from') === 'settings' || str_contains($request->header('referer', ''), '/settings/cloud-storage')) {
+            return redirect()->route('settings.cloud-storage')
+                ->with('success', $successMessage);
+        }
+
         return redirect()->route('dashboard')
-            ->with('success', ucfirst(str_replace('_', ' ', $provider)) . ' disconnected successfully!');
+            ->with('success', $successMessage);
     }
 
     /**
@@ -237,5 +316,108 @@ class CloudStorageController extends Controller
             ->get();
 
         return response()->json($accounts);
+    }
+
+    /**
+     * List folders for a cloud storage provider.
+     */
+    public function listFolders(string $provider, Request $request): JsonResponse
+    {
+        if (!in_array($provider, ['google_drive', 'dropbox'])) {
+            return response()->json(['error' => 'Invalid provider'], 400);
+        }
+
+        $cloudStorage = CloudStorage::where('user_id', Auth::id())
+            ->where('provider', $provider)
+            ->first();
+
+        if (!$cloudStorage) {
+            return response()->json(['error' => 'Cloud storage not connected'], 401);
+        }
+
+        try {
+            if ($provider === 'google_drive') {
+                $service = new GoogleDriveService();
+                $service->setAccessToken($cloudStorage->access_token, $cloudStorage->refresh_token);
+                
+                $parentId = $request->input('parent_id');
+                $folders = $service->listFolders($parentId);
+                
+                return response()->json([
+                    'folders' => $folders,
+                    'provider' => 'google_drive'
+                ]);
+                
+            } elseif ($provider === 'dropbox') {
+                $service = new DropboxService();
+                $service->setAccessToken($cloudStorage->access_token);
+                
+                $path = $request->input('path', '');
+                $folders = $service->listFolders($path);
+                
+                return response()->json([
+                    'folders' => $folders,
+                    'provider' => 'dropbox'
+                ]);
+            }
+        } catch (Exception $e) {
+            Log::error('Cloud storage list folders failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to load folders: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Create a folder in cloud storage.
+     */
+    public function createFolder(string $provider, Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'parent_id' => 'nullable|string', // For Google Drive
+            'parent_path' => 'nullable|string', // For Dropbox
+        ]);
+
+        if (!in_array($provider, ['google_drive', 'dropbox'])) {
+            return response()->json(['error' => 'Invalid provider'], 400);
+        }
+
+        $cloudStorage = CloudStorage::where('user_id', Auth::id())
+            ->where('provider', $provider)
+            ->first();
+
+        if (!$cloudStorage) {
+            return response()->json(['error' => 'Cloud storage not connected'], 401);
+        }
+
+        try {
+            if ($provider === 'google_drive') {
+                $service = new GoogleDriveService();
+                $service->setAccessToken($cloudStorage->access_token, $cloudStorage->refresh_token);
+                
+                $folder = $service->createFolder($request->name, $request->parent_id);
+                
+                return response()->json([
+                    'success' => true,
+                    'folder' => $folder,
+                    'provider' => 'google_drive'
+                ]);
+                
+            } elseif ($provider === 'dropbox') {
+                $service = new DropboxService();
+                $service->setAccessToken($cloudStorage->access_token);
+                
+                $path = ($request->parent_path ? rtrim($request->parent_path, '/') . '/' : '/') . $request->name;
+                $folder = $service->createFolder($path);
+                
+                return response()->json([
+                    'success' => true,
+                    'folder' => $folder,
+                    'provider' => 'dropbox'
+                ]);
+            }
+        } catch (Exception $e) {
+            Log::error('Cloud storage create folder failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to create folder: ' . $e->getMessage()], 500);
+        }
     }
 }

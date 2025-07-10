@@ -18,6 +18,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Plus, Youtube, Instagram, Video as VideoIcon, Clock, CheckCircle, XCircle, AlertCircle, Eye, Edit, Trash2, Search, Filter } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
+import CloudUploadStatus from '@/components/CloudUploadStatus';
 
 interface Video {
     id: number;
@@ -30,6 +31,9 @@ interface Video {
     thumbnail_path: string | null;
     video_width: number | null;
     video_height: number | null;
+    cloud_upload_providers?: string[];
+    cloud_upload_status?: Record<string, string>;
+    cloud_upload_results?: Record<string, any>;
     channel: {
         id: number;
         name: string;
@@ -295,14 +299,15 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-20">Thumbnail</TableHead>
-                                        <TableHead>Title</TableHead>
-                                        <TableHead>Channel</TableHead>
-                                        <TableHead>Tags</TableHead>
-                                        <TableHead>Duration</TableHead>
-                                        <TableHead>Platforms</TableHead>
-                                        <TableHead>Upload Date</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
+                                                                        <TableHead className="w-20">Thumbnail</TableHead>
+                                <TableHead>Title</TableHead>
+                                <TableHead>Channel</TableHead>
+                                <TableHead>Tags</TableHead>
+                                <TableHead>Duration</TableHead>
+                                <TableHead>Platforms</TableHead>
+                                <TableHead>Cloud Backup</TableHead>
+                                <TableHead>Upload Date</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>

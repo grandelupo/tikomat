@@ -127,12 +127,6 @@ export default function Connections({
                             Manage your social media platform connections across all channels
                         </p>
                     </div>
-                    <Link href="/channels/create">
-                        <Button>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Create Channel
-                        </Button>
-                    </Link>
                 </div>
 
                 {/* Platform Overview */}

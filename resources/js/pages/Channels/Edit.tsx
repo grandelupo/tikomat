@@ -5,9 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Youtube, Instagram, Video as VideoIcon, ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 
 interface Channel {
     id: number;
@@ -20,31 +18,9 @@ interface Channel {
 
 interface Props {
     channel: Channel;
-    allowedPlatforms: string[];
 }
 
-const platformData = {
-    youtube: {
-        name: 'YouTube',
-        icon: Youtube,
-        description: 'Upload videos to your YouTube channel',
-        color: 'text-red-600'
-    },
-    instagram: {
-        name: 'Instagram',
-        icon: Instagram,
-        description: 'Share Reels and video content',
-        color: 'text-pink-600'
-    },
-    tiktok: {
-        name: 'TikTok',
-        icon: VideoIcon,
-        description: 'Publish videos for maximum reach',
-        color: 'text-black'
-    }
-};
-
-export default function ChannelEdit({ channel, allowedPlatforms }: Props) {
+export default function ChannelEdit({ channel }: Props) {
     const breadcrumbs = [
         {
             title: 'My channels',
@@ -62,21 +38,12 @@ export default function ChannelEdit({ channel, allowedPlatforms }: Props) {
 
     const { data, setData, put, processing, errors } = useForm({
         name: channel.name,
-        description: channel.description || '',
-        default_platforms: channel.default_platforms || []
+        description: channel.description || ''
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         put(`/channels/${channel.id}`);
-    };
-
-    const handlePlatformChange = (platform: string, checked: boolean) => {
-        if (checked) {
-            setData('default_platforms', [...data.default_platforms, platform]);
-        } else {
-            setData('default_platforms', data.default_platforms.filter(p => p !== platform));
-        }
     };
 
     const handleDelete = () => {
@@ -146,71 +113,6 @@ export default function ChannelEdit({ channel, allowedPlatforms }: Props) {
                                     />
                                     {errors.description && (
                                         <p className="text-sm text-red-600">{errors.description}</p>
-                                    )}
-                                </div>
-
-                                {/* Default Platforms */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <Label>Default Platforms</Label>
-                                        <p className="text-sm text-muted-foreground">
-                                            Select the platforms you typically want to publish to from this channel
-                                        </p>
-                                    </div>
-
-                                    <div className="grid gap-4">
-                                        {Object.entries(platformData).map(([platform, info]) => {
-                                            const isAllowed = allowedPlatforms.includes(platform);
-                                            const isChecked = data.default_platforms.includes(platform);
-                                            const Icon = info.icon;
-
-                                            return (
-                                                <div 
-                                                    key={platform}
-                                                    className={`flex items-center space-x-3 p-4 border rounded-lg ${
-                                                        !isAllowed ? 'bg-gray-50 border-gray-200' : 'border-gray-300'
-                                                    }`}
-                                                >
-                                                    <Checkbox
-                                                        id={platform}
-                                                        checked={isChecked}
-                                                        disabled={!isAllowed}
-                                                        onCheckedChange={(checked) => 
-                                                            handlePlatformChange(platform, checked as boolean)
-                                                        }
-                                                    />
-                                                    <div className="flex items-center space-x-3 flex-1">
-                                                        <Icon className={`w-5 h-5 ${info.color}`} />
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center space-x-2">
-                                                                <Label 
-                                                                    htmlFor={platform}
-                                                                    className={`font-medium ${!isAllowed ? 'text-gray-400' : ''}`}
-                                                                >
-                                                                    {info.name}
-                                                                </Label>
-                                                            </div>
-                                                            <p className={`text-sm ${!isAllowed ? 'text-gray-400' : 'text-muted-foreground'}`}>
-                                                                {info.description}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {allowedPlatforms.length === 1 && (
-                                        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
-                                            <AlertDescription className="text-blue-800 dark:text-blue-200">
-                                                <strong>Free Plan:</strong> You currently have access to YouTube only. 
-                                                Upgrade to Pro to unlock Instagram and TikTok publishing for just $0.60/day.
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-
-                                    {errors.default_platforms && (
-                                        <p className="text-sm text-red-600">{errors.default_platforms}</p>
                                     )}
                                 </div>
 

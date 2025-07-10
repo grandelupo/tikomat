@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Download, Languages, Mic, Film, Upload, Type, Bold, Italic, Underline, AlignCenter, AlignLeft, AlignRight, Palette, RotateCcw, RotateCw, Move, Settings, Camera, Maximize, Minimize, Wand2, Settings2, X } from 'lucide-react';
 import AdvancedSubtitleRenderer from './AdvancedSubtitleRenderer';
 import { convertToValidHex } from '@/lib/colorUtils';
+import { usePage } from '@inertiajs/react';
 
 interface Subtitle {
   id: string;
@@ -68,6 +69,9 @@ interface AISubtitleGeneratorProps {
 }
 
 const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, videoId, videoTitle, onSubtitleGenerated }) => {
+  const { props } = usePage<any>();
+  const isLocalEnvironment = props.app?.env === 'local';
+  
   const [generationData, setGenerationData] = useState<GenerationData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
@@ -1256,42 +1260,59 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
           
           {!generationData && (
             <div className="flex items-center gap-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  <Languages className="w-4 h-4 inline mr-2" />
-                  Language
-                </label>
-                <select
-                  value={selectedLanguage}
-                  onChange={(e) => setSelectedLanguage(e.target.value)}
-                  className="border border-input rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-foreground"
-                  disabled={isGenerating}
+              {!isLocalEnvironment ? (
+                <button
+                  disabled={true}
+                  className="flex items-center gap-2 px-6 py-2 bg-gray-400 text-gray-200 rounded-lg font-medium cursor-not-allowed opacity-50 transition-all"
                 >
-                  {Object.entries(languages).map(([code, lang]) => (
-                    <option key={code} value={code}>
-                      {lang.name} ({lang.accuracy}% accuracy)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <button
-                onClick={startGeneration}
-                disabled={isGenerating || !videoId}
-                className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {isGenerating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Mic className="w-4 h-4" />
-                    Generate Subtitles
-                  </>
-                )}
-              </button>
+                  <Mic className="w-7 h-7" />
+                  Subtitle Generation Coming Soon
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Languages className="w-5 h-5 text-muted-foreground" />
+                    <select
+                      value={selectedLanguage}
+                      onChange={(e) => setSelectedLanguage(e.target.value)}
+                      className="px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="en">English</option>
+                      <option value="es">Spanish</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                      <option value="it">Italian</option>
+                      <option value="pt">Portuguese</option>
+                      <option value="ru">Russian</option>
+                      <option value="ja">Japanese</option>
+                      <option value="ko">Korean</option>
+                      <option value="zh">Chinese</option>
+                      {Object.entries(languages).map(([code, language]) => (
+                        <option key={code} value={code}>
+                          {language.name || code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={startGeneration}
+                    disabled={isGenerating || !videoId}
+                    className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-5 h-5" />
+                        Generate Subtitles
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

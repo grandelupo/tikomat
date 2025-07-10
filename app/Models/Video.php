@@ -29,6 +29,11 @@ class Video extends Model
         'subtitles_generated_at',
         'rendered_video_path',
         'rendered_video_status',
+        'cloud_upload_providers',
+        'cloud_upload_status',
+        'cloud_upload_results',
+        'cloud_upload_folders',
+        'cloud_uploaded_at',
     ];
 
     protected $appends = [
@@ -46,6 +51,11 @@ class Video extends Model
         'duration' => 'integer',
         'video_width' => 'integer',
         'video_height' => 'integer',
+        'cloud_upload_providers' => 'array',
+        'cloud_upload_status' => 'array',
+        'cloud_upload_results' => 'array',
+        'cloud_upload_folders' => 'array',
+        'cloud_uploaded_at' => 'datetime',
     ];
 
     /**
@@ -78,6 +88,38 @@ class Video extends Model
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channel::class);
+    }
+
+    /**
+     * Get the video versions.
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(VideoVersion::class);
+    }
+
+    /**
+     * Get the backup version if it exists.
+     */
+    public function backupVersion(): ?VideoVersion
+    {
+        return $this->versions()->where('version_type', 'backup')->latest()->first();
+    }
+
+    /**
+     * Get the current version if it exists.
+     */
+    public function currentVersion(): ?VideoVersion
+    {
+        return $this->versions()->where('version_type', 'current')->latest()->first();
+    }
+
+    /**
+     * Check if there are unsaved changes.
+     */
+    public function hasUnsavedChanges(): bool
+    {
+        return $this->versions()->where('version_type', 'current')->exists();
     }
 
     /**
@@ -186,5 +228,81 @@ class Video extends Model
         }
         
         return null;
+    }
+
+    /**
+     * Check if video has pending cloud uploads.
+     */
+    public function hasPendingCloudUploads(): bool
+    {
+        if (!$this->cloud_upload_providers) {
+            return false;
+        }
+
+        $status = $this->cloud_upload_status ?? [];
+        foreach ($this->cloud_upload_providers as $provider) {
+            $providerStatus = $status[$provider] ?? 'pending';
+            if (in_array($providerStatus, ['pending', 'processing'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get cloud upload status for a specific provider.
+     */
+    public function getCloudUploadStatus(string $provider): string
+    {
+        $status = $this->cloud_upload_status ?? [];
+        return $status[$provider] ?? 'none';
+    }
+
+    /**
+     * Get cloud upload result for a specific provider.
+     */
+    public function getCloudUploadResult(string $provider): ?array
+    {
+        $results = $this->cloud_upload_results ?? [];
+        return $results[$provider] ?? null;
+    }
+
+    /**
+     * Update cloud upload status for a specific provider.
+     */
+    public function updateCloudUploadStatus(string $provider, string $status, ?array $result = null): void
+    {
+        $currentStatus = $this->cloud_upload_status ?? [];
+        $currentStatus[$provider] = $status;
+        $this->cloud_upload_status = $currentStatus;
+
+        if ($result) {
+            $currentResults = $this->cloud_upload_results ?? [];
+            $currentResults[$provider] = $result;
+            $this->cloud_upload_results = $currentResults;
+        }
+
+        $this->save();
+    }
+
+    /**
+     * Check if all cloud uploads are completed.
+     */
+    public function areAllCloudUploadsCompleted(): bool
+    {
+        if (!$this->cloud_upload_providers) {
+            return true;
+        }
+
+        $status = $this->cloud_upload_status ?? [];
+        foreach ($this->cloud_upload_providers as $provider) {
+            $providerStatus = $status[$provider] ?? 'pending';
+            if (!in_array($providerStatus, ['success', 'failed'])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

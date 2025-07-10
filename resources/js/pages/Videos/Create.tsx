@@ -13,6 +13,7 @@ import { Head, useForm, Link } from '@inertiajs/react';
 import { Upload, Youtube, Instagram, Video as VideoIcon, Calendar, Clock, ArrowLeft, Info, Facebook, Camera, Palette, Cloud } from 'lucide-react';
 import XIcon from '@/components/ui/icons/x';
 import CloudStorageImport from '@/components/CloudStorageImport';
+import CloudStorageFolderPicker from '@/components/CloudStorageFolderPicker';
 import AdvancedOptionsSection from '@/components/AdvancedOptions/AdvancedOptionsSection';
 
 interface Channel {
@@ -70,6 +71,8 @@ export default function CreateVideo({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
     const [isCloudStorageOpen, setIsCloudStorageOpen] = useState(false);
+    const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false);
+    const [cloudFolders, setCloudFolders] = useState<Record<string, string>>({});
     const [advancedOptions, setAdvancedOptions] = useState<Record<string, any>>({});
     const [selectedFacebookPageId, setSelectedFacebookPageId] = useState<string>(
         safeFacebookPages.find(page => page.is_current_channel)?.page_id || 
@@ -101,6 +104,7 @@ export default function CreateVideo({
         publish_type: 'now',
         publish_at: '',
         cloud_providers: [] as string[],
+        cloud_folders: {} as Record<string, string>,
         advanced_options: {} as Record<string, any>,
         facebook_page_id: selectedFacebookPageId,
     });
@@ -623,11 +627,24 @@ export default function CreateVideo({
 
                             {/* Cloud Storage Options */}
                             <div className="space-y-4">
-                                <div>
-                                    <Label>Cloud Storage Backup (Optional)</Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        Automatically backup your video to cloud storage services
-                                    </p>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <Label>Cloud Storage Backup (Optional)</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Automatically backup your video to cloud storage services
+                                        </p>
+                                    </div>
+                                    {(data.cloud_providers?.length || 0) > 0 && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setIsFolderPickerOpen(true)}
+                                        >
+                                            <Cloud className="w-4 h-4 mr-2" />
+                                            Select Folders
+                                        </Button>
+                                    )}
                                 </div>
 
                                 <div className="grid gap-3">
@@ -637,10 +654,18 @@ export default function CreateVideo({
                                             checked={data.cloud_providers?.includes('google_drive') || false}
                                             onCheckedChange={(checked) => {
                                                 const currentProviders = data.cloud_providers || [];
+                                                const currentFolders = data.cloud_folders || {};
+                                                
                                                 if (checked) {
                                                     setData('cloud_providers', [...currentProviders, 'google_drive']);
                                                 } else {
-                                                    setData('cloud_providers', currentProviders.filter(p => p !== 'google_drive'));
+                                                    const newProviders = currentProviders.filter(p => p !== 'google_drive');
+                                                    const newFolders = { ...currentFolders };
+                                                    delete newFolders.google_drive;
+                                                    
+                                                    setData('cloud_providers', newProviders);
+                                                    setData('cloud_folders', newFolders);
+                                                    setCloudFolders(newFolders);
                                                 }
                                             }}
                                         />
@@ -655,6 +680,11 @@ export default function CreateVideo({
                                                 <p className="text-sm text-muted-foreground">
                                                     Backup to your Google Drive account
                                                 </p>
+                                                {data.cloud_folders?.google_drive && (
+                                                    <p className="text-xs text-blue-600 mt-1">
+                                                        Upload to: {data.cloud_folders.google_drive || 'Root folder'}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -665,10 +695,18 @@ export default function CreateVideo({
                                             checked={data.cloud_providers?.includes('dropbox') || false}
                                             onCheckedChange={(checked) => {
                                                 const currentProviders = data.cloud_providers || [];
+                                                const currentFolders = data.cloud_folders || {};
+                                                
                                                 if (checked) {
                                                     setData('cloud_providers', [...currentProviders, 'dropbox']);
                                                 } else {
-                                                    setData('cloud_providers', currentProviders.filter(p => p !== 'dropbox'));
+                                                    const newProviders = currentProviders.filter(p => p !== 'dropbox');
+                                                    const newFolders = { ...currentFolders };
+                                                    delete newFolders.dropbox;
+                                                    
+                                                    setData('cloud_providers', newProviders);
+                                                    setData('cloud_folders', newFolders);
+                                                    setCloudFolders(newFolders);
                                                 }
                                             }}
                                         />
@@ -683,17 +721,24 @@ export default function CreateVideo({
                                                 <p className="text-sm text-muted-foreground">
                                                     Backup to your Dropbox account
                                                 </p>
+                                                {data.cloud_folders?.dropbox && (
+                                                    <p className="text-xs text-blue-600 mt-1">
+                                                        Upload to: {data.cloud_folders.dropbox || 'Root folder'}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
-                                    <AlertDescription className="text-blue-800 dark:text-blue-200">
-                                        <strong>Note:</strong> Cloud storage backup requires API configuration. 
-                                        Videos will be stored locally and cloud backup will be simulated for now.
-                                    </AlertDescription>
-                                </Alert>
+                                {(data.cloud_providers?.length || 0) > 0 && (
+                                    <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded border border-blue-200 dark:text-blue-400 dark:bg-blue-900/20 dark:border-blue-800">
+                                        <strong>Selected:</strong> {data.cloud_providers?.join(', ')}
+                                        {Object.keys(data.cloud_folders || {}).length > 0 && (
+                                            <span> • Folders configured</span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Advanced Options Section */}
@@ -730,6 +775,19 @@ export default function CreateVideo({
                 isOpen={isCloudStorageOpen}
                 onClose={() => setIsCloudStorageOpen(false)}
                 onFileImported={handleCloudFileImported}
+            />
+
+            {/* Cloud Storage Folder Picker Dialog */}
+            <CloudStorageFolderPicker
+                isOpen={isFolderPickerOpen}
+                onClose={() => setIsFolderPickerOpen(false)}
+                selectedProviders={data.cloud_providers || []}
+                selectedFolders={data.cloud_folders || {}}
+                onSelectionChange={(providers, folders) => {
+                    setData('cloud_providers', providers);
+                    setData('cloud_folders', folders);
+                    setCloudFolders(folders);
+                }}
             />
         </AppLayout>
     );

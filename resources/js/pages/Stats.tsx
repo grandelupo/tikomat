@@ -105,7 +105,7 @@ export default function Stats({ stats, subscription, allowedPlatforms }: Props) 
                 </div>
 
                 {/* AI Audience Insights */}
-                <div className="bg-background rounded-lg border">
+                <div className="bg-background py-10">
                     <div className="-m-6">
                         <AIAudienceInsights />
                     </div>

@@ -69,6 +69,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('videos/{video}/update-platforms', [VideoController::class, 'updateAllPlatforms'])
         ->name('videos.update-platforms');
     
+    // Video auto-save and versioning routes
+    Route::get('videos/{video}/check-unsaved-changes', [VideoController::class, 'checkUnsavedChanges'])
+        ->name('videos.check-unsaved-changes');
+    Route::post('videos/{video}/auto-save', [VideoController::class, 'autoSave'])
+        ->name('videos.auto-save');
+    Route::post('videos/{video}/publish-changes', [VideoController::class, 'publishChanges'])
+        ->name('videos.publish-changes');
+    Route::post('videos/{video}/discard-changes', [VideoController::class, 'discardChanges'])
+        ->name('videos.discard-changes');
+    
     // AI Content Optimization routes
     Route::prefix('ai')->name('ai.')->group(function () {
         // Content Optimization
@@ -146,6 +156,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // AI Watermark Remover
         Route::post('watermark-detect', [AIController::class, 'detectWatermarks'])->name('watermark-detect');
+        Route::post('watermark-test-detect', [AIController::class, 'testWatermarkDetection'])->name('watermark-test-detect');
+        Route::post('watermark-test-ai', [AIController::class, 'testAIWatermarkDetection'])->name('watermark-test-ai');
+        Route::post('watermark-test-region', [AIController::class, 'testSpecificRegion'])->name('watermark-test-region');
+        Route::post('watermark-test-tiktok', [AIController::class, 'testTikTokArea'])->name('watermark-test-tiktok');
         Route::post('watermark-remove', [AIController::class, 'removeWatermarks'])->name('watermark-remove');
         Route::post('watermark-progress', [AIController::class, 'getRemovalProgress'])->name('watermark-progress');
         Route::post('watermark-optimize', [AIController::class, 'optimizeRemovalSettings'])->name('watermark-optimize');
@@ -289,6 +303,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('{provider}/auth', [CloudStorageController::class, 'redirect'])->name('auth');
         Route::get('{provider}/callback', [CloudStorageController::class, 'callback'])->name('callback');
         Route::get('{provider}/files', [CloudStorageController::class, 'listFiles'])->name('files');
+        Route::get('{provider}/folders', [CloudStorageController::class, 'listFolders'])->name('folders');
+        Route::post('{provider}/folders', [CloudStorageController::class, 'createFolder'])->name('create-folder');
         Route::post('{provider}/import', [CloudStorageController::class, 'importFile'])->name('import');
         Route::delete('{provider}/disconnect', [CloudStorageController::class, 'disconnect'])->name('disconnect');
         Route::get('connected', [CloudStorageController::class, 'getConnectedAccounts'])->name('connected');

@@ -118,10 +118,10 @@ const platformIcons = {
 };
 
 const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    processing: 'bg-blue-100 text-blue-800',
-    success: 'bg-green-100 text-green-800',
-    failed: 'bg-red-100 text-red-800',
+    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/20 dark:text-yellow-300',
+    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-950/20 dark:text-blue-300',
+    success: 'bg-green-100 text-green-800 dark:bg-green-950/20 dark:text-green-300',
+    failed: 'bg-red-100 text-red-800 dark:bg-red-950/20 dark:text-red-300',
 };
 
 const statusIcons = {
@@ -226,7 +226,7 @@ export default function ChannelShow({
                                 Upload Video
                             </Button>
                         </Link>
-                        <Link href={`/channels/${channel.id}/edit`}>
+                        <Link href={`/channels/${channel.slug}/edit`}>
                             <Button variant="outline">
                                 <Settings className="w-4 h-4 mr-2" />
                                 Settings
@@ -268,20 +268,20 @@ export default function ChannelShow({
                                         const PlatformIcon = platformIcons[platform.name as keyof typeof platformIcons];
                                         
                                         return (
-                                            <Card key={platform.name} className={`transition-all ${isConnected ? 'border-green-800 bg-green-950/20' : 'border-gray-200'}`}>
+                                            <Card key={platform.name} className={`transition-all ${isConnected ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20' : 'border-border'}`}>
                                                 <CardContent className="p-4">
                                                     {/* Platform Icon and Name */}
                                                     <div className="flex items-center space-x-3 mb-4">
-                                                        <div className={`p-2 rounded-lg ${isConnected ? 'bg-green-100' : 'bg-gray-100'}`}>
-                                                            <PlatformIcon className={`w-5 h-5 ${isConnected ? 'text-green-600' : 'text-gray-600'}`} />
+                                                        <div className={`p-2 rounded-lg ${isConnected ? 'bg-green-100 dark:bg-green-900/20' : 'bg-muted'}`}>
+                                                            <PlatformIcon className={`w-5 h-5 ${isConnected ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
                                                         </div>
                                                         <div className="flex-1">
                                                             <h4 className="font-medium text-sm">{platform.label}</h4>
                                                             {isConnected && (
-                                                                <p className="text-xs text-green-600">Connected</p>
+                                                                <p className="text-xs text-green-600 dark:text-green-400">Connected</p>
                                                             )}
                                                             {!isAllowed && (
-                                                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs mt-1">
+                                                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-950/20 dark:text-yellow-300 text-xs mt-1">
                                                                     Pro Only
                                                                 </Badge>
                                                             )}
@@ -342,15 +342,15 @@ export default function ChannelShow({
                                 
                                 {/* Upgrade banner if there are restricted platforms */}
                                 {availablePlatforms.filter(p => !p.allowed).length > 0 && (
-                                    <div className="mt-4 p-4 bg-blue-950/20 border border-blue-800 rounded-lg">
+                                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 dark:bg-blue-950/20 dark:border-blue-800 rounded-lg">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3">
-                                                <div className="p-2 bg-blue-950/20 rounded-lg">
-                                                    <Crown className="w-4 h-4 text-blue-400" />
+                                                <div className="p-2 bg-blue-100 dark:bg-blue-950/20 rounded-lg">
+                                                    <Crown className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                                 </div>
                                                 <div>
-                                                    <h4 className="font-medium text-blue-300 text-sm">Unlock More Platforms</h4>
-                                                    <p className="text-xs text-blue-200">
+                                                    <h4 className="font-medium text-blue-800 dark:text-blue-300 text-sm">Unlock More Platforms</h4>
+                                                    <p className="text-xs text-blue-700 dark:text-blue-200">
                                                         Upgrade to Pro to access Instagram, TikTok, and more platforms for just $0.60/day
                                                     </p>
                                                 </div>
@@ -380,7 +380,7 @@ export default function ChannelShow({
                                 const PlatformIcon = platformIcons[account.platform as keyof typeof platformIcons];
                                 
                                 return (
-                                    <Card key={account.id} className="border-green-800 bg-green-950/20">
+                                    <Card key={account.id} className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
                                         <CardContent className="p-4">
                                             {/* Profile Header */}
                                             <div className="flex items-center space-x-3 mb-4">
@@ -414,20 +414,20 @@ export default function ChannelShow({
                                                 </Avatar>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center space-x-2 mb-1">
-                                                        <PlatformIcon className="w-4 h-4 text-green-600" />
-                                                        <h4 className="font-medium text-sm text-gray-900 capitalize">
+                                                        <PlatformIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                                        <h4 className="font-medium text-sm text-foreground capitalize">
                                                             {account.platform}
                                                         </h4>
                                                     </div>
                                                     {/* Show platform-specific channel name or fallback to profile name */}
                                                     {(account.platform_channel_name || account.profile_name) && (
-                                                        <p className="text-sm font-medium text-gray-900 truncate">
+                                                        <p className="text-sm font-medium text-foreground truncate">
                                                             {account.platform_channel_name || account.profile_name}
                                                         </p>
                                                     )}
                                                     {/* Show platform-specific handle or fallback to profile username */}
                                                     {(account.platform_channel_handle || account.profile_username) && (
-                                                        <p className="text-xs text-gray-600 truncate">
+                                                        <p className="text-xs text-muted-foreground truncate">
                                                             {account.platform_channel_handle || `@${account.profile_username}`}
                                                         </p>
                                                     )}
@@ -461,17 +461,17 @@ export default function ChannelShow({
                             })}
                         </div>
                     ) : (
-                        <Card className="border-gray-200 bg-muted">
+                        <Card className="border-border bg-muted">
                             <CardContent className="text-center py-8">
                                 <div className="flex flex-col items-center space-y-4">
-                                    <div className="p-4 bg-gray-100 rounded-full">
-                                        <Users className="w-8 h-8 text-gray-600" />
+                                    <div className="p-4 bg-muted rounded-full">
+                                        <Users className="w-8 h-8 text-muted-foreground" />
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-medium text-foreground mb-2">No Platforms Connected</h3>
-                                                                <p className="text-sm text-muted-foreground mb-4">
-                            Connect your social media accounts to start publishing videos across platforms.
-                        </p>
+                                        <p className="text-sm text-muted-foreground mb-4">
+                                            Connect your social media accounts to start publishing videos across platforms.
+                                        </p>
                                         <Button 
                                             onClick={() => setIsConnectPlatformsOpen(true)}
                                             className="bg-blue-600 hover:bg-blue-700"
@@ -511,8 +511,8 @@ export default function ChannelShow({
                         {videos.data.length === 0 ? (
                             <div className="text-center py-8">
                                 <VideoIcon className="mx-auto h-12 w-12 text-muted-foreground" />
-                                <h3 className="mt-2 text-sm font-semibold text-gray-900">No videos yet</h3>
-                                <p className="mt-1 text-sm text-gray-500">
+                                <h3 className="mt-2 text-sm font-semibold text-foreground">No videos yet</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">
                                     Upload your first video to this channel to get started.
                                 </p>
                                 <div className="mt-6">
@@ -605,12 +605,6 @@ export default function ChannelShow({
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <Link href={`/videos/${video.id}/edit`}>
-                                                        <Button variant="outline" size="sm">
-                                                            <Eye className="mr-1 h-3 w-3" />
-                                                            View
-                                                        </Button>
-                                                    </Link>
                                                     <Link href={`/videos/${video.id}/edit`}>
                                                         <Button variant="outline" size="sm">
                                                             <Edit className="mr-1 h-3 w-3" />

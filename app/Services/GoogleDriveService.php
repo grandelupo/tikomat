@@ -19,7 +19,10 @@ class GoogleDriveService
         $this->client->setClientId(config('services.google_drive.client_id'));
         $this->client->setClientSecret(config('services.google_drive.client_secret'));
         $this->client->setRedirectUri(config('services.google_drive.redirect'));
-        $this->client->addScope(Drive::DRIVE_READONLY);
+        $this->client->addScope([
+            Drive::DRIVE_READONLY,
+            Drive::DRIVE_FILE,
+        ]);
         $this->client->setAccessType('offline');
         $this->client->setPrompt('select_account consent');
     }
@@ -182,6 +185,107 @@ class GoogleDriveService
         } catch (Exception $e) {
             Log::error('Google Drive token refresh error: ' . $e->getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Upload a file to Google Drive
+     */
+    public function uploadFile(string $filePath, array $metadata, string $mimeType = 'application/octet-stream'): array
+    {
+        try {
+            $file = new DriveFile();
+            $file->setName($metadata['name']);
+            
+            if (isset($metadata['parents'])) {
+                $file->setParents($metadata['parents']);
+            }
+
+            $result = $this->service->files->create(
+                $file,
+                [
+                    'data' => file_get_contents($filePath),
+                    'mimeType' => $mimeType,
+                    'uploadType' => 'multipart',
+                    'fields' => 'id,name,webViewLink,size'
+                ]
+            );
+
+            return [
+                'id' => $result->getId(),
+                'name' => $result->getName(),
+                'webViewLink' => $result->getWebViewLink(),
+                'size' => $result->getSize(),
+            ];
+        } catch (Exception $e) {
+            Log::error('Google Drive upload error: ' . $e->getMessage());
+            throw new Exception('Failed to upload file to Google Drive: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * List folders in Google Drive
+     */
+    public function listFolders(?string $parentId = null): array
+    {
+        try {
+            $query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+            
+            if ($parentId) {
+                $query .= " and '{$parentId}' in parents";
+            }
+
+            $optParams = [
+                'q' => $query,
+                'pageSize' => 100,
+                'fields' => 'files(id, name, parents)',
+                'orderBy' => 'name'
+            ];
+
+            $results = $this->service->files->listFiles($optParams);
+            $folders = [];
+
+            foreach ($results->getFiles() as $file) {
+                $folders[] = [
+                    'id' => $file->getId(),
+                    'name' => $file->getName(),
+                    'parents' => $file->getParents() ?? [],
+                ];
+            }
+
+            return $folders;
+        } catch (Exception $e) {
+            Log::error('Google Drive folder list error: ' . $e->getMessage());
+            throw new Exception('Failed to list folders from Google Drive: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Create a folder in Google Drive
+     */
+    public function createFolder(string $name, ?string $parentId = null): array
+    {
+        try {
+            $file = new DriveFile();
+            $file->setName($name);
+            $file->setMimeType('application/vnd.google-apps.folder');
+            
+            if ($parentId) {
+                $file->setParents([$parentId]);
+            }
+
+            $result = $this->service->files->create($file, [
+                'fields' => 'id,name,parents'
+            ]);
+
+            return [
+                'id' => $result->getId(),
+                'name' => $result->getName(),
+                'parents' => $result->getParents() ?? [],
+            ];
+        } catch (Exception $e) {
+            Log::error('Google Drive folder creation error: ' . $e->getMessage());
+            throw new Exception('Failed to create folder in Google Drive: ' . $e->getMessage());
         }
     }
 } 

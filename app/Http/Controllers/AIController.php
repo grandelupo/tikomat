@@ -2924,6 +2924,275 @@ class AIController extends Controller
     }
 
     /**
+     * Test watermark detection with detailed debugging
+     */
+    public function testWatermarkDetection(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+            'create_test_watermarks' => 'boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            $options = [
+                'sensitivity' => 'high',
+                'detection_mode' => 'debug',
+            ];
+
+            // Run test detection with comprehensive logging
+            $detection = $this->watermarkRemoverService->testWatermarkDetection($videoPath, $options);
+
+            // Create test watermarks if requested
+            if ($request->create_test_watermarks) {
+                $testWatermarks = $this->watermarkRemoverService->createTestWatermarks($videoPath);
+                $detection['test_watermarks'] = $testWatermarks;
+                
+                // Create debug image for test watermarks
+                if (!empty($testWatermarks)) {
+                    $testDebugPath = storage_path('app/test_watermarks_debug_' . uniqid() . '.png');
+                    $this->watermarkRemoverService->createWatermarkDebugImage($videoPath, $testWatermarks, $testDebugPath);
+                    $detection['test_debug_image_path'] = $testDebugPath;
+                }
+            }
+
+            Log::info('Watermark detection test completed', [
+                'user_id' => $request->user()->id ?? null,
+                'video_path' => $request->video_path,
+                'detection_status' => $detection['processing_status'],
+                'watermarks_found' => count($detection['detected_watermarks'] ?? []),
+                'test_watermarks_created' => $request->create_test_watermarks,
+                'debug_image_created' => isset($detection['debug_image_path']),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $detection,
+                'message' => 'Watermark detection test completed successfully',
+                'instructions' => [
+                    'Check the Laravel logs for detailed detection analysis',
+                    'If debug_image_path is provided, view the image to see detected watermark locations',
+                    'If test_debug_image_path is provided, view it to see where test watermarks would be placed',
+                    'The detected_watermarks array shows all watermarks found with their coordinates'
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Watermark detection test failed', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+                'video_path' => $request->video_path ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to test watermark detection. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Test AI-powered watermark detection specifically
+     */
+    public function testAIWatermarkDetection(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            // Test AI detection with high detail
+            $options = [
+                'detection_mode' => 'ai_test',
+                'ai_detail_level' => 'high',
+            ];
+
+            // Run AI-specific test detection
+            $detection = $this->watermarkRemoverService->testAIWatermarkDetection($videoPath, $options);
+
+            Log::info('AI watermark detection test completed', [
+                'user_id' => $request->user()->id ?? null,
+                'video_path' => $request->video_path,
+                'detection_status' => $detection['processing_status'],
+                'ai_watermarks_found' => $detection['ai_watermarks_found'] ?? 0,
+                'debug_image_created' => isset($detection['debug_image_path']),
+                'cutouts_generated' => $detection['analysis_metadata']['cutouts_generated'] ?? 0,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $detection,
+                'message' => 'AI watermark detection test completed successfully',
+                'instructions' => [
+                    'AI uses OpenAI GPT-4o Vision model for precise watermark detection',
+                    'Check the Laravel logs for detailed AI analysis and confidence scores',
+                    'If cutout_image paths are provided in watermarks, view them to see detected areas',
+                    'If debug_image_path is provided, view it to see all detected watermark locations',
+                    'AI detection provides detailed descriptions and visual characteristics',
+                    'Confidence scores from AI are typically more accurate than basic detection'
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('AI watermark detection test failed', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+                'video_path' => $request->video_path ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to test AI watermark detection. Please check OpenAI API key configuration.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Test specific region for watermark detection
+     */
+    public function testSpecificRegion(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+            'x' => 'required|integer|min:0',
+            'y' => 'required|integer|min:0',
+            'width' => 'required|integer|min:1',
+            'height' => 'required|integer|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            $results = $this->watermarkRemoverService->testSpecificRegion(
+                $videoPath,
+                $request->x,
+                $request->y,
+                $request->width,
+                $request->height
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+                'message' => 'Region test completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Region test failed', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+                'video_path' => $request->video_path ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to test region. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Test the specific TikTok watermark area
+     */
+    public function testTikTokArea(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'video_path' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $videoPath = Storage::path($request->video_path);
+            
+            if (!file_exists($videoPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Video file not found',
+                ], 404);
+            }
+
+            $results = $this->watermarkRemoverService->testTikTokWatermarkArea($videoPath);
+
+            return response()->json([
+                'success' => true,
+                'data' => $results,
+                'message' => 'TikTok area test completed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('TikTok area test failed', [
+                'user_id' => $request->user()->id ?? null,
+                'error' => $e->getMessage(),
+                'video_path' => $request->video_path ?? 'unknown',
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to test TikTok area. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * Get platform breakdown of detected watermarks
      */
     private function getPlatformBreakdown(array $watermarks): array

@@ -473,35 +473,16 @@ class VideoProcessingService
             // Extract frame at 1 second (avoid black frames at the start)
             $frame = $video->frame(TimeCode::fromSeconds(1));
             
-            // Create a temporary file for the full-size frame
-            $tempFramePath = dirname($outputPath) . '/temp_frame_' . uniqid() . '.jpg';
-            
-            // Save the full-size frame first
-            $frame->save($tempFramePath);
+            // Save the frame directly to output path (keeping original size)
+            $frame->save($outputPath);
             
             // Check if the frame was extracted successfully
-            if (file_exists($tempFramePath) && filesize($tempFramePath) > 1000) {
-                // Now resize the frame using GD library
-                if ($this->resizeImageWithGD($tempFramePath, $outputPath, 320, 240)) {
-                    // Clean up temp file
-                    unlink($tempFramePath);
-                    
-                    \Log::info('Real frame extraction and resize successful', [
-                        'output_size' => filesize($outputPath),
-                        'dimensions' => '320x240',
-                    ]);
-                    return true;
-                } else {
-                    // Clean up temp file
-                    if (file_exists($tempFramePath)) {
-                        unlink($tempFramePath);
-                    }
-                }
-            } else {
-                // Clean up temp file if it exists
-                if (file_exists($tempFramePath)) {
-                    unlink($tempFramePath);
-                }
+            if (file_exists($outputPath) && filesize($outputPath) > 1000) {
+                \Log::info('Real frame extraction successful', [
+                    'output_size' => filesize($outputPath),
+                    'dimensions' => 'original',
+                ]);
+                return true;
             }
 
             \Log::warning('Frame extraction produced empty or small file', [

@@ -170,4 +170,87 @@ class DropboxService
             return null;
         }
     }
+
+    /**
+     * Upload a file to Dropbox
+     */
+    public function uploadFile(string $filePath, string $dropboxPath): array
+    {
+        try {
+            $fileContents = file_get_contents($filePath);
+            $response = $this->client->upload($dropboxPath, $fileContents);
+
+            return [
+                'id' => $response['id'],
+                'name' => $response['name'],
+                'path' => $response['path_lower'],
+                'size' => $response['size'],
+                'server_modified' => $response['server_modified'],
+                'content_hash' => $response['content_hash'] ?? null,
+            ];
+        } catch (Exception $e) {
+            Log::error('Dropbox upload error: ' . $e->getMessage());
+            throw new Exception('Failed to upload file to Dropbox: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get a shareable link for a file
+     */
+    public function getShareableLink(string $path): ?string
+    {
+        try {
+            $response = $this->client->createSharedLinkWithSettings($path);
+            return $response['url'] ?? null;
+        } catch (Exception $e) {
+            Log::error('Dropbox shareable link error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * List folders in Dropbox
+     */
+    public function listFolders(string $path = ''): array
+    {
+        try {
+            $response = $this->client->listFolder($path);
+            $entries = $response['entries'] ?? [];
+            
+            $folders = [];
+            foreach ($entries as $entry) {
+                if ($entry['.tag'] === 'folder') {
+                    $folders[] = [
+                        'id' => $entry['id'],
+                        'name' => $entry['name'],
+                        'path' => $entry['path_lower'],
+                    ];
+                }
+            }
+
+            return $folders;
+        } catch (Exception $e) {
+            Log::error('Dropbox folder list error: ' . $e->getMessage());
+            throw new Exception('Failed to list folders from Dropbox: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Create a folder in Dropbox
+     */
+    public function createFolder(string $path): array
+    {
+        try {
+            $response = $this->client->createFolder($path);
+            
+            return [
+                'id' => $response['id'],
+                'name' => $response['name'],
+                'path' => $response['path_lower'],
+            ];
+        } catch (Exception $e) {
+            Log::error('Dropbox folder creation error: ' . $e->getMessage());
+            throw new Exception('Failed to create folder in Dropbox: ' . $e->getMessage());
+        }
+    }
 } 

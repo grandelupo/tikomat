@@ -36,6 +36,11 @@ class Kernel extends ConsoleKernel
                  ->sundays()
                  ->at('02:00');
 
+        // Clean up old watermark cutout images daily
+        $schedule->command('watermark:cleanup-cutouts --hours=24')
+                 ->daily()
+                 ->at('03:00');
+
         // Log scheduler activity for monitoring
         $schedule->call(function () {
             \Log::info('Laravel Scheduler heartbeat', [

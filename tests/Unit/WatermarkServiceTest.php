@@ -4,17 +4,23 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use App\Services\AIWatermarkRemoverService;
+use App\Services\FFmpegService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 
 class WatermarkServiceTest extends TestCase
 {
     protected AIWatermarkRemoverService $service;
+    protected FFmpegService $ffmpegService;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new AIWatermarkRemoverService();
+        
+        // Mock FFmpegService
+        $this->ffmpegService = Mockery::mock(FFmpegService::class);
+        $this->service = new AIWatermarkRemoverService($this->ffmpegService);
         
         // Create storage directories
         Storage::makeDirectory('temp');
@@ -48,6 +54,76 @@ class WatermarkServiceTest extends TestCase
         
         // Check if it's either failed immediately or processing
         $this->assertContains($result['processing_status'], ['failed', 'processing']);
+    }
+
+    public function test_watermark_removal_with_valid_input()
+    {
+        $watermarks = [
+            [
+                'id' => 'wm_test_1',
+                'type' => 'logo',
+                'platform' => 'tiktok',
+                'confidence' => 85,
+                'location' => ['x' => 10, 'y' => 10, 'width' => 100, 'height' => 50],
+                'removal_difficulty' => 'medium'
+            ]
+        ];
+        
+        $options = ['method' => 'inpainting'];
+        
+        $result = $this->service->removeWatermarks('test_video.mp4', $watermarks, $options);
+        
+        $this->assertArrayHasKey('processing_status', $result);
+        $this->assertArrayHasKey('removal_id', $result);
+        $this->assertArrayHasKey('selected_method', $result);
+        $this->assertEquals('inpainting', $result['selected_method']);
+        $this->assertArrayHasKey('watermarks_to_remove', $result);
+        $this->assertCount(1, $result['watermarks_to_remove']);
+    }
+
+    public function test_create_simple_removal_filter()
+    {
+        $watermark = [
+            'location' => ['x' => 100, 'y' => 50, 'width' => 200, 'height' => 100],
+            'platform' => 'tiktok',
+            'confidence' => 90
+        ];
+        
+        // Use reflection to test private method
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('createSimpleRemovalFilter');
+        $method->setAccessible(true);
+        
+        $result = $method->invoke($this->service, $watermark, 'inpainting');
+        
+        $this->assertNotNull($result);
+        $this->assertStringContainsString('delogo=x=100:y=50:w=200:h=100:band=15:show=0', $result);
+    }
+
+    public function test_create_simple_removal_filter_with_different_methods()
+    {
+        $watermark = [
+            'location' => ['x' => 50, 'y' => 25, 'width' => 150, 'height' => 75],
+            'platform' => 'sora',
+            'confidence' => 95
+        ];
+        
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('createSimpleRemovalFilter');
+        $method->setAccessible(true);
+        
+        // Test different methods produce different band sizes
+        $inpaintingResult = $method->invoke($this->service, $watermark, 'inpainting');
+        $this->assertStringContainsString('band=15', $inpaintingResult);
+        
+        $temporalResult = $method->invoke($this->service, $watermark, 'temporal_coherence');
+        $this->assertStringContainsString('band=20', $temporalResult);
+        
+        $contentAwareResult = $method->invoke($this->service, $watermark, 'content_aware');
+        $this->assertStringContainsString('band=12', $contentAwareResult);
+        
+        $frequencyResult = $method->invoke($this->service, $watermark, 'frequency_domain');
+        $this->assertStringContainsString('band=8', $frequencyResult);
     }
 
     public function test_progress_retrieval_for_nonexistent_removal()
@@ -187,6 +263,23 @@ class WatermarkServiceTest extends TestCase
         $this->assertEquals(75, $result['progress']['percentage']);
         $this->assertEquals(750, $result['current_frame']);
         $this->assertEquals(1000, $result['total_frames']);
+    }
+
+    public function test_watermark_filter_handles_invalid_coordinates()
+    {
+        $watermark = [
+            'location' => ['x' => -10, 'y' => -5, 'width' => 0, 'height' => -10],
+            'platform' => 'unknown'
+        ];
+        
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('createSimpleRemovalFilter');
+        $method->setAccessible(true);
+        
+        $result = $method->invoke($this->service, $watermark, 'inpainting');
+        
+        // Should normalize negative coordinates and zero dimensions
+        $this->assertStringContainsString('delogo=x=0:y=0:w=1:h=1', $result);
     }
 
     protected function tearDown(): void
