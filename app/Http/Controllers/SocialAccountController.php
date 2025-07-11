@@ -705,7 +705,6 @@ class SocialAccountController extends Controller
             // Snapchat requires creative and media permissions
             return Socialite::driver($driver)
                 ->scopes([
-                    'snapchat-marketing-api',
                     'snapchat-profile-api'
                 ])
                 ->with([
