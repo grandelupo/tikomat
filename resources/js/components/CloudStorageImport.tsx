@@ -99,10 +99,13 @@ export default function CloudStorageImport({ onFileImported, isOpen, onClose }: 
     };
 
     const formatFileSize = (bytes?: number) => {
-        if (!bytes) return 'Unknown size';
+        if (bytes === undefined || bytes === null) return 'Calculating...';
+        if (bytes === 0) return '0 Bytes';
+        
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        const size = Math.round(bytes / Math.pow(1024, i) * 100) / 100;
+        return size + ' ' + sizes[i];
     };
 
     const formatDate = (dateString?: string) => {
@@ -251,8 +254,8 @@ export default function CloudStorageImport({ onFileImported, isOpen, onClose }: 
                                     </div>
                                 </div>
                             ) : (
-                                <ScrollArea className="flex-1">
-                                    <div className="space-y-2">
+                                <div className="flex-1 overflow-y-auto border rounded-lg">
+                                    <div className="p-4 space-y-2">
                                         {filteredFiles.length > 0 ? (
                                             filteredFiles.map((file) => (
                                                 <Card key={file.id} className="p-4">
@@ -294,7 +297,7 @@ export default function CloudStorageImport({ onFileImported, isOpen, onClose }: 
                                             </div>
                                         )}
                                     </div>
-                                </ScrollArea>
+                                </div>
                             )}
                         </div>
                     )}

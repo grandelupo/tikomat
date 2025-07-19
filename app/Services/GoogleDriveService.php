@@ -91,10 +91,17 @@ class GoogleDriveService
             
             $videoFiles = [];
             foreach ($files as $file) {
+                $size = $file->getSize();
+                // Handle cases where Google Drive doesn't provide file size
+                if ($size === null) {
+                    // Try to get file size from file metadata or set to 0
+                    $size = 0;
+                }
+                
                 $videoFiles[] = [
                     'id' => $file->getId(),
                     'name' => $file->getName(),
-                    'size' => $file->getSize(),
+                    'size' => $size,
                     'mimeType' => $file->getMimeType(),
                     'modifiedTime' => $file->getModifiedTime(),
                     'webViewLink' => $file->getWebViewLink(),
@@ -127,10 +134,35 @@ class GoogleDriveService
     public function downloadFile(string $fileId, string $localPath): bool
     {
         try {
+            // Ensure directory exists
+            $dir = dirname($localPath);
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            
             $response = $this->service->files->get($fileId, ['alt' => 'media']);
             $content = $response->getBody()->getContents();
             
-            return file_put_contents($localPath, $content) !== false;
+            // Check if we have content
+            if (empty($content)) {
+                Log::warning('Google Drive download: Empty content received for file ID: ' . $fileId);
+                return false;
+            }
+            
+            $bytesWritten = file_put_contents($localPath, $content);
+            
+            if ($bytesWritten === false) {
+                Log::error('Google Drive download: Failed to write file to: ' . $localPath);
+                return false;
+            }
+            
+            // Verify file was written successfully
+            if (!file_exists($localPath) || filesize($localPath) === 0) {
+                Log::error('Google Drive download: File not created or empty: ' . $localPath);
+                return false;
+            }
+            
+            return true;
         } catch (Exception $e) {
             Log::error('Google Drive download error: ' . $e->getMessage());
             throw new Exception('Failed to download file from Google Drive: ' . $e->getMessage());
@@ -194,6 +226,10 @@ class GoogleDriveService
     public function uploadFile(string $filePath, array $metadata, string $mimeType = 'application/octet-stream'): array
     {
         try {
+            if (!file_exists($filePath)) {
+                throw new Exception('File not found: ' . $filePath);
+            }
+
             $file = new DriveFile();
             $file->setName($metadata['name']);
             
@@ -201,21 +237,70 @@ class GoogleDriveService
                 $file->setParents($metadata['parents']);
             }
 
-            $result = $this->service->files->create(
-                $file,
-                [
-                    'data' => file_get_contents($filePath),
-                    'mimeType' => $mimeType,
-                    'uploadType' => 'multipart',
-                    'fields' => 'id,name,webViewLink,size'
-                ]
-            );
+            $fileSize = filesize($filePath);
+            
+            // Use resumable upload for large files (>5MB)
+            if ($fileSize > 5 * 1024 * 1024) {
+                $chunkSizeBytes = 1 * 1024 * 1024; // 1MB chunks
+                
+                $client = $this->service->getClient();
+                $request = $this->service->files->create(
+                    $file,
+                    [
+                        'uploadType' => 'resumable',
+                        'mimeType' => $mimeType,
+                        'fields' => 'id,name,webViewLink,size'
+                    ]
+                );
+
+                $media = new \Google\Http\MediaFileUpload(
+                    $client,
+                    $request,
+                    $mimeType,
+                    null,
+                    true,
+                    $chunkSizeBytes
+                );
+                $media->setFileSize($fileSize);
+
+                $handle = fopen($filePath, 'rb');
+                if (!$handle) {
+                    throw new Exception('Failed to open file for reading: ' . $filePath);
+                }
+
+                $uploadStatus = false;
+                while (!$uploadStatus && !feof($handle)) {
+                    $chunk = fread($handle, $chunkSizeBytes);
+                    $uploadStatus = $media->nextChunk($chunk);
+                }
+                fclose($handle);
+
+                $result = $uploadStatus;
+            } else {
+                // Use simple upload for small files
+                $handle = fopen($filePath, 'rb');
+                if (!$handle) {
+                    throw new Exception('Failed to open file for reading: ' . $filePath);
+                }
+                $data = fread($handle, $fileSize);
+                fclose($handle);
+
+                $result = $this->service->files->create(
+                    $file,
+                    [
+                        'data' => $data,
+                        'mimeType' => $mimeType,
+                        'uploadType' => 'multipart',
+                        'fields' => 'id,name,webViewLink,size'
+                    ]
+                );
+            }
 
             return [
                 'id' => $result->getId(),
                 'name' => $result->getName(),
                 'webViewLink' => $result->getWebViewLink(),
-                'size' => $result->getSize(),
+                'size' => $result->getSize() ?: $fileSize,
             ];
         } catch (Exception $e) {
             Log::error('Google Drive upload error: ' . $e->getMessage());

@@ -216,8 +216,9 @@ class CloudStorageController extends Controller
             $localPath = storage_path('app/temp/' . $uniqueFileName);
 
             // Ensure temp directory exists
-            if (!is_dir(dirname($localPath))) {
-                mkdir(dirname($localPath), 0755, true);
+            $tempDir = storage_path('app/temp');
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
             }
 
             if ($provider === 'google_drive') {

@@ -567,6 +567,7 @@ class SocialAccountController extends Controller
     private function revokeGooglePermissions(int $userId, int $channelId): void
     {
         try {
+            // Only revoke YouTube-specific permissions, not Google Drive
             $socialAccount = SocialAccount::where('user_id', $userId)
                 ->where('channel_id', $channelId)
                 ->where('platform', 'youtube')

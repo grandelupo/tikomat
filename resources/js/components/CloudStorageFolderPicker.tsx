@@ -372,39 +372,43 @@ export default function CloudStorageFolderPicker({
                                                 Loading folders...
                                             </div>
                                         ) : (
-                                            <div className="grid gap-2 max-h-40 overflow-y-auto">
-                                                {folders[provider.id]?.map((folder) => (
-                                                    <div
-                                                        key={folder.id}
-                                                        className="flex items-center justify-between p-2 rounded border hover:bg-muted/50"
-                                                    >
-                                                        <div className="flex items-center space-x-2">
-                                                            <Folder className="w-4 h-4 text-blue-500" />
-                                                            <span className="text-sm">{folder.name}</span>
-                                                        </div>
-                                                        <div className="flex space-x-1">
-                                                            <Button
-                                                                variant={selectedFolders[provider.id] === folder.id ? "default" : "outline"}
-                                                                size="sm"
-                                                                onClick={() => handleFolderSelect(provider.id, folder.id)}
+                                            <div className="border rounded-lg">
+                                                <div className="max-h-60 overflow-y-auto">
+                                                    <div className="p-2 space-y-1">
+                                                        {folders[provider.id]?.map((folder) => (
+                                                            <div
+                                                                key={folder.id}
+                                                                className="flex items-center justify-between p-2 rounded border hover:bg-muted/50"
                                                             >
-                                                                Select
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => navigateToFolder(provider.id, folder)}
-                                                            >
-                                                                <ChevronRight className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
+                                                                <div className="flex items-center space-x-2">
+                                                                    <Folder className="w-4 h-4 text-blue-500" />
+                                                                    <span className="text-sm">{folder.name}</span>
+                                                                </div>
+                                                                <div className="flex space-x-1">
+                                                                    <Button
+                                                                        variant={selectedFolders[provider.id] === folder.id ? "default" : "outline"}
+                                                                        size="sm"
+                                                                        onClick={() => handleFolderSelect(provider.id, folder.id)}
+                                                                    >
+                                                                        Select
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => navigateToFolder(provider.id, folder)}
+                                                                    >
+                                                                        <ChevronRight className="w-4 h-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        {folders[provider.id]?.length === 0 && (
+                                                            <div className="text-center py-4 text-muted-foreground text-sm">
+                                                                No folders found
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                ))}
-                                                {folders[provider.id]?.length === 0 && (
-                                                    <div className="text-center py-4 text-muted-foreground text-sm">
-                                                        No folders found
-                                                    </div>
-                                                )}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
