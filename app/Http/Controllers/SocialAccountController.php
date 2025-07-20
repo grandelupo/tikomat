@@ -195,11 +195,18 @@ class SocialAccountController extends Controller
 
             // Store or update social account
             // First, delete any existing social account for this user+channel+platform combination
-            // to avoid conflicts with the unique constraint
-            SocialAccount::where('user_id', Auth::id())
+            // to avoid conflicts with the unique constraint and allow reconnection
+            $deletedCount = SocialAccount::where('user_id', Auth::id())
                 ->where('channel_id', $channel->id)
                 ->where('platform', $platform)
                 ->delete();
+
+            \Log::info('Deleted existing social account for reconnection', [
+                'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
+                'platform' => $platform,
+                'deleted_count' => $deletedCount,
+            ]);
 
             // Check if this social account is already connected to another user
             $existingAccount = SocialAccount::where('platform', $platform)
@@ -526,11 +533,18 @@ class SocialAccountController extends Controller
 
             // Store or update social account
             // First, delete any existing social account for this user+channel+platform combination
-            // to avoid conflicts with the unique constraint
-            SocialAccount::where('user_id', Auth::id())
+            // to avoid conflicts with the unique constraint and allow reconnection
+            $deletedCount = SocialAccount::where('user_id', Auth::id())
                 ->where('channel_id', $channel->id)
                 ->where('platform', $platform)
                 ->delete();
+
+            \Log::info('Deleted existing social account for reconnection', [
+                'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
+                'platform' => $platform,
+                'deleted_count' => $deletedCount,
+            ]);
             
             // Now create the new social account
             $socialAccount = $this->createSocialAccount($channel->id, $platform, $socialUser);
@@ -902,7 +916,36 @@ class SocialAccountController extends Controller
             }
         }
 
-        $socialAccount = SocialAccount::create($accountData);
+        try {
+            $socialAccount = SocialAccount::create($accountData);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // If we get a unique constraint violation, it means the old constraint still exists
+            if (str_contains($e->getMessage(), 'Duplicate entry') && str_contains($e->getMessage(), 'social_accounts_user_id_platform_unique')) {
+                \Log::error('Old unique constraint still exists, attempting to delete all accounts for this user and platform', [
+                    'user_id' => $currentUserId,
+                    'platform' => $platform,
+                    'error' => $e->getMessage(),
+                ]);
+                
+                // Delete ALL accounts for this user and platform (not just this channel)
+                // This is a fallback when the old constraint still exists
+                $deletedCount = SocialAccount::where('user_id', $currentUserId)
+                    ->where('platform', $platform)
+                    ->delete();
+                
+                \Log::info('Deleted all accounts for user and platform due to constraint issue', [
+                    'user_id' => $currentUserId,
+                    'platform' => $platform,
+                    'deleted_count' => $deletedCount,
+                ]);
+                
+                // Try creating again
+                $socialAccount = SocialAccount::create($accountData);
+            } else {
+                // Re-throw if it's a different error
+                throw $e;
+            }
+        }
 
         \Log::info('Social account created successfully', [
             'social_account_id' => $socialAccount->id,
@@ -1172,11 +1215,18 @@ class SocialAccountController extends Controller
                 );
             }
 
-            // Delete any existing Facebook account for this user+channel
-            SocialAccount::where('user_id', Auth::id())
+            // Delete any existing Facebook account for this user+channel combination
+            // This ensures we can reconnect the same Facebook account to different channels
+            $deletedCount = SocialAccount::where('user_id', Auth::id())
                 ->where('channel_id', $channel->id)
                 ->where('platform', 'facebook')
                 ->delete();
+
+            \Log::info('Deleted existing Facebook account for reconnection', [
+                'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
+                'deleted_count' => $deletedCount,
+            ]);
 
             // Create new social account with Facebook page details
             $socialAccount = new SocialAccount();
@@ -1194,7 +1244,36 @@ class SocialAccountController extends Controller
             $socialAccount->platform_channel_name = $selectedPage['name'];
             $socialAccount->platform_channel_url = "https://facebook.com/{$selectedPage['id']}";
             $socialAccount->is_platform_channel_specific = true;
-            $socialAccount->save();
+            
+            try {
+                $socialAccount->save();
+            } catch (\Illuminate\Database\QueryException $e) {
+                // If we get a unique constraint violation, it means the old constraint still exists
+                if (str_contains($e->getMessage(), 'Duplicate entry') && str_contains($e->getMessage(), 'social_accounts_user_id_platform_unique')) {
+                    \Log::error('Old unique constraint still exists, attempting to delete all Facebook accounts for this user', [
+                        'user_id' => Auth::id(),
+                        'platform' => 'facebook',
+                        'error' => $e->getMessage(),
+                    ]);
+                    
+                    // Delete ALL Facebook accounts for this user (not just this channel)
+                    // This is a fallback when the old constraint still exists
+                    $deletedCount = SocialAccount::where('user_id', Auth::id())
+                        ->where('platform', 'facebook')
+                        ->delete();
+                    
+                    \Log::info('Deleted all Facebook accounts for user due to constraint issue', [
+                        'user_id' => Auth::id(),
+                        'deleted_count' => $deletedCount,
+                    ]);
+                    
+                    // Try saving again
+                    $socialAccount->save();
+                } else {
+                    // Re-throw if it's a different error
+                    throw $e;
+                }
+            }
 
             \Log::info('Facebook page connected successfully', [
                 'platform' => 'facebook',
@@ -1427,11 +1506,18 @@ class SocialAccountController extends Controller
                 );
             }
 
-            // Delete any existing YouTube account for this user+channel
-            SocialAccount::where('user_id', Auth::id())
+            // Delete any existing YouTube account for this user+channel combination
+            // This ensures we can reconnect the same YouTube account to different channels
+            $deletedCount = SocialAccount::where('user_id', Auth::id())
                 ->where('channel_id', $channel->id)
                 ->where('platform', 'youtube')
                 ->delete();
+
+            \Log::info('Deleted existing YouTube account for reconnection', [
+                'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
+                'deleted_count' => $deletedCount,
+            ]);
 
             // Create new social account with YouTube channel details
             $socialAccount = new SocialAccount();
@@ -1453,7 +1539,36 @@ class SocialAccountController extends Controller
                 'view_count' => $selectedChannel['statistics']['viewCount'] ?? 0,
             ];
             $socialAccount->is_platform_channel_specific = true;
-            $socialAccount->save();
+            
+            try {
+                $socialAccount->save();
+            } catch (\Illuminate\Database\QueryException $e) {
+                // If we get a unique constraint violation, it means the old constraint still exists
+                if (str_contains($e->getMessage(), 'Duplicate entry') && str_contains($e->getMessage(), 'social_accounts_user_id_platform_unique')) {
+                    \Log::error('Old unique constraint still exists, attempting to delete all YouTube accounts for this user', [
+                        'user_id' => Auth::id(),
+                        'platform' => 'youtube',
+                        'error' => $e->getMessage(),
+                    ]);
+                    
+                    // Delete ALL YouTube accounts for this user (not just this channel)
+                    // This is a fallback when the old constraint still exists
+                    $deletedCount = SocialAccount::where('user_id', Auth::id())
+                        ->where('platform', 'youtube')
+                        ->delete();
+                    
+                    \Log::info('Deleted all YouTube accounts for user due to constraint issue', [
+                        'user_id' => Auth::id(),
+                        'deleted_count' => $deletedCount,
+                    ]);
+                    
+                    // Try saving again
+                    $socialAccount->save();
+                } else {
+                    // Re-throw if it's a different error
+                    throw $e;
+                }
+            }
 
             \Log::info('YouTube channel connected successfully', [
                 'platform' => 'youtube',

@@ -198,4 +198,30 @@ class SocialAccount extends Model
         
         return $socialAccount?->user;
     }
+
+    /**
+     * Clean up duplicate social accounts for a user and platform.
+     * This is used as a fallback when the old unique constraint still exists.
+     */
+    public static function cleanupDuplicatesForUser(int $userId, string $platform): int
+    {
+        $accounts = self::where('user_id', $userId)
+            ->where('platform', $platform)
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        if ($accounts->count() <= 1) {
+            return 0; // No duplicates
+        }
+        
+        // Keep the most recent account, delete the rest
+        $accountsToDelete = $accounts->skip(1);
+        $deletedCount = $accountsToDelete->count();
+        
+        foreach ($accountsToDelete as $account) {
+            $account->delete();
+        }
+        
+        return $deletedCount;
+    }
 }
