@@ -355,6 +355,7 @@ Route::middleware('auth')->group(function () {
 
 // Legal and contact routes
 Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/data-deletion', [LegalController::class, 'dataDeletion'])->name('legal.data-deletion');
 Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
 Route::get('/contact', [ContactController::class, 'index'])->name('contact.index');
 Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');

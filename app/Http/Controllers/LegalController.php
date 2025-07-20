@@ -16,6 +16,14 @@ class LegalController extends Controller
     }
 
     /**
+     * Show data deletion page.
+     */
+    public function dataDeletion(): Response
+    {
+        return Inertia::render('Legal/DataDeletion');
+    }
+
+    /**
      * Show terms of service.
      */
     public function terms(): Response

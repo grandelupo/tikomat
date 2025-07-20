@@ -412,6 +412,7 @@ export default function Contact({ auth }: ContactProps) {
                             <h3 className="font-semibold mb-4">Legal</h3>
                             <div className="space-y-2 text-gray-400">
                                 <Link href="/privacy" className="block hover:text-white">Privacy Policy</Link>
+                                <Link href="/data-deletion" className="block hover:text-white">Data Deletion</Link>
                                 <Link href="/terms" className="block hover:text-white">Terms of Service</Link>
                             </div>
                         </div>

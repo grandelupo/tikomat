@@ -141,6 +141,16 @@ export default function Privacy() {
                                 <p className="text-gray-600 mt-4">
                                     To exercise these rights, please contact us at privacy@tikomat.com.
                                 </p>
+                                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <p className="text-blue-800">
+                                        <strong>Data Deletion:</strong> To request the deletion of your personal data, 
+                                        please visit our{' '}
+                                        <Link href="/data-deletion" className="text-blue-600 hover:underline font-semibold">
+                                            Data Deletion Request page
+                                        </Link>
+                                        {' '}or contact us directly.
+                                    </p>
+                                </div>
                             </CardContent>
                         </Card>
 
