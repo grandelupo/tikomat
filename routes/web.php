@@ -27,6 +27,20 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+// Public route for crawlers and health checks
+Route::get('/crawler-friendly', function () {
+    return response()->json([
+        'status' => 'ok',
+        'message' => 'This endpoint is accessible to crawlers and bots',
+        'timestamp' => now()->toISOString(),
+        'app_name' => config('app.name', 'Tikomat'),
+        'app_url' => config('app.url'),
+    ], 200, [
+        'Content-Type' => 'application/json',
+        'Cache-Control' => 'public, max-age=300',
+    ]);
+})->name('crawler.friendly');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');

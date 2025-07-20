@@ -1,2 +1,77 @@
 User-agent: *
-Disallow:
+Allow: /
+
+# Allow all social media crawlers
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: facebookcatalog
+Allow: /
+
+User-agent: facebookbot
+Allow: /
+
+User-agent: facebot
+Allow: /
+
+User-agent: Instagram
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Pinterest
+Allow: /
+
+User-agent: Snapchat
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
+User-agent: DiscordBot
+Allow: /
+
+User-agent: SlackBot
+Allow: /
+
+# Allow search engine crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# Allow monitoring and health check bots
+User-agent: Pingdom
+Allow: /
+
+User-agent: UptimeRobot
+Allow: /
+
+User-agent: StatusCake
+Allow: /
+
+User-agent: GTmetrix
+Allow: /
+
+User-agent: PageSpeed
+Allow: /
+
+# Sitemap location
+Sitemap: https://tikomat.com/sitemap.xml
