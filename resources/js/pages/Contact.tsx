@@ -254,7 +254,7 @@ export default function Contact({ auth }: ContactProps) {
                                             </div>
                                             <div>
                                                 <h3 className="font-semibold text-gray-900">Email Support</h3>
-                                                <p className="text-gray-600">{import.meta.env.VITE_CONTACT_EMAIL || 'support@tikomat.com'}</p>
+                                                <p className="text-gray-600">{import.meta.env.VITE_PUBLIC_EMAIL || 'support@tikomat.com'}</p>
                                                 <p className="text-sm text-gray-500">We respond within 24 hours</p>
                                             </div>
                                         </div>

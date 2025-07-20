@@ -139,7 +139,7 @@ export default function Privacy() {
                                     <li>• Opt out of non-essential communications</li>
                                 </ul>
                                 <p className="text-gray-600 mt-4">
-                                    To exercise these rights, please contact us at privacy@tikomat.com.
+                                    To exercise these rights, please contact us at {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@tikomat.com'}.
                                 </p>
                                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                     <p className="text-blue-800">
@@ -182,7 +182,7 @@ export default function Privacy() {
                                     If you have questions about this Privacy Policy or our data practices, please contact us:
                                 </p>
                                 <div className="space-y-2 text-gray-600">
-                                    <p>Email: privacy@tikomat.com</p>
+                                    <p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@tikomat.com'}</p>
                                     <p>Support: <Link href="/contact" className="text-blue-600 hover:underline">Contact Form</Link></p>
                                 </div>
                             </CardContent>

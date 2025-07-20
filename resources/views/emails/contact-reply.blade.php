@@ -102,7 +102,7 @@
         
         <div class="footer">
             <p>This email was sent in response to your contact form submission on Tikomat.</p>
-            <p>If you didn't expect this email, please contact us at support@tikomat.com</p>
+            <p>If you didn't expect this email, please contact us at {{ env('PUBLIC_EMAIL', 'support@tikomat.com') }}</p>
         </div>
     </div>
 </body>

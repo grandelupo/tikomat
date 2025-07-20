@@ -197,7 +197,7 @@ export default function DataDeletion() {
                                             If you cannot access your account or prefer to contact us directly:
                                         </p>
                                         <ul className="space-y-1 text-gray-600">
-                                            <li>Email: privacy@tikomat.com</li>
+                                            <li>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@tikomat.com'}</li>
                                             <li>Subject: "Data Deletion Request"</li>
                                             <li>Include your email address and reason for deletion</li>
                                             <li>We will respond within 48 hours to confirm your request</li>
@@ -236,7 +236,7 @@ export default function DataDeletion() {
                                     For questions about data deletion or to exercise your data rights:
                                 </p>
                                 <div className="space-y-2 text-gray-600">
-                                    <p>Email: privacy@tikomat.com</p>
+                                    <p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@tikomat.com'}</p>
                                     <p>Support: <Link href="/contact" className="text-blue-600 hover:underline">Contact Form</Link></p>
                                     <p>Response Time: Within 48 hours</p>
                                 </div>

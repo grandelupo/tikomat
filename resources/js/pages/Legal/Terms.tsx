@@ -249,7 +249,7 @@ export default function Terms() {
                                     If you have questions about these Terms of Service, please contact us:
                                 </p>
                                 <div className="space-y-2 text-gray-600">
-                                    <p>Email: legal@tikomat.com</p>
+                                    <p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'legal@tikomat.com'}</p>
                                     <p>Support: <Link href="/contact" className="text-blue-600 hover:underline">Contact Form</Link></p>
                                 </div>
                             </CardContent>
