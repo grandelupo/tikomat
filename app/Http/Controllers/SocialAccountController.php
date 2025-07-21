@@ -193,6 +193,16 @@ class SocialAccountController extends Controller
                 return $this->handleYouTubeChannelSelection($channel, $socialUser);
             }
 
+            // Handle Instagram business account selection if platform is Instagram
+            if ($platform === 'instagram') {
+                \Log::info('Instagram OAuth callback - starting business account selection', [
+                    'channel_slug' => $channel->slug,
+                    'user_id' => Auth::id(),
+                    'has_token' => !empty($socialUser->token),
+                ]);
+                return $this->handleInstagramBusinessAccountSelection($channel, $socialUser);
+            }
+
             // Store or update social account
             // First, delete any existing social account for this user+channel+platform combination
             // to avoid conflicts with the unique constraint and allow reconnection
@@ -529,6 +539,16 @@ class SocialAccountController extends Controller
                     'has_refresh_token' => !empty($socialUser->refreshToken),
                 ]);
                 return $this->handleYouTubeChannelSelection($channel, $socialUser);
+            }
+
+            // Handle Instagram business account selection if platform is Instagram
+            if ($platform === 'instagram') {
+                \Log::info('Instagram OAuth general callback - starting business account selection', [
+                    'channel_slug' => $channel->slug,
+                    'user_id' => Auth::id(),
+                    'has_token' => !empty($socialUser->token),
+                ]);
+                return $this->handleInstagramBusinessAccountSelection($channel, $socialUser);
             }
 
             // Store or update social account
@@ -1588,6 +1608,75 @@ class SocialAccountController extends Controller
                 $channel->slug, 
                 'Failed to connect YouTube channel. Please try again.',
                 'youtube_connection_failure'
+            );
+        }
+    }
+
+    /**
+     * Handle Instagram Business account selection and connection after OAuth.
+     */
+    protected function handleInstagramBusinessAccountSelection(Channel $channel, $socialUser): RedirectResponse
+    {
+        try {
+            // Get user's Facebook pages with connected Instagram Business accounts
+            $response = \Illuminate\Support\Facades\Http::get('https://graph.facebook.com/v21.0/me/accounts', [
+                'access_token' => $socialUser->token,
+                'fields' => 'id,name,access_token,instagram_business_account',
+                'limit' => 100
+            ]);
+
+            if (!$response->successful()) {
+                throw new \Exception('Failed to fetch Facebook pages: ' . $response->body());
+            }
+
+            $pages = $response->json()['data'] ?? [];
+
+            // Find pages with connected Instagram business accounts
+            $pagesWithInstagram = collect($pages)->filter(function($page) {
+                return !empty($page['instagram_business_account']['id']);
+            });
+
+            if ($pagesWithInstagram->isEmpty()) {
+                return $this->redirectToErrorPage(
+                    'instagram',
+                    $channel->slug,
+                    'No Instagram Business accounts found. Please ensure your Instagram account is a Professional account and linked to a Facebook Page.',
+                    'no_instagram_business_account'
+                );
+            }
+
+            // Auto-select the first Instagram Business account
+            $selected = $pagesWithInstagram->first();
+
+            // Store the Instagram business account and Facebook page access token
+            $accountData = [
+                'user_id' => \Illuminate\Support\Facades\Auth::id(),
+                'channel_id' => $channel->id,
+                'platform' => 'instagram',
+                'access_token' => $selected['access_token'],
+                'platform_channel_id' => $selected['instagram_business_account']['id'],
+                'platform_channel_name' => $selected['name'],
+                'platform_channel_url' => 'https://www.instagram.com/' . $selected['name'],
+                'is_platform_channel_specific' => true,
+            ];
+
+            \App\Models\SocialAccount::updateOrCreate(
+                [
+                    'user_id' => \Illuminate\Support\Facades\Auth::id(),
+                    'channel_id' => $channel->id,
+                    'platform' => 'instagram',
+                ],
+                $accountData
+            );
+
+            return redirect()->route('connections')->with('success', 'Instagram Business account connected successfully!');
+
+        } catch (\Exception $e) {
+            return $this->redirectToErrorPage(
+                'instagram',
+                $channel->slug,
+                'Failed to connect Instagram Business account: ' . $e->getMessage(),
+                'instagram_connection_failure'
             );
         }
     }
