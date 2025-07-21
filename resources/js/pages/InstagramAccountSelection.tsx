@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inertia } from '@inertiajs/inertia';
+import { router } from '@inertiajs/react';
 
 interface Page {
   id: string;
@@ -24,7 +24,10 @@ const InstagramAccountSelection: React.FC<Props> = ({ channel, pages }) => {
     e.preventDefault();
     if (!selectedPageId) return;
     setSubmitting(true);
-    Inertia.post(`/channels/${channel.slug}/instagram/account-selection`, { page_id: selectedPageId });
+    router.post(`/channels/${channel.slug}/instagram/account-selection`, { page_id: selectedPageId }, {
+      onFinish: () => setSubmitting(false),
+      onError: () => setSubmitting(false),
+    });
   };
 
   if (!pages || pages.length === 0) {
