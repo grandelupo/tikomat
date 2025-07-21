@@ -123,7 +123,7 @@ class UploadVideoToInstagram implements ShouldQueue
     protected function createMediaContainer(SocialAccount $socialAccount, string $videoUrl): string
     {
         // Get user's Instagram business account ID
-        $userResponse = Http::get('https://graph.facebook.com/v18.0/me', [
+        $userResponse = Http::get('https://graph.instagram.com/v18.0/me', [
             'fields' => 'id',
             'access_token' => $socialAccount->access_token
         ]);
@@ -190,7 +190,7 @@ class UploadVideoToInstagram implements ShouldQueue
         }
 
         // Create media container
-        $response = Http::post("https://graph.facebook.com/v18.0/{$userId}/media", $mediaData);
+        $response = Http::post("https://graph.instagram.com/v18.0/{$userId}/media", $mediaData);
 
         if (!$response->successful()) {
             throw new \Exception('Failed to create Instagram media container: ' . $response->body());
@@ -214,7 +214,7 @@ class UploadVideoToInstagram implements ShouldQueue
         $attempts = 0;
 
         while ($attempts < $maxAttempts) {
-            $response = Http::get("https://graph.facebook.com/v18.0/{$mediaId}", [
+            $response = Http::get("https://graph.instagram.com/v18.0/{$mediaId}", [
                 'fields' => 'status_code',
                 'access_token' => $socialAccount->access_token
             ]);
@@ -247,7 +247,7 @@ class UploadVideoToInstagram implements ShouldQueue
     protected function publishMedia(SocialAccount $socialAccount, string $mediaId): void
     {
         // Get user ID again
-        $userResponse = Http::get('https://graph.facebook.com/v18.0/me', [
+        $userResponse = Http::get('https://graph.instagram.com/v18.0/me', [
             'fields' => 'id',
             'access_token' => $socialAccount->access_token
         ]);
@@ -259,7 +259,7 @@ class UploadVideoToInstagram implements ShouldQueue
         $userId = $userResponse->json()['id'];
 
         // Publish the media
-        $response = Http::post("https://graph.facebook.com/v18.0/{$userId}/media_publish", [
+        $response = Http::post("https://graph.instagram.com/v18.0/{$userId}/media_publish", [
             'creation_id' => $mediaId,
             'access_token' => $socialAccount->access_token
         ]);
