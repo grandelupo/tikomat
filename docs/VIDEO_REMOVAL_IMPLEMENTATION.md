@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the complete implementation of the video removal system for Tikomat, which allows users to remove videos from individual platforms while maintaining full error handling and graceful recovery.
+This document describes the complete implementation of the video removal system for Filmate, which allows users to remove videos from individual platforms while maintaining full error handling and graceful recovery.
 
 ## System Architecture
 
@@ -101,7 +101,7 @@ All located in `app/Jobs/`:
 3. **Job Dispatched**: "Video removal from Platform has been queued. The video will be removed from the platform shortly."
 
 #### Warning Scenarios
-1. **Job Dispatch Failed**: "Video removed from Tikomat, but could not queue removal from Platform: [error details]"
+1. **Job Dispatch Failed**: "Video removed from Filmate, but could not queue removal from Platform: [error details]"
 
 #### Error Scenarios
 1. **General Failure**: "Failed to remove video from Platform: [error message]"

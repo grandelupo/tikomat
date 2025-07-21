@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>New Chat Message - Tikomat Admin</title>
+    <title>New Chat Message - Filmate Admin</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -122,7 +122,7 @@
         </div>
         
         <div class="footer">
-            <p>This message was sent through the Tikomat chat system.</p>
+            <p>This message was sent through the Filmate chat system.</p>
             <p>Log in to the admin panel to view the full conversation and reply.</p>
         </div>
     </div>

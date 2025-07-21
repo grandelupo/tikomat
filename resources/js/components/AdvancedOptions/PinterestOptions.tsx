@@ -108,7 +108,7 @@ export default function PinterestOptions({ options, onChange }: PinterestOptions
                         placeholder="Board name (leave empty to use default)"
                     />
                     <p className="text-xs text-muted-foreground">
-                        If empty, will use existing board or create "Tikomat Videos"
+                        If empty, will use existing board or create "Filmate Videos"
                     </p>
                 </div>
 

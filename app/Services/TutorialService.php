@@ -16,7 +16,7 @@ class TutorialService
             'dashboard' => [
                 [
                     'target' => '[data-tutorial="channels-section"]',
-                    'title' => 'Welcome to Tikomat!',
+                    'title' => 'Welcome to Filmate!',
                     'content' => 'This is your dashboard where you can manage all your channels and videos. Let\'s start with your channels section.',
                     'position' => 'bottom'
                 ],

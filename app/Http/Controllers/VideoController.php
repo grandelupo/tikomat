@@ -547,7 +547,7 @@ class VideoController extends Controller
                     ->with('success', "Video removal from {$platform} has been queued. The video will be removed from the platform shortly.");
             } else {
                 return redirect()->back()
-                    ->with('warning', "Video removed from Tikomat, but could not queue removal from {$platform}: {$jobDispatchError}");
+                    ->with('warning', "Video removed from Filmate, but could not queue removal from {$platform}: {$jobDispatchError}");
             }
 
         } catch (\Exception $e) {

@@ -34,7 +34,7 @@ A Laravel + React application for uploading and publishing videos across multipl
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd tikomat
+   cd filmate
    ```
 
 2. **Install PHP dependencies**

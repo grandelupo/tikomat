@@ -131,8 +131,8 @@ class UploadVideoToPinterest implements ShouldQueue
             'Authorization' => 'Bearer ' . $socialAccount->access_token,
             'Content-Type' => 'application/json'
         ])->post('https://api.pinterest.com/v5/boards', [
-            'name' => 'Tikomat Videos',
-            'description' => 'Videos uploaded via Tikomat',
+            'name' => 'Filmate Videos',
+            'description' => 'Videos uploaded via Filmate',
             'privacy' => 'PUBLIC'
         ]);
 

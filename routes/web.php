@@ -33,7 +33,7 @@ Route::get('/crawler-friendly', function () {
         'status' => 'ok',
         'message' => 'This endpoint is accessible to crawlers and bots',
         'timestamp' => now()->toISOString(),
-        'app_name' => config('app.name', 'Tikomat'),
+        'app_name' => config('app.name', 'Filmate'),
         'app_url' => config('app.url'),
     ], 200, [
         'Content-Type' => 'application/json',

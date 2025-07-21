@@ -4,7 +4,7 @@ This document outlines the data deletion functionality implemented to comply wit
 
 ## Overview
 
-The data deletion feature allows users to request the permanent deletion of their personal data from the Tikomat platform. This complies with:
+The data deletion feature allows users to request the permanent deletion of their personal data from the Filmate platform. This complies with:
 
 - Facebook's Data Deletion Requirements
 - GDPR (General Data Protection Regulation)
@@ -80,7 +80,7 @@ Users can delete their account directly through:
 3. Confirm with password
 
 #### Option 2: Contact Support
-Users can email `privacy@tikomat.com` with:
+Users can email `privacy@filmate.com` with:
 - Subject: "Data Deletion Request"
 - Email address
 - Reason for deletion

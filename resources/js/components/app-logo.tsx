@@ -1,5 +1,5 @@
 export default function AppLogo() {
-    const appName = import.meta.env.VITE_APP_NAME || 'Tikomat';
+    const appName = import.meta.env.VITE_APP_NAME || 'Filmate';
     
     return (
         <>

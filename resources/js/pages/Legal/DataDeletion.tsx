@@ -6,7 +6,7 @@ import { ArrowLeft, Trash2, Shield, AlertTriangle, FileText, Clock, CheckCircle 
 export default function DataDeletion() {
     return (
         <>
-            <Head title="Data Deletion - Tikomat" />
+            <Head title="Data Deletion - Filmate" />
             
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
@@ -16,7 +16,7 @@ export default function DataDeletion() {
                             <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                                 <FileText className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-xl font-bold text-gray-900">Tikomat</span>
+                            <span className="text-xl font-bold text-gray-900">Filmate</span>
                         </Link>
                         <Link href="/">
                             <Button variant="outline">
@@ -185,7 +185,7 @@ export default function DataDeletion() {
                                             If you have an active account, you can request deletion directly from your account settings:
                                         </p>
                                         <ol className="list-decimal list-inside space-y-1 text-gray-600">
-                                            <li>Log in to your Tikomat account</li>
+                                            <li>Log in to your Filmate account</li>
                                             <li>Go to Settings → Account</li>
                                             <li>Click "Delete Account" at the bottom of the page</li>
                                             <li>Confirm your decision by entering your password</li>
@@ -197,7 +197,7 @@ export default function DataDeletion() {
                                             If you cannot access your account or prefer to contact us directly:
                                         </p>
                                         <ul className="space-y-1 text-gray-600">
-                                            <li>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@tikomat.com'}</li>
+                                            <li>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@filmate.com'}</li>
                                             <li>Subject: "Data Deletion Request"</li>
                                             <li>Include your email address and reason for deletion</li>
                                             <li>We will respond within 48 hours to confirm your request</li>
@@ -236,7 +236,7 @@ export default function DataDeletion() {
                                     For questions about data deletion or to exercise your data rights:
                                 </p>
                                 <div className="space-y-2 text-gray-600">
-                                    <p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@tikomat.com'}</p>
+                                    <p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@filmate.com'}</p>
                                     <p>Support: <Link href="/contact" className="text-blue-600 hover:underline">Contact Form</Link></p>
                                     <p>Response Time: Within 48 hours</p>
                                 </div>

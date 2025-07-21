@@ -252,7 +252,7 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
                             </li>
                             <li className="flex items-start space-x-2">
                                 <span className="font-bold text-green-600 mt-0.5">•</span>
-                                <span>You can upload videos directly to this YouTube channel from tikomat</span>
+                                <span>You can upload videos directly to this YouTube channel from filmate</span>
                             </li>
                             <li className="flex items-start space-x-2">
                                 <span className="font-bold text-green-600 mt-0.5">•</span>
@@ -260,7 +260,7 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
                             </li>
                             <li className="flex items-start space-x-2">
                                 <span className="font-bold text-green-600 mt-0.5">•</span>
-                                <span>You can connect different YouTube channels to different tikomat channels</span>
+                                <span>You can connect different YouTube channels to different filmate channels</span>
                             </li>
                         </ul>
                     </CardContent>

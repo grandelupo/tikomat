@@ -50,7 +50,7 @@ export default function Contact({ auth }: ContactProps) {
 
     return (
         <>
-            <Head title="Contact Us - Tikomat" />
+            <Head title="Contact Us - Filmate" />
             
             {/* Header */}
             <header className="border-b bg-background">
@@ -59,7 +59,7 @@ export default function Contact({ auth }: ContactProps) {
                         <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                             <VideoIcon className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-xl font-bold text-gray-900">Tikomat</span>
+                        <span className="text-xl font-bold text-gray-900">Filmate</span>
                     </Link>
                     <nav className="hidden md:flex items-center space-x-8">
                         <Link href="/#features" className="text-gray-600 hover:text-gray-900">Features</Link>
@@ -114,7 +114,7 @@ export default function Contact({ auth }: ContactProps) {
                         Contact Our Team
                     </h1>
                     <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                        Have questions about Tikomat? Need help getting started? Our friendly team is here to help you succeed.
+                        Have questions about Filmate? Need help getting started? Our friendly team is here to help you succeed.
                     </p>
                 </div>
             </section>
@@ -254,7 +254,7 @@ export default function Contact({ auth }: ContactProps) {
                                             </div>
                                             <div>
                                                 <h3 className="font-semibold text-gray-900">Email Support</h3>
-                                                <p className="text-gray-600">{import.meta.env.VITE_PUBLIC_EMAIL || 'support@tikomat.com'}</p>
+                                                <p className="text-gray-600">{import.meta.env.VITE_PUBLIC_EMAIL || 'support@filmate.com'}</p>
                                                 <p className="text-sm text-gray-500">We respond within 24 hours</p>
                                             </div>
                                         </div>
@@ -357,7 +357,7 @@ export default function Contact({ auth }: ContactProps) {
                             },
                             {
                                 question: "Can I schedule a demo?",
-                                answer: "Yes! Contact us to schedule a personalized demo of Tikomat's features and see how it can benefit your workflow."
+                                answer: "Yes! Contact us to schedule a personalized demo of Filmate's features and see how it can benefit your workflow."
                             },
                             {
                                 question: "Do you offer custom integrations?",
@@ -386,7 +386,7 @@ export default function Contact({ auth }: ContactProps) {
                                 <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded flex items-center justify-center">
                                     <VideoIcon className="w-4 h-4 text-white" />
                                 </div>
-                                <span className="text-lg font-bold">Tikomat</span>
+                                <span className="text-lg font-bold">Filmate</span>
                             </div>
                             <p className="text-gray-400">
                                 The easiest way to publish videos across all social media platforms.
@@ -418,7 +418,7 @@ export default function Contact({ auth }: ContactProps) {
                         </div>
                     </div>
                     <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-                        <p>&copy; 2025 Tikomat. All rights reserved.</p>
+                        <p>&copy; 2025 Filmate. All rights reserved.</p>
                     </div>
                 </div>
             </footer>

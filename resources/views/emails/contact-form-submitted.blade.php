@@ -77,7 +77,7 @@
 <body>
     <div class="header">
         <h1>🚀 New Contact Form Submission</h1>
-        <p>Someone has sent a message through your Tikomat contact form</p>
+        <p>Someone has sent a message through your Filmate contact form</p>
     </div>
 
     <div class="content">
@@ -119,9 +119,9 @@
     </div>
 
     <div class="footer">
-        <p>This email was sent automatically when someone submitted the contact form on your Tikomat website.</p>
+        <p>This email was sent automatically when someone submitted the contact form on your Filmate website.</p>
         <p>
-            <strong>Tikomat</strong> - The easiest way to publish videos across all social media platforms<br>
+            <strong>Filmate</strong> - The easiest way to publish videos across all social media platforms<br>
             <a href="{{ config('app.url') }}">{{ config('app.url') }}</a>
         </p>
     </div>

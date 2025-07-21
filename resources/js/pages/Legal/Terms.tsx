@@ -6,7 +6,7 @@ import { ArrowLeft, Scale, FileText, AlertTriangle, CheckCircle } from 'lucide-r
 export default function Terms() {
     return (
         <>
-            <Head title="Terms of Service - Tikomat" />
+            <Head title="Terms of Service - Filmate" />
             
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
@@ -16,7 +16,7 @@ export default function Terms() {
                             <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                                 <FileText className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-xl font-bold text-gray-900">Tikomat</span>
+                            <span className="text-xl font-bold text-gray-900">Filmate</span>
                         </Link>
                         <Link href="/">
                             <Button variant="outline">
@@ -32,7 +32,7 @@ export default function Terms() {
                         <Scale className="w-16 h-16 text-blue-600 mx-auto mb-4" />
                         <h1 className="text-4xl font-bold text-gray-900 mb-4">Terms of Service</h1>
                         <p className="text-xl text-gray-600">
-                            Please read these terms carefully before using Tikomat's video publishing platform.
+                            Please read these terms carefully before using Filmate's video publishing platform.
                         </p>
                         <p className="text-sm text-gray-500 mt-2">
                             Last updated: {new Date().toLocaleDateString()}
@@ -49,7 +49,7 @@ export default function Terms() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <p className="text-gray-600">
-                                    By accessing and using Tikomat ("the Service"), you accept and agree to be bound by these Terms of Service ("Terms"). 
+                                    By accessing and using Filmate ("the Service"), you accept and agree to be bound by these Terms of Service ("Terms"). 
                                     If you do not agree to these Terms, you may not use the Service.
                                 </p>
                                 <p className="text-gray-600">
@@ -64,7 +64,7 @@ export default function Terms() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <p className="text-gray-600">
-                                    Tikomat is a video publishing platform that allows users to upload videos and distribute them 
+                                    Filmate is a video publishing platform that allows users to upload videos and distribute them 
                                     across multiple social media platforms simultaneously. Our services include:
                                 </p>
                                 <ul className="space-y-2 text-gray-600">
@@ -138,7 +138,7 @@ export default function Terms() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <p className="text-gray-600">
-                                    When you connect social media accounts to Tikomat:
+                                    When you connect social media accounts to Filmate:
                                 </p>
                                 <ul className="space-y-2 text-gray-600">
                                     <li>• You authorize us to publish content on your behalf</li>
@@ -203,7 +203,7 @@ export default function Terms() {
                                 <div>
                                     <h3 className="font-semibold mb-2">Limitation of Liability</h3>
                                     <p className="text-gray-600">
-                                        To the fullest extent permitted by law, Tikomat shall not be liable for any indirect, 
+                                        To the fullest extent permitted by law, Filmate shall not be liable for any indirect, 
                                         incidental, special, consequential, or punitive damages.
                                     </p>
                                 </div>
@@ -249,7 +249,7 @@ export default function Terms() {
                                     If you have questions about these Terms of Service, please contact us:
                                 </p>
                                 <div className="space-y-2 text-gray-600">
-                                    <p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'legal@tikomat.com'}</p>
+                                    <p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'legal@filmate.com'}</p>
                                     <p>Support: <Link href="/contact" className="text-blue-600 hover:underline">Contact Form</Link></p>
                                 </div>
                             </CardContent>

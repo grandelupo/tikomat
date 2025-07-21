@@ -6,7 +6,7 @@ import { ArrowLeft, Shield, Lock, Eye, FileText } from 'lucide-react';
 export default function Privacy() {
     return (
         <>
-            <Head title="Privacy Policy - Tikomat" />
+            <Head title="Privacy Policy - Filmate" />
             
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
@@ -16,7 +16,7 @@ export default function Privacy() {
                             <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                                 <FileText className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-xl font-bold text-gray-900">Tikomat</span>
+                            <span className="text-xl font-bold text-gray-900">Filmate</span>
                         </Link>
                         <Link href="/">
                             <Button variant="outline">
@@ -139,7 +139,7 @@ export default function Privacy() {
                                     <li>• Opt out of non-essential communications</li>
                                 </ul>
                                 <p className="text-gray-600 mt-4">
-                                    To exercise these rights, please contact us at {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@tikomat.com'}.
+                                    To exercise these rights, please contact us at {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@filmate.com'}.
                                 </p>
                                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                     <p className="text-blue-800">
@@ -182,7 +182,7 @@ export default function Privacy() {
                                     If you have questions about this Privacy Policy or our data practices, please contact us:
                                 </p>
                                 <div className="space-y-2 text-gray-600">
-                                    <p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@tikomat.com'}</p>
+                                    <p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'privacy@filmate.com'}</p>
                                     <p>Support: <Link href="/contact" className="text-blue-600 hover:underline">Contact Form</Link></p>
                                 </div>
                             </CardContent>

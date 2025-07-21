@@ -27,7 +27,7 @@ All frontend components now use `import.meta.env.VITE_PUBLIC_EMAIL` to access th
 
 ```tsx
 // Example usage in React components
-<p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'support@tikomat.com'}</p>
+<p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'support@filmate.com'}</p>
 ```
 
 ### Files Updated
@@ -54,7 +54,7 @@ Backend code uses `env('PUBLIC_EMAIL')` to access the email address:
 
 ```php
 // Example usage in PHP
-$email = env('PUBLIC_EMAIL', 'support@tikomat.com');
+$email = env('PUBLIC_EMAIL', 'support@filmate.com');
 ```
 
 ### Files Updated
@@ -93,7 +93,7 @@ The `VITE_PUBLIC_EMAIL` variable is automatically available in frontend componen
 ### Updated Templates
 
 1. **`contact-reply.blade.php`**
-   - Footer contact information now uses `{{ env('PUBLIC_EMAIL', 'support@tikomat.com') }}`
+   - Footer contact information now uses `{{ env('PUBLIC_EMAIL', 'support@filmate.com') }}`
 
 ### Unchanged Templates
 
@@ -108,7 +108,7 @@ The following email templates don't contain hardcoded email addresses and don't 
 
 ```tsx
 // In any React component
-const contactEmail = import.meta.env.VITE_PUBLIC_EMAIL || 'support@tikomat.com';
+const contactEmail = import.meta.env.VITE_PUBLIC_EMAIL || 'support@filmate.com';
 
 return (
     <div>
@@ -122,10 +122,10 @@ return (
 
 ```php
 // In any PHP file
-$contactEmail = env('PUBLIC_EMAIL', 'support@tikomat.com');
+$contactEmail = env('PUBLIC_EMAIL', 'support@filmate.com');
 
 // In Blade templates
-<p>Contact us at: {{ env('PUBLIC_EMAIL', 'support@tikomat.com') }}</p>
+<p>Contact us at: {{ env('PUBLIC_EMAIL', 'support@filmate.com') }}</p>
 ```
 
 ## Migration Guide
@@ -134,24 +134,24 @@ $contactEmail = env('PUBLIC_EMAIL', 'support@tikomat.com');
 
 ```tsx
 // Old way - hardcoded email
-<p>Email: support@tikomat.com</p>
+<p>Email: support@filmate.com</p>
 ```
 
 ```php
 // Old way - hardcoded email
-$email = 'support@tikomat.com';
+$email = 'support@filmate.com';
 ```
 
 ### After (Environment Variable)
 
 ```tsx
 // New way - environment variable
-<p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'support@tikomat.com'}</p>
+<p>Email: {import.meta.env.VITE_PUBLIC_EMAIL || 'support@filmate.com'}</p>
 ```
 
 ```php
 // New way - environment variable
-$email = env('PUBLIC_EMAIL', 'support@tikomat.com');
+$email = env('PUBLIC_EMAIL', 'support@filmate.com');
 ```
 
 ## Benefits

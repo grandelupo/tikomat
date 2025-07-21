@@ -2,7 +2,7 @@
 
 ## How Workflows Work
 
-Tikomat's workflow system automatically detects new videos on source platforms and syncs them to target platforms. Here's how it works:
+Filmate's workflow system automatically detects new videos on source platforms and syncs them to target platforms. Here's how it works:
 
 ### 1. Workflow Components
 

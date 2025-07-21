@@ -1,7 +1,7 @@
 import { HTMLAttributes } from 'react';
 
 export default function AppLogoIcon(props: HTMLAttributes<HTMLImageElement>) {
-    const appName = import.meta.env.VITE_APP_NAME || 'Tikomat';
+    const appName = import.meta.env.VITE_APP_NAME || 'Filmate';
     
     return (
         <img 

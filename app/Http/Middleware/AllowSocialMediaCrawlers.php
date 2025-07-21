@@ -519,8 +519,8 @@ class AllowSocialMediaCrawlers
      */
     private function generateFacebookCrawlerResponse(Request $request): Response
     {
-        $appName = config('app.name', 'Tikomat');
-        $appUrl = config('app.url', 'https://tikomat.com');
+        $appName = config('app.name', 'Filmate');
+        $appUrl = config('app.url', 'https://filmate.com');
         $appDescription = 'The easiest way to publish videos across all social media platforms. Upload once, publish everywhere.';
         
         $html = <<<HTML

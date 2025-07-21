@@ -1,6 +1,6 @@
 # Notification System
 
-This document describes the notification system implemented for failed jobs in the Tikomat application.
+This document describes the notification system implemented for failed jobs in the Filmate application.
 
 ## Overview
 

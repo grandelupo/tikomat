@@ -43,7 +43,7 @@ class ContactController extends Controller
             $contactMessage = ContactMessage::create($validated);
 
             // Send notification email to admin(s)
-            $adminEmails = config('mail.admin_emails', [env('PUBLIC_EMAIL', 'admin@tikomat.com')]);
+            $adminEmails = config('mail.admin_emails', [env('PUBLIC_EMAIL', 'admin@filmate.com')]);
             
             foreach ($adminEmails as $adminEmail) {
                 Mail::to($adminEmail)->send(new ContactFormSubmitted($contactMessage));
@@ -57,7 +57,7 @@ class ContactController extends Controller
             \Log::error('Failed to process contact form: ' . $e->getMessage());
             
             return redirect()->back()->with('error', 
-                'Sorry, there was an error sending your message. Please try again or contact us directly at ' . env('PUBLIC_EMAIL', 'support@tikomat.com')
+                'Sorry, there was an error sending your message. Please try again or contact us directly at ' . env('PUBLIC_EMAIL', 'support@filmate.com')
             );
         }
     }

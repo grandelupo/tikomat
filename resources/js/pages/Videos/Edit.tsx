@@ -124,7 +124,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
     const [activeTab, setActiveTab] = useState('overview');
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [deleteOption, setDeleteOption] = useState<'all' | 'tikomat'>('tikomat');
+    const [deleteOption, setDeleteOption] = useState<'all' | 'filmate'>('filmate');
     const [generatingTitle, setGeneratingTitle] = useState(false);
     const [generatingDescription, setGeneratingDescription] = useState(false);
     const [selectedThumbnail, setSelectedThumbnail] = useState<string | null>(video.thumbnail || null);
@@ -1522,13 +1522,13 @@ export default function VideoEdit({ video }: VideoEditProps) {
                             <div className="flex items-center space-x-2">
                                 <input
                                     type="radio"
-                                    id="delete-tikomat"
+                                    id="delete-filmate"
                                     name="delete-option"
-                                    value="tikomat"
-                                    checked={deleteOption === 'tikomat'}
-                                    onChange={(e) => setDeleteOption(e.target.value as 'tikomat' | 'all')}
+                                    value="filmate"
+                                    checked={deleteOption === 'filmate'}
+                                    onChange={(e) => setDeleteOption(e.target.value as 'filmate' | 'all')}
                                 />
-                                <Label htmlFor="delete-tikomat">Delete only from Tikomat (keep on social platforms)</Label>
+                                <Label htmlFor="delete-filmate">Delete only from Filmate (keep on social platforms)</Label>
                             </div>
                             <div className="flex items-center space-x-2">
                                 <input
@@ -1537,9 +1537,9 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                     name="delete-option"
                                     value="all"
                                     checked={deleteOption === 'all'}
-                                    onChange={(e) => setDeleteOption(e.target.value as 'tikomat' | 'all')}
+                                    onChange={(e) => setDeleteOption(e.target.value as 'filmate' | 'all')}
                                 />
-                                <Label htmlFor="delete-all">Delete from everywhere (Tikomat + all social platforms)</Label>
+                                <Label htmlFor="delete-all">Delete from everywhere (Filmate + all social platforms)</Label>
                             </div>
                         </div>
                         <DialogFooter>

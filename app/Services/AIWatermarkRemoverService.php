@@ -3961,7 +3961,7 @@ class AIWatermarkRemoverService
                 CURLOPT_POSTFIELDS => $postFields,
                 CURLOPT_HTTPHEADER => [
                     'Authorization: Bearer ' . $apiKey,
-                    'User-Agent: TikomatApp/1.0'
+                    'User-Agent: FilmateApp/1.0'
                 ],
                 CURLOPT_TIMEOUT => 120,
                 CURLOPT_CONNECTTIMEOUT => 30,

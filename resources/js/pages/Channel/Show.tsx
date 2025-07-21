@@ -142,7 +142,7 @@ export default function ChannelShow({
     const [isConnectPlatformsOpen, setIsConnectPlatformsOpen] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [deleteVideoId, setDeleteVideoId] = useState<number | null>(null);
-    const [deleteOption, setDeleteOption] = useState<'all' | 'tikomat'>('tikomat');
+    const [deleteOption, setDeleteOption] = useState<'all' | 'filmate'>('filmate');
     
     const breadcrumbs = [
         {
@@ -641,22 +641,22 @@ export default function ChannelShow({
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             <div className="space-y-3">
-                                                                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted cursor-pointer" onClick={() => setDeleteOption('tikomat')}>
+                                                                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted cursor-pointer" onClick={() => setDeleteOption('filmate')}>
                                     <input
                                         type="radio"
-                                        id="delete-tikomat-channel"
+                                        id="delete-filmate-channel"
                                         name="delete-option"
-                                        value="tikomat"
-                                        checked={deleteOption === 'tikomat'}
-                                        onChange={(e) => setDeleteOption(e.target.value as 'tikomat')}
+                                        value="filmate"
+                                        checked={deleteOption === 'filmate'}
+                                        onChange={(e) => setDeleteOption(e.target.value as 'filmate')}
                                         className="h-4 w-4 mt-0.5"
                                     />
                                     <div className="flex-1">
-                                        <label htmlFor="delete-tikomat-channel" className="text-sm font-medium cursor-pointer">
-                                            Remove only from Tikomat
+                                        <label htmlFor="delete-filmate-channel" className="text-sm font-medium cursor-pointer">
+                                            Remove only from Filmate
                                         </label>
                                         <p className="text-xs text-muted-foreground mt-1">
-                                            Video will remain published on all platforms but removed from Tikomat's tracking
+                                            Video will remain published on all platforms but removed from Filmate's tracking
                                         </p>
                                     </div>
                                 </div>
@@ -676,7 +676,7 @@ export default function ChannelShow({
                                             Take down from all platforms
                                         </label>
                                         <p className="text-xs text-muted-foreground mt-1">
-                                            Video will be completely removed from all platforms and Tikomat
+                                            Video will be completely removed from all platforms and Filmate
                                         </p>
                                     </div>
                                 </div>
@@ -690,7 +690,7 @@ export default function ChannelShow({
                                 variant="destructive" 
                                 onClick={confirmDelete}
                             >
-                                {deleteOption === 'all' ? 'Take Down Video' : 'Remove from Tikomat'}
+                                {deleteOption === 'all' ? 'Take Down Video' : 'Remove from Filmate'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

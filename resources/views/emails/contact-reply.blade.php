@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Reply from Tikomat Support</title>
+    <title>Reply from Filmate Support</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -71,7 +71,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>💌 Reply from Tikomat Support</h1>
+            <h1>💌 Reply from Filmate Support</h1>
             <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Thank you for contacting us. Here's our response.</p>
         </div>
         
@@ -97,12 +97,12 @@
             <p>If you have any follow-up questions, please don't hesitate to reach out to us again.</p>
             
             <p>Best regards,<br>
-            The Tikomat Support Team</p>
+            The Filmate Support Team</p>
         </div>
         
         <div class="footer">
-            <p>This email was sent in response to your contact form submission on Tikomat.</p>
-            <p>If you didn't expect this email, please contact us at {{ env('PUBLIC_EMAIL', 'support@tikomat.com') }}</p>
+            <p>This email was sent in response to your contact form submission on Filmate.</p>
+            <p>If you didn't expect this email, please contact us at {{ env('PUBLIC_EMAIL', 'support@filmate.com') }}</p>
         </div>
     </div>
 </body>

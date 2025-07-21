@@ -201,7 +201,7 @@ class UploadVideoToSnapchat implements ShouldQueue
                     'type' => 'SNAP_AD',
                     'top_snap_media_id' => $mediaId,
                     'headline' => $this->videoTarget->video->title,
-                    'brand_name' => 'Tikomat'
+                    'brand_name' => 'Filmate'
                 ]
             ]
         ]);

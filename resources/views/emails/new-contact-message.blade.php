@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>New Contact Message - Tikomat</title>
+    <title>New Contact Message - Filmate</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -80,7 +80,7 @@
     <div class="container">
         <div class="header">
             <h1>📧 New Contact Message</h1>
-            <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Someone has sent a message through the Tikomat contact form</p>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Someone has sent a message through the Filmate contact form</p>
         </div>
         
         <div class="content">
@@ -113,7 +113,7 @@
         </div>
         
         <div class="footer">
-            <p>This message was sent through the Tikomat contact form.</p>
+            <p>This message was sent through the Filmate contact form.</p>
             <p>Reply directly to this email to respond to the sender.</p>
         </div>
     </div>

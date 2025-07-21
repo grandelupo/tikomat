@@ -125,9 +125,9 @@ return [
     */
 
     'admin_emails' => [
-        env('ADMIN_EMAIL', 'admin@tikomat.com'),
+        env('ADMIN_EMAIL', 'admin@filmate.com'),
         // Add more admin emails here
-        // 'admin2@tikomat.com',
+        // 'admin2@filmate.com',
     ],
 
 ];
