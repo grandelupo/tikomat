@@ -669,14 +669,13 @@ class SocialAccountController extends Controller
         } elseif ($platform === 'instagram') {
             // Instagram API with Instagram Login - NEW SCOPES (replacing deprecated ones)
             // These replace the old instagram_basic and instagram_content_publish scopes
+            $scopes = [
+                'instagram_business_basic',          // Replaces instagram_basic
+                'instagram_business_content_publish', // Replaces instagram_content_publish
+            ];
             return Socialite::driver($driver)
-                ->scopes([
-                    'instagram_business_basic',          // Replaces instagram_basic
-                    'instagram_business_content_publish', // Replaces instagram_content_publish
-                    'instagram_business_manage_comments', // For comment management
-                    'pages_show_list',                   // Still required for Facebook pages
-                    'pages_read_engagement'              // Still required for engagement data
-                ])
+                ->scopes($scopes)
+                ->setScopes($scopes)
                 ->with([
                     'state' => $state,
                     'prompt' => 'select_account consent', // Force account selection
