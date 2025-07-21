@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\Video;
 use App\Models\CloudStorage;
 use App\Services\GoogleDriveService;
-use App\Services\DropboxService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -106,10 +105,6 @@ class UploadVideoToCloudStorage implements ShouldQueue
         switch ($this->provider) {
             case 'google_drive':
                 return $this->uploadToGoogleDrive($cloudStorage, $videoPath);
-                
-            case 'dropbox':
-                return $this->uploadToDropbox($cloudStorage, $videoPath);
-                
             default:
                 throw new Exception("Unsupported cloud provider: {$this->provider}");
         }
@@ -153,23 +148,8 @@ class UploadVideoToCloudStorage implements ShouldQueue
      */
     protected function uploadToDropbox(CloudStorage $cloudStorage, string $videoPath): array
     {
-        $service = new DropboxService();
-        $service->setAccessToken($cloudStorage->access_token);
-
-        $fileName = $this->video->title . '.mp4';
-        $dropboxPath = ($this->folderPath ? rtrim($this->folderPath, '/') . '/' : '/') . $fileName;
-
-        // Upload the file
-        $uploadResult = $service->uploadFile($videoPath, $dropboxPath);
-
-        return [
-            'file_id' => $uploadResult['id'],
-            'file_name' => $fileName,
-            'path' => $dropboxPath,
-            'shareable_link' => $service->getShareableLink($dropboxPath),
-            'folder_path' => $this->folderPath,
-            'uploaded_at' => now()->toISOString(),
-        ];
+        // Method removed: Dropbox support is no longer available.
+        throw new Exception('Dropbox support has been removed.');
     }
 
     /**
@@ -194,6 +174,7 @@ class UploadVideoToCloudStorage implements ShouldQueue
             }
         }
         // Dropbox tokens typically don't expire, but we could add refresh logic here if needed
+        // Dropbox support removed
     }
 
     /**

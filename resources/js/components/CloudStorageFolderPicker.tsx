@@ -33,7 +33,6 @@ interface CloudStorageFolderPickerProps {
 // Available cloud storage providers
 const AVAILABLE_PROVIDERS = [
     { id: 'google_drive', name: 'Google Drive', description: 'Upload videos to Google Drive' },
-    { id: 'dropbox', name: 'Dropbox', description: 'Upload videos to Dropbox' },
 ];
 
 export default function CloudStorageFolderPicker({
@@ -224,7 +223,6 @@ export default function CloudStorageFolderPicker({
     const getProviderDisplayName = (provider: string) => {
         switch (provider) {
             case 'google_drive': return 'Google Drive';
-            case 'dropbox': return 'Dropbox';
             default: return provider;
         }
     };

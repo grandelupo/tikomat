@@ -688,47 +688,6 @@ export default function CreateVideo({
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                                        <Checkbox
-                                            id="dropbox"
-                                            checked={data.cloud_providers?.includes('dropbox') || false}
-                                            onCheckedChange={(checked) => {
-                                                const currentProviders = data.cloud_providers || [];
-                                                const currentFolders = data.cloud_folders || {};
-                                                
-                                                if (checked) {
-                                                    setData('cloud_providers', [...currentProviders, 'dropbox']);
-                                                } else {
-                                                    const newProviders = currentProviders.filter(p => p !== 'dropbox');
-                                                    const newFolders = { ...currentFolders };
-                                                    delete newFolders.dropbox;
-                                                    
-                                                    setData('cloud_providers', newProviders);
-                                                    setData('cloud_folders', newFolders);
-                                                    setCloudFolders(newFolders);
-                                                }
-                                            }}
-                                        />
-                                        <div className="flex items-center space-x-3 flex-1">
-                                            <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
-                                                <Cloud className="w-4 h-4 text-white" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <Label htmlFor="dropbox" className="font-medium">
-                                                    Dropbox
-                                                </Label>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Backup to your Dropbox account
-                                                </p>
-                                                {data.cloud_folders?.dropbox && (
-                                                    <p className="text-xs text-blue-600 mt-1">
-                                                        Upload to: {data.cloud_folders.dropbox || 'Root folder'}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 {(data.cloud_providers?.length || 0) > 0 && (

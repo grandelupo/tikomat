@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\CloudStorage;
 use App\Services\GoogleDriveService;
-use App\Services\DropboxService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -22,7 +21,7 @@ class CloudStorageController extends Controller
      */
     public function redirect(string $provider, Request $request): RedirectResponse
     {
-        if (!in_array($provider, ['google_drive', 'dropbox'])) {
+        if (!in_array($provider, ['google_drive'])) {
             return redirect()->route('dashboard')
                 ->with('error', 'Invalid cloud storage provider.');
         }
@@ -45,10 +44,6 @@ class CloudStorageController extends Controller
                         'prompt' => 'select_account consent',
                     ])
                     ->redirect();
-            } elseif ($provider === 'dropbox') {
-                return Socialite::driver('dropbox')
-                    ->scopes(['files.content.read', 'files.content.write'])
-                    ->redirect();
             }
         } catch (Exception $e) {
             Log::error('Cloud storage OAuth redirect failed: ' . $e->getMessage());
@@ -62,7 +57,7 @@ class CloudStorageController extends Controller
      */
     public function callback(string $provider): RedirectResponse
     {
-        if (!in_array($provider, ['google_drive', 'dropbox'])) {
+        if (!in_array($provider, ['google_drive'])) {
             return redirect()->route('dashboard')
                 ->with('error', 'Invalid cloud storage provider.');
         }
@@ -136,7 +131,7 @@ class CloudStorageController extends Controller
      */
     public function listFiles(string $provider, Request $request): JsonResponse
     {
-        if (!in_array($provider, ['google_drive', 'dropbox'])) {
+        if (!in_array($provider, ['google_drive'])) {
             return response()->json(['error' => 'Invalid provider'], 400);
         }
 
@@ -163,22 +158,6 @@ class CloudStorageController extends Controller
                     'nextPageToken' => $result['nextPageToken'],
                     'provider' => 'google_drive'
                 ]);
-                
-            } elseif ($provider === 'dropbox') {
-                $service = new DropboxService();
-                $service->setAccessToken($cloudStorage->access_token);
-                
-                $path = $request->input('path', '');
-                $limit = $request->input('limit', 20);
-                
-                $result = $service->listVideoFiles($path, $limit);
-                
-                return response()->json([
-                    'files' => $result['files'],
-                    'hasMore' => $result['has_more'],
-                    'cursor' => $result['cursor'],
-                    'provider' => 'dropbox'
-                ]);
             }
         } catch (Exception $e) {
             Log::error('Cloud storage list files failed: ' . $e->getMessage());
@@ -196,7 +175,7 @@ class CloudStorageController extends Controller
             'file_name' => 'required|string',
         ]);
 
-        if (!in_array($provider, ['google_drive', 'dropbox'])) {
+        if (!in_array($provider, ['google_drive'])) {
             return response()->json(['error' => 'Invalid provider'], 400);
         }
 
@@ -224,12 +203,6 @@ class CloudStorageController extends Controller
             if ($provider === 'google_drive') {
                 $service = new GoogleDriveService();
                 $service->setAccessToken($cloudStorage->access_token, $cloudStorage->refresh_token);
-                
-                $success = $service->downloadFile($request->file_id, $localPath);
-                
-            } elseif ($provider === 'dropbox') {
-                $service = new DropboxService();
-                $service->setAccessToken($cloudStorage->access_token);
                 
                 $success = $service->downloadFile($request->file_id, $localPath);
             }
@@ -266,12 +239,6 @@ class CloudStorageController extends Controller
                 'name' => 'Google Drive',
                 'description' => 'Store and sync your videos with Google Drive',
                 'icon' => 'google-drive'
-            ],
-            [
-                'id' => 'dropbox',
-                'name' => 'Dropbox',
-                'description' => 'Store and sync your videos with Dropbox',
-                'icon' => 'dropbox'
             ]
         ];
 
@@ -286,7 +253,7 @@ class CloudStorageController extends Controller
      */
     public function disconnect(string $provider, Request $request): RedirectResponse
     {
-        if (!in_array($provider, ['google_drive', 'dropbox'])) {
+        if (!in_array($provider, ['google_drive'])) {
             return redirect()->route('dashboard')
                 ->with('error', 'Invalid cloud storage provider.');
         }
@@ -324,7 +291,7 @@ class CloudStorageController extends Controller
      */
     public function listFolders(string $provider, Request $request): JsonResponse
     {
-        if (!in_array($provider, ['google_drive', 'dropbox'])) {
+        if (!in_array($provider, ['google_drive'])) {
             return response()->json(['error' => 'Invalid provider'], 400);
         }
 
@@ -348,18 +315,6 @@ class CloudStorageController extends Controller
                     'folders' => $folders,
                     'provider' => 'google_drive'
                 ]);
-                
-            } elseif ($provider === 'dropbox') {
-                $service = new DropboxService();
-                $service->setAccessToken($cloudStorage->access_token);
-                
-                $path = $request->input('path', '');
-                $folders = $service->listFolders($path);
-                
-                return response()->json([
-                    'folders' => $folders,
-                    'provider' => 'dropbox'
-                ]);
             }
         } catch (Exception $e) {
             Log::error('Cloud storage list folders failed: ' . $e->getMessage());
@@ -375,10 +330,9 @@ class CloudStorageController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|string', // For Google Drive
-            'parent_path' => 'nullable|string', // For Dropbox
         ]);
 
-        if (!in_array($provider, ['google_drive', 'dropbox'])) {
+        if (!in_array($provider, ['google_drive'])) {
             return response()->json(['error' => 'Invalid provider'], 400);
         }
 
@@ -401,19 +355,6 @@ class CloudStorageController extends Controller
                     'success' => true,
                     'folder' => $folder,
                     'provider' => 'google_drive'
-                ]);
-                
-            } elseif ($provider === 'dropbox') {
-                $service = new DropboxService();
-                $service->setAccessToken($cloudStorage->access_token);
-                
-                $path = ($request->parent_path ? rtrim($request->parent_path, '/') . '/' : '/') . $request->name;
-                $folder = $service->createFolder($path);
-                
-                return response()->json([
-                    'success' => true,
-                    'folder' => $folder,
-                    'provider' => 'dropbox'
                 ]);
             }
         } catch (Exception $e) {
