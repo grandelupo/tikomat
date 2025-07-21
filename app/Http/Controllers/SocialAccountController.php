@@ -1591,4 +1591,61 @@ class SocialAccountController extends Controller
             );
         }
     }
+
+    // Add new method for Instagram account selection UI
+    public function showInstagramAccountSelection(Channel $channel, Request $request)
+    {
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+        $oauthData = session('instagram_oauth_data');
+        if (!$oauthData || $oauthData['channel_slug'] !== $channel->slug) {
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('error', 'Instagram connection session expired. Please try connecting again.');
+        }
+        return \Inertia\Inertia::render('InstagramAccountSelection', [
+            'channel' => [
+                'id' => $channel->id,
+                'name' => $channel->name,
+                'slug' => $channel->slug,
+            ],
+            'pages' => $oauthData['pages'],
+        ]);
+    }
+    // Add new method for handling Instagram account selection POST
+    public function selectInstagramAccount(Channel $channel, Request $request): RedirectResponse
+    {
+        if ($channel->user_id !== $request->user()->id) {
+            abort(403);
+        }
+        $request->validate(['page_id' => 'required|string']);
+        $oauthData = session('instagram_oauth_data');
+        if (!$oauthData || $oauthData['channel_slug'] !== $channel->slug) {
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('error', 'Instagram connection session expired. Please try connecting again.');
+        }
+        $selectedPage = collect($oauthData['pages'])->firstWhere('id', $request->page_id);
+        if (!$selectedPage) {
+            return redirect()->back()->with('error', 'Invalid page selection. Please try again.');
+        }
+        $accountData = [
+            'user_id' => \Auth::id(),
+            'channel_id' => $channel->id,
+            'platform' => 'instagram',
+            'access_token' => $selectedPage['access_token'],
+            'platform_channel_id' => $selectedPage['instagram_business_account']['id'],
+            'platform_channel_name' => $selectedPage['name'],
+            'facebook_page_id' => $selectedPage['id'],
+            'facebook_page_name' => $selectedPage['name'],
+            'profile_name' => $selectedPage['name'],
+            'is_platform_channel_specific' => true,
+        ];
+        \App\Models\SocialAccount::updateOrCreate([
+            'user_id' => \Auth::id(),
+            'channel_id' => $channel->id,
+            'platform' => 'instagram',
+        ], $accountData);
+        session()->forget('instagram_oauth_data');
+        return redirect()->route('connections')->with('success', 'Instagram account connected successfully!');
+    }
 }

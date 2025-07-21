@@ -137,45 +137,23 @@ class UploadVideoToInstagram implements ShouldQueue
      */
     protected function createMediaContainer(SocialAccount $socialAccount, string $videoUrl): string
     {
-        // Get user's Instagram business account ID
-        $userResponse = Http::get('https://graph.instagram.com/v18.0/me', [
-            'fields' => 'id',
-            'access_token' => $socialAccount->access_token
-        ]);
-
-        if (!$userResponse->successful()) {
-            throw new \Exception('Failed to get Instagram user info: ' . $userResponse->body());
-        }
-
-        $userId = $userResponse->json()['id'];
-
-        // Get advanced options for this platform
+        // Use the Instagram Business Account ID and Page access token
+        $igUserId = $socialAccount->platform_channel_id;
+        $pageAccessToken = $socialAccount->access_token;
         $options = $this->videoTarget->advanced_options ?? [];
-
-        // Prepare caption with advanced options
         $caption = $options['caption'] ?? ($this->videoTarget->video->title . "\n\n" . $this->videoTarget->video->description);
-        
-        // Add hashtags if provided
         if (!empty($options['hashtags'])) {
-            $hashtags = is_array($options['hashtags']) 
-                ? implode(' ', $options['hashtags']) 
-                : $options['hashtags'];
+            $hashtags = is_array($options['hashtags']) ? implode(' ', $options['hashtags']) : $options['hashtags'];
             $caption .= "\n\n" . $hashtags;
         } elseif (!empty($this->videoTarget->video->tags)) {
-            // Use tags from video database field if no advanced options hashtags
             $videoTags = $this->videoTarget->video->tags;
             if (is_array($videoTags) && !empty($videoTags)) {
-                $hashtags = implode(' ', array_map(function($tag) {
-                    return '#' . str_replace('#', '', $tag);
-                }, $videoTags));
+                $hashtags = implode(' ', array_map(function($tag) { return '#' . str_replace('#', '', $tag); }, $videoTags));
                 $caption .= "\n\n" . $hashtags;
             }
         }
-
-        // Validate and filter hashtags in caption
         $validationResult = $this->hashtagValidator->validateAndFilterHashtags('instagram', $caption);
         $filteredCaption = $validationResult['filtered_content'];
-        
         if ($validationResult['has_changes']) {
             Log::info('Instagram hashtags filtered', [
                 'video_target_id' => $this->videoTarget->id,
@@ -185,38 +163,26 @@ class UploadVideoToInstagram implements ShouldQueue
                 'filtered_length' => strlen($filteredCaption),
             ]);
         }
-
-        // Prepare media data
         $mediaData = [
             'media_type' => $options['videoType'] ?? 'REELS',
             'video_url' => $videoUrl,
             'caption' => $filteredCaption,
-            'access_token' => $socialAccount->access_token
+            'access_token' => $pageAccessToken,
         ];
-
-        // Add location if provided
         if (!empty($options['location'])) {
             $mediaData['location_id'] = $options['location'];
         }
-
-        // Add alt text if provided
         if (!empty($options['altText'])) {
             $mediaData['custom_accessibility_caption'] = $options['altText'];
         }
-
-        // Create media container
-        $response = Http::post("https://graph.instagram.com/v18.0/{$userId}/media", $mediaData);
-
+        $response = \Illuminate\Support\Facades\Http::post("https://graph.facebook.com/v18.0/{$igUserId}/media", $mediaData);
         if (!$response->successful()) {
             throw new \Exception('Failed to create Instagram media container: ' . $response->body());
         }
-
         $data = $response->json();
-
         if (isset($data['error'])) {
             throw new \Exception('Instagram API error: ' . $data['error']['message']);
         }
-
         return $data['id'];
     }
 
@@ -225,19 +191,18 @@ class UploadVideoToInstagram implements ShouldQueue
      */
     protected function waitForUploadCompletion(SocialAccount $socialAccount, string $mediaId): void
     {
-        $maxAttempts = 30; // Maximum 5 minutes (30 * 10 seconds)
+        $igUserId = $socialAccount->platform_channel_id;
+        $pageAccessToken = $socialAccount->access_token;
+        $maxAttempts = 30;
         $attempts = 0;
-
         while ($attempts < $maxAttempts) {
-            $response = Http::get("https://graph.instagram.com/v18.0/{$mediaId}", [
+            $response = \Illuminate\Support\Facades\Http::get("https://graph.facebook.com/v18.0/{$mediaId}", [
                 'fields' => 'status_code',
-                'access_token' => $socialAccount->access_token
+                'access_token' => $pageAccessToken
             ]);
-
             $body = $response->body();
             $data = $response->json();
             $statusCode = $data['status_code'] ?? null;
-
             Log::debug('Polling Instagram upload status', [
                 'media_id' => $mediaId,
                 'attempt' => $attempts + 1,
@@ -245,11 +210,9 @@ class UploadVideoToInstagram implements ShouldQueue
                 'response_body' => $body,
                 'response_data' => $data,
             ]);
-
             if (!$response->successful()) {
                 throw new \Exception('Failed to check Instagram upload status: ' . $body);
             }
-
             if ($statusCode === 'FINISHED') {
                 Log::info('Instagram video upload completed', ['media_id' => $mediaId]);
                 return;
@@ -262,12 +225,9 @@ class UploadVideoToInstagram implements ShouldQueue
                 ]);
                 throw new \Exception('Instagram video processing failed: ' . $errorMsg);
             }
-
-            // Wait 10 seconds before checking again
             sleep(10);
             $attempts++;
         }
-
         throw new \Exception('Instagram video upload timed out after 5 minutes');
     }
 
@@ -276,30 +236,16 @@ class UploadVideoToInstagram implements ShouldQueue
      */
     protected function publishMedia(SocialAccount $socialAccount, string $mediaId): void
     {
-        // Get user ID again
-        $userResponse = Http::get('https://graph.instagram.com/v18.0/me', [
-            'fields' => 'id',
-            'access_token' => $socialAccount->access_token
-        ]);
-
-        if (!$userResponse->successful()) {
-            throw new \Exception('Failed to get Instagram user info for publishing: ' . $userResponse->body());
-        }
-
-        $userId = $userResponse->json()['id'];
-
-        // Publish the media
-        $response = Http::post("https://graph.instagram.com/v18.0/{$userId}/media_publish", [
+        $igUserId = $socialAccount->platform_channel_id;
+        $pageAccessToken = $socialAccount->access_token;
+        $response = \Illuminate\Support\Facades\Http::post("https://graph.facebook.com/v18.0/{$igUserId}/media_publish", [
             'creation_id' => $mediaId,
-            'access_token' => $socialAccount->access_token
+            'access_token' => $pageAccessToken
         ]);
-
         if (!$response->successful()) {
             throw new \Exception('Failed to publish Instagram media: ' . $response->body());
         }
-
         $data = $response->json();
-
         if (isset($data['error'])) {
             throw new \Exception('Instagram publish error: ' . $data['error']['message']);
         }
