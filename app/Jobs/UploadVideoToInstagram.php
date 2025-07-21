@@ -73,6 +73,21 @@ class UploadVideoToInstagram implements ShouldQueue
             // Get video file - For Instagram, we need a publicly accessible URL
             $videoUrl = $this->getPublicVideoUrl();
 
+            // Log video file details for debugging
+            $videoPath = $this->videoTarget->video->original_file_path;
+            $fullPath = storage_path('app/' . $videoPath);
+            $fileExists = file_exists($fullPath);
+            $fileSize = $fileExists ? filesize($fullPath) : null;
+            $mimeType = $fileExists ? mime_content_type($fullPath) : null;
+            Log::info('Preparing to upload video to Instagram', [
+                'video_path' => $videoPath,
+                'full_path' => $fullPath,
+                'file_exists' => $fileExists,
+                'file_size' => $fileSize,
+                'mime_type' => $mimeType,
+                'public_url' => $videoUrl,
+            ]);
+
             // Step 1: Create media container
             $mediaId = $this->createMediaContainer($socialAccount, $videoUrl);
 
@@ -219,18 +234,33 @@ class UploadVideoToInstagram implements ShouldQueue
                 'access_token' => $socialAccount->access_token
             ]);
 
-            if (!$response->successful()) {
-                throw new \Exception('Failed to check Instagram upload status: ' . $response->body());
-            }
-
+            $body = $response->body();
             $data = $response->json();
             $statusCode = $data['status_code'] ?? null;
+
+            Log::debug('Polling Instagram upload status', [
+                'media_id' => $mediaId,
+                'attempt' => $attempts + 1,
+                'status_code' => $statusCode,
+                'response_body' => $body,
+                'response_data' => $data,
+            ]);
+
+            if (!$response->successful()) {
+                throw new \Exception('Failed to check Instagram upload status: ' . $body);
+            }
 
             if ($statusCode === 'FINISHED') {
                 Log::info('Instagram video upload completed', ['media_id' => $mediaId]);
                 return;
             } elseif ($statusCode === 'ERROR') {
-                throw new \Exception('Instagram video processing failed');
+                $errorMsg = isset($data['error']['message']) ? $data['error']['message'] : 'Unknown error';
+                Log::error('Instagram video processing failed', [
+                    'media_id' => $mediaId,
+                    'response_data' => $data,
+                    'response_body' => $body,
+                ]);
+                throw new \Exception('Instagram video processing failed: ' . $errorMsg);
             }
 
             // Wait 10 seconds before checking again
