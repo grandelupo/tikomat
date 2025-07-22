@@ -667,19 +667,23 @@ class SocialAccountController extends Controller
                 ])
                 ->redirect();
         } elseif ($platform === 'instagram') {
-            // Instagram API with Instagram Login - NEW SCOPES (replacing deprecated ones)
-            // These replace the old instagram_basic and instagram_content_publish scopes
+            // Instagram via Facebook Login: use Facebook + Instagram scopes
             $scopes = [
-                'instagram_business_basic',          // Replaces instagram_basic
-                'instagram_business_content_publish', // Replaces instagram_content_publish
+                'pages_show_list',
+                'pages_read_engagement',
+                'pages_manage_posts',
+                'instagram_content_publish',
+                'public_profile',
+                'email',
             ];
-            return Socialite::driver($driver)
+            return Socialite::driver('facebook')
                 ->scopes($scopes)
-                ->setScopes($scopes)
                 ->with([
                     'state' => $state,
-                    'prompt' => 'select_account consent', // Force account selection
-                    'auth_type' => 'rerequest',          // Force re-authorization for page selection
+                    'auth_type' => 'rerequest',
+                    'prompt' => 'select_account consent',
+                    'response_type' => 'code',
+                    'display' => 'popup',
                 ])
                 ->redirect();
         } elseif ($platform === 'tiktok') {
