@@ -9,7 +9,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
-use App\Services\CloudStorageService;
 use App\Services\FFmpegService;
 
 class VideoProcessingService
@@ -17,13 +16,11 @@ class VideoProcessingService
     protected ?FFMpeg $ffmpeg = null;
     protected ?FFProbe $ffprobe = null;
     protected ThumbnailService $thumbnailService;
-    protected CloudStorageService $cloudStorage;
     protected FFmpegService $ffmpegService;
 
-    public function __construct(ThumbnailService $thumbnailService, CloudStorageService $cloudStorage, FFmpegService $ffmpegService)
+    public function __construct(ThumbnailService $thumbnailService, FFmpegService $ffmpegService)
     {
         $this->thumbnailService = $thumbnailService;
-        $this->cloudStorage = $cloudStorage;
         $this->ffmpegService = $ffmpegService;
         
         // Get FFMpeg instances from the centralized service
@@ -670,25 +667,4 @@ class VideoProcessingService
         }
     }
 
-    /**
-     * Process video and optionally upload to cloud storage.
-     */
-    public function processVideoWithCloudStorage(UploadedFile $file, array $cloudProviders = []): array
-    {
-        // First process the video normally
-        $videoInfo = $this->processVideo($file);
-        
-        // If cloud providers are specified, upload to cloud storage
-        if (!empty($cloudProviders)) {
-            $cloudResults = $this->cloudStorage->uploadToCloudStorage($file, $cloudProviders);
-            $videoInfo['cloud_storage'] = $cloudResults;
-            
-            \Log::info('Video uploaded to cloud storage', [
-                'providers' => $cloudProviders,
-                'results' => $cloudResults
-            ]);
-        }
-        
-        return $videoInfo;
-    }
 } 

@@ -9,7 +9,6 @@ use App\Jobs\UploadVideoToFacebook;
 use App\Jobs\UploadVideoToSnapchat;
 use App\Jobs\UploadVideoToPinterest;
 use App\Jobs\UploadVideoToX;
-use App\Jobs\RemoveVideoFromYoutube;
 use App\Jobs\RemoveVideoFromTiktok;
 use App\Jobs\RemoveVideoFromInstagram;
 use App\Jobs\RemoveVideoFromFacebook;
@@ -208,9 +207,8 @@ class VideoUploadService
         try {
             switch ($target->platform) {
                 case 'youtube':
-                    Log::info('Dispatching YouTube video removal job for target: ' . $target->id);
-                    RemoveVideoFromYoutube::dispatch($target);
-                    break;
+                    Log::info('YouTube video removal not supported - skipping for target: ' . $target->id);
+                    throw new \Exception('YouTube video removal is not supported by this application');
 
                 case 'instagram':
                     Log::info('Dispatching Instagram video removal job for target: ' . $target->id);

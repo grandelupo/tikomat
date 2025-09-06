@@ -7,7 +7,7 @@ export default function Privacy() {
     return (
         <>
             <Head title="Privacy Policy - Filmate" />
-            
+
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
                 <header className="border-b bg-white">
@@ -143,7 +143,7 @@ export default function Privacy() {
                                 </p>
                                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                     <p className="text-blue-800">
-                                        <strong>Data Deletion:</strong> To request the deletion of your personal data, 
+                                        <strong>Data Deletion:</strong> To request the deletion of your personal data,
                                         please visit our{' '}
                                         <Link href="/data-deletion" className="text-blue-600 hover:underline font-semibold">
                                             Data Deletion Request page
@@ -198,4 +198,4 @@ export default function Privacy() {
             </div>
         </>
     );
-} 
+}

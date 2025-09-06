@@ -105,7 +105,7 @@ export default function XOptions({ options, onChange }: XOptionsProps) {
                         />
                         <Label htmlFor="includePoll">Add a poll to this post</Label>
                     </div>
-                    
+
                     {options.includePoll && (
                         <div className="space-y-3 ml-6 p-3 border rounded-lg">
                             <div className="space-y-2">
@@ -182,7 +182,7 @@ export default function XOptions({ options, onChange }: XOptionsProps) {
                         />
                         <Label htmlFor="addLocation">Add location to post</Label>
                     </div>
-                    
+
                     {options.addLocation && (
                         <Input
                             placeholder="Enter location"
@@ -203,7 +203,7 @@ export default function XOptions({ options, onChange }: XOptionsProps) {
                         />
                         <Label htmlFor="isThread">This is part of a thread</Label>
                     </div>
-                    
+
                     {options.isThread && (
                         <div className="ml-6 p-3 border rounded-lg space-y-2">
                             <Label htmlFor="threadId">Reply to Tweet ID (optional)</Label>
@@ -274,4 +274,4 @@ export default function XOptions({ options, onChange }: XOptionsProps) {
             </CardContent>
         </Card>
     );
-} 
+}

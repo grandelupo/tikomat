@@ -19,12 +19,12 @@ interface TutorialProps {
     onSkip?: () => void;
 }
 
-export default function Tutorial({ 
-    steps, 
-    tutorialName, 
-    showTutorial, 
-    onComplete, 
-    onSkip 
+export default function Tutorial({
+    steps,
+    tutorialName,
+    showTutorial,
+    onComplete,
+    onSkip
 }: TutorialProps) {
     const [currentStep, setCurrentStep] = useState(0);
     const [isVisible, setIsVisible] = useState(showTutorial);
@@ -50,7 +50,7 @@ export default function Tutorial({
                     width: rect.width,
                     height: rect.height
                 });
-                
+
                 // Scroll target into view
                 target.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
@@ -148,7 +148,7 @@ export default function Tutorial({
         <>
             {/* Overlay */}
             <div className="fixed inset-0 bg-black bg-opacity-50 z-40" />
-            
+
             {/* Highlight */}
             {targetElement && (
                 <div
@@ -164,7 +164,7 @@ export default function Tutorial({
             )}
 
             {/* Tooltip */}
-            <Card 
+            <Card
                 className="fixed z-50 w-80 shadow-xl"
                 style={getTooltipPosition()}
             >
@@ -190,7 +190,7 @@ export default function Tutorial({
                     <p className="text-sm text-gray-600 mb-4">
                         {currentStepData.content}
                     </p>
-                    
+
                     <div className="flex items-center justify-between">
                         <div className="flex space-x-2">
                             <Button
@@ -212,7 +212,7 @@ export default function Tutorial({
                                 )}
                             </Button>
                         </div>
-                        
+
                         <Button
                             variant="ghost"
                             size="sm"
@@ -227,4 +227,4 @@ export default function Tutorial({
             </Card>
         </>
     );
-} 
+}

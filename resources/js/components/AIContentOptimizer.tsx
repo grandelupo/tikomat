@@ -5,11 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-    Sparkles, 
-    TrendingUp, 
-    Target, 
-    Clock, 
+import {
+    Sparkles,
+    TrendingUp,
+    Target,
+    Clock,
     Hash,
     BarChart3,
     Lightbulb,
@@ -88,7 +88,7 @@ export default function AIContentOptimizer({
         }
 
         setIsOptimizing(true);
-        
+
         try {
             const response = await fetch('/ai/optimize-content', {
                 method: 'POST',
@@ -222,7 +222,7 @@ export default function AIContentOptimizer({
                             </p>
                         </div>
                     </div>
-                    <Button 
+                    <Button
                         onClick={optimizeContent}
                         disabled={isOptimizing || !title.trim()}
                         className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
@@ -296,7 +296,7 @@ export default function AIContentOptimizer({
                                     size="sm"
                                     onClick={() => setSelectedPlatform(platform)}
                                     className={cn(
-                                        "text-xs capitalize",
+ "text-xs capitalize",
                                         selectedPlatform === platform && "bg-gradient-to-r from-blue-600 to-purple-600"
                                     )}
                                 >
@@ -399,7 +399,7 @@ export default function AIContentOptimizer({
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     {currentOptimization.tags.map((tag, index) => (
-                                        <Badge 
+                                        <Badge
                                             key={index}
                                             variant="secondary"
                                             className="cursor-pointer hover:bg-blue-100"
@@ -429,7 +429,7 @@ export default function AIContentOptimizer({
                                 </div>
                             ))}
                         </div>
-                        
+
                         {currentOptimization.platform_specific_tips.length > 0 && (
                             <div className="mt-4 pt-3 border-t border-blue-200">
                                 <h5 className="font-medium text-blue-900 mb-2 capitalize">
@@ -456,7 +456,7 @@ export default function AIContentOptimizer({
                         <p className="text-sm text-blue-700 mb-4">
                             Our AI will analyze your content and generate platform-specific optimizations to maximize your reach and engagement.
                         </p>
-                        <Button 
+                        <Button
                             onClick={optimizeContent}
                             disabled={isOptimizing || !title.trim()}
                             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"

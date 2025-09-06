@@ -7,7 +7,7 @@ export default function Terms() {
     return (
         <>
             <Head title="Terms of Service - Filmate" />
-            
+
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
                 <header className="border-b bg-white">
@@ -49,7 +49,7 @@ export default function Terms() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <p className="text-gray-600">
-                                    By accessing and using Filmate ("the Service"), you accept and agree to be bound by these Terms of Service ("Terms"). 
+                                    By accessing and using Filmate ("the Service"), you accept and agree to be bound by these Terms of Service ("Terms").
                                     If you do not agree to these Terms, you may not use the Service.
                                 </p>
                                 <p className="text-gray-600">
@@ -64,7 +64,7 @@ export default function Terms() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <p className="text-gray-600">
-                                    Filmate is a video publishing platform that allows users to upload videos and distribute them 
+                                    Filmate is a video publishing platform that allows users to upload videos and distribute them
                                     across multiple social media platforms simultaneously. Our services include:
                                 </p>
                                 <ul className="space-y-2 text-gray-600">
@@ -85,21 +85,21 @@ export default function Terms() {
                                 <div>
                                     <h3 className="font-semibold mb-2">Account Registration</h3>
                                     <p className="text-gray-600">
-                                        You must provide accurate, current, and complete information during registration and 
+                                        You must provide accurate, current, and complete information during registration and
                                         keep your account information updated.
                                     </p>
                                 </div>
                                 <div>
                                     <h3 className="font-semibold mb-2">Account Security</h3>
                                     <p className="text-gray-600">
-                                        You are responsible for safeguarding your password and all activities under your account. 
+                                        You are responsible for safeguarding your password and all activities under your account.
                                         Notify us immediately of any unauthorized use.
                                     </p>
                                 </div>
                                 <div>
                                     <h3 className="font-semibold mb-2">User Conduct</h3>
                                     <p className="text-gray-600">
-                                        You agree to use the Service lawfully and in accordance with these Terms. 
+                                        You agree to use the Service lawfully and in accordance with these Terms.
                                         You will not engage in any activity that interferes with or disrupts the Service.
                                     </p>
                                 </div>
@@ -114,7 +114,7 @@ export default function Terms() {
                                 <div>
                                     <h3 className="font-semibold mb-2">Your Content</h3>
                                     <p className="text-gray-600">
-                                        You retain ownership of videos and content you upload. By using our Service, you grant us 
+                                        You retain ownership of videos and content you upload. By using our Service, you grant us
                                         a limited license to process, store, and publish your content as necessary to provide the Service.
                                     </p>
                                 </div>
@@ -157,21 +157,21 @@ export default function Terms() {
                                 <div>
                                     <h3 className="font-semibold mb-2">Free and Paid Plans</h3>
                                     <p className="text-gray-600">
-                                        We offer both free and paid subscription plans. Free plans have limited features, 
+                                        We offer both free and paid subscription plans. Free plans have limited features,
                                         while paid plans provide access to additional platforms and features.
                                     </p>
                                 </div>
                                 <div>
                                     <h3 className="font-semibold mb-2">Billing</h3>
                                     <p className="text-gray-600">
-                                        Subscription fees are billed in advance on a recurring basis. You can cancel your 
+                                        Subscription fees are billed in advance on a recurring basis. You can cancel your
                                         subscription at any time through your account settings.
                                     </p>
                                 </div>
                                 <div>
                                     <h3 className="font-semibold mb-2">Refunds</h3>
                                     <p className="text-gray-600">
-                                        Refunds are generally not provided for subscription fees, except as required by applicable law 
+                                        Refunds are generally not provided for subscription fees, except as required by applicable law
                                         or at our sole discretion.
                                     </p>
                                 </div>
@@ -189,21 +189,21 @@ export default function Terms() {
                                 <div>
                                     <h3 className="font-semibold mb-2">Service Availability</h3>
                                     <p className="text-gray-600">
-                                        We strive to maintain high availability but do not guarantee uninterrupted service. 
+                                        We strive to maintain high availability but do not guarantee uninterrupted service.
                                         Maintenance, updates, or technical issues may cause temporary disruptions.
                                     </p>
                                 </div>
                                 <div>
                                     <h3 className="font-semibold mb-2">Third-Party Services</h3>
                                     <p className="text-gray-600">
-                                        Our Service integrates with third-party platforms. We are not responsible for the 
+                                        Our Service integrates with third-party platforms. We are not responsible for the
                                         availability, performance, or policies of these external services.
                                     </p>
                                 </div>
                                 <div>
                                     <h3 className="font-semibold mb-2">Limitation of Liability</h3>
                                     <p className="text-gray-600">
-                                        To the fullest extent permitted by law, Filmate shall not be liable for any indirect, 
+                                        To the fullest extent permitted by law, Filmate shall not be liable for any indirect,
                                         incidental, special, consequential, or punitive damages.
                                     </p>
                                 </div>
@@ -233,8 +233,8 @@ export default function Terms() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <p className="text-gray-600">
-                                    We reserve the right to modify these Terms at any time. We will notify users of material 
-                                    changes via email or through the Service. Continued use of the Service after changes 
+                                    We reserve the right to modify these Terms at any time. We will notify users of material
+                                    changes via email or through the Service. Continued use of the Service after changes
                                     constitutes acceptance of the new Terms.
                                 </p>
                             </CardContent>
@@ -265,4 +265,4 @@ export default function Terms() {
             </div>
         </>
     );
-} 
+}

@@ -348,27 +348,78 @@ class SocialAccountController extends Controller
             'profile_username' => 'test_' . $platform . '_user',
         ];
 
-        // Add platform-specific test data
-        if ($platform === 'youtube') {
-            $accountData['platform_channel_id'] = 'UCtest123456789';
-            $accountData['platform_channel_name'] = 'Test YouTube Channel';
-            $accountData['platform_channel_handle'] = '@testyoutubechannel';
-            $accountData['platform_channel_url'] = 'https://www.youtube.com/channel/UCtest123456789';
-            $accountData['is_platform_channel_specific'] = true;
-        } elseif ($platform === 'facebook') {
-            $accountData['facebook_page_id'] = '123456789';
-            $accountData['facebook_page_name'] = 'Test Facebook Page';
-            $accountData['facebook_page_access_token'] = 'fake_page_token';
-            $accountData['platform_channel_id'] = '123456789';
-            $accountData['platform_channel_name'] = 'Test Facebook Page';
-            $accountData['platform_channel_url'] = 'https://www.facebook.com/123456789';
-            $accountData['is_platform_channel_specific'] = true;
-        } elseif ($platform === 'instagram') {
-            $accountData['platform_channel_id'] = 'test_instagram_123';
-            $accountData['platform_channel_name'] = 'test_instagram_user';
-            $accountData['platform_channel_handle'] = '@test_instagram_user';
-            $accountData['platform_channel_url'] = 'https://www.instagram.com/test_instagram_user';
-            $accountData['is_platform_channel_specific'] = true;
+        // Add platform-specific test data with realistic mock data
+        switch ($platform) {
+            case 'youtube':
+                $accountData['platform_channel_id'] = 'UCtest' . str_pad(rand(1000000, 9999999), 15, '0', STR_PAD_LEFT);
+                $accountData['platform_channel_name'] = 'Dev Test Channel';
+                $accountData['platform_channel_handle'] = '@devtestchannel';
+                $accountData['platform_channel_url'] = 'https://www.youtube.com/channel/' . $accountData['platform_channel_id'];
+                $accountData['is_platform_channel_specific'] = true;
+                $accountData['profile_name'] = 'YouTube Test Account';
+                $accountData['profile_username'] = 'devtestchannel';
+                break;
+
+            case 'tiktok':
+                $accountData['platform_channel_id'] = 'test_tiktok_' . rand(100000, 999999);
+                $accountData['platform_channel_name'] = 'DevTestTikTok';
+                $accountData['platform_channel_handle'] = '@devtesttiktok';
+                $accountData['platform_channel_url'] = 'https://www.tiktok.com/@devtesttiktok';
+                $accountData['is_platform_channel_specific'] = true;
+                $accountData['profile_name'] = 'TikTok Test Account';
+                $accountData['profile_username'] = 'devtesttiktok';
+                break;
+
+            case 'facebook':
+                $accountData['facebook_page_id'] = rand(100000000, 999999999);
+                $accountData['facebook_page_name'] = 'Dev Test Facebook Page';
+                $accountData['facebook_page_access_token'] = 'fake_page_token_' . uniqid();
+                $accountData['platform_channel_id'] = $accountData['facebook_page_id'];
+                $accountData['platform_channel_name'] = 'Dev Test Facebook Page';
+                $accountData['platform_channel_url'] = 'https://www.facebook.com/' . $accountData['facebook_page_id'];
+                $accountData['is_platform_channel_specific'] = true;
+                $accountData['profile_name'] = 'Facebook Test Account';
+                break;
+
+            case 'instagram':
+                $accountData['platform_channel_id'] = 'test_instagram_' . rand(100000, 999999);
+                $accountData['platform_channel_name'] = 'devtestinstagram';
+                $accountData['platform_channel_handle'] = '@devtestinstagram';
+                $accountData['platform_channel_url'] = 'https://www.instagram.com/devtestinstagram';
+                $accountData['is_platform_channel_specific'] = true;
+                $accountData['profile_name'] = 'Instagram Test Account';
+                $accountData['profile_username'] = 'devtestinstagram';
+                break;
+
+            case 'x':
+                $accountData['platform_channel_id'] = 'test_x_' . rand(100000, 999999);
+                $accountData['platform_channel_name'] = 'DevTestX';
+                $accountData['platform_channel_handle'] = '@devtestx';
+                $accountData['platform_channel_url'] = 'https://x.com/devtestx';
+                $accountData['is_platform_channel_specific'] = true;
+                $accountData['profile_name'] = 'X Test Account';
+                $accountData['profile_username'] = 'devtestx';
+                break;
+
+            case 'snapchat':
+                $accountData['platform_channel_id'] = 'test_snap_' . rand(100000, 999999);
+                $accountData['platform_channel_name'] = 'DevTestSnap';
+                $accountData['platform_channel_handle'] = '@devtestsnap';
+                $accountData['platform_channel_url'] = 'https://www.snapchat.com/add/devtestsnap';
+                $accountData['is_platform_channel_specific'] = true;
+                $accountData['profile_name'] = 'Snapchat Test Account';
+                $accountData['profile_username'] = 'devtestsnap';
+                break;
+
+            case 'pinterest':
+                $accountData['platform_channel_id'] = 'test_pinterest_' . rand(100000, 999999);
+                $accountData['platform_channel_name'] = 'DevTestPinterest';
+                $accountData['platform_channel_handle'] = '@devtestpinterest';
+                $accountData['platform_channel_url'] = 'https://www.pinterest.com/devtestpinterest';
+                $accountData['is_platform_channel_specific'] = true;
+                $accountData['profile_name'] = 'Pinterest Test Account';
+                $accountData['profile_username'] = 'devtestpinterest';
+                break;
         }
 
         SocialAccount::create($accountData);
@@ -655,7 +706,7 @@ class SocialAccountController extends Controller
             return Socialite::driver($driver)
                 ->scopes([
                     'https://www.googleapis.com/auth/youtube.upload',
-                    'https://www.googleapis.com/auth/youtube',
+                    'https://www.googleapis.com/auth/youtube.readonly',
                     'https://www.googleapis.com/auth/userinfo.profile',
                     'https://www.googleapis.com/auth/userinfo.email'
                 ])

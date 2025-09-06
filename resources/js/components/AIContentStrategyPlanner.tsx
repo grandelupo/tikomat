@@ -100,7 +100,7 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
             console.error('Error generating strategy:', error);
             const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
             setError(`Failed to generate strategy: ${errorMessage}`);
-            
+
             // Set a default strategy structure to prevent UI errors
             setStrategyData({
                 user_id: 0,
@@ -240,7 +240,7 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="text-gray-700">{pillar.description}</p>
-                        
+
                         <div>
                             <h5 className="font-medium mb-2">Content Ideas</h5>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -677,4 +677,4 @@ const AIContentStrategyPlanner: React.FC<AIContentStrategyPlannerProps> = ({ vid
     );
 };
 
-export default AIContentStrategyPlanner; 
+export default AIContentStrategyPlanner;

@@ -1,6 +1,5 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import AIAudienceInsights from '@/components/AIAudienceInsights';
 
 interface StatsOverview {
     totalChannels: number;
@@ -71,7 +70,7 @@ export default function Stats({ stats, subscription, allowedPlatforms }: Props) 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Statistics" />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 <div className="flex items-center justify-between">
                     <div>
@@ -103,14 +102,7 @@ export default function Stats({ stats, subscription, allowedPlatforms }: Props) 
                         </div>
                     </div>
                 </div>
-
-                {/* AI Audience Insights */}
-                <div className="bg-background py-10">
-                    <div className="-m-6">
-                        <AIAudienceInsights />
-                    </div>
-                </div>
             </div>
         </AppLayout>
     );
-} 
+}

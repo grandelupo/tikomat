@@ -222,4 +222,4 @@ export default function SnapchatOptions({ options, onChange }: SnapchatOptionsPr
             </CardContent>
         </Card>
     );
-} 
+}

@@ -50,7 +50,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                     'Accept': 'application/json',
                 }
             });
-            
+
             if (response.data.checkout_url) {
                 window.location.href = response.data.checkout_url;
             }
@@ -80,7 +80,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Subscription Plans" />
-            
+
             <div className="flex h-full flex-1 flex-col gap-8 p-6">
                 {/* Header */}
                 <div className="text-center">
@@ -107,8 +107,8 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                                 {user.channels_count} of {user.max_channels} channels used
                             </p>
                             <div className="flex space-x-2">
-                                <Button 
-                                    variant="outline" 
+                                <Button
+                                    variant="outline"
                                     size="sm"
                                     onClick={handleManageBilling}
                                     className="flex-1"
@@ -116,8 +116,8 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                                     Manage Billing
                                 </Button>
                                 {user.channels_count >= user.max_channels && (
-                                    <Button 
-                                        size="sm" 
+                                    <Button
+                                        size="sm"
                                         onClick={handleAddChannel}
                                         className="flex-1"
                                     >
@@ -132,7 +132,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                 {/* Plans Grid */}
                 <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto w-full">
                     {/* Free Plan */}
-                    <Card className={`relative ${user.current_plan === 'free' ? 'border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800' : ''}`}>
+                    <Card className={`relative ${user.current_plan === 'free' ? 'border-blue-200 bg-blue-50' : ''}`}>
                         {user.current_plan === 'free' && (
                             <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600">
                                 Current Plan
@@ -155,13 +155,13 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                                     </div>
                                 ))}
                             </div>
-                            
+
                             <div className="pt-4">
                                 <div className="flex items-center justify-center space-x-2 mb-4">
                                     <Youtube className="w-6 h-6 text-red-600" />
                                     <span className="text-sm font-medium">YouTube Only</span>
                                 </div>
-                                
+
                                 {user.current_plan === 'free' ? (
                                     <Button className="w-full" disabled>
                                         Current Plan
@@ -207,7 +207,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                                     </div>
                                 ))}
                             </div>
-                            
+
                             <div className="pt-4">
                                 <div className="flex items-center justify-center space-x-4 mb-4">
                                     <div className="flex items-center space-x-1">
@@ -223,14 +223,14 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                                         <span className="text-xs">TikTok</span>
                                     </div>
                                 </div>
-                                
+
                                 {user.current_plan === 'pro' ? (
                                     <Button className="w-full" disabled>
                                         Current Plan
                                     </Button>
                                 ) : (
                                     <div className="space-y-2">
-                                        <Button 
+                                        <Button
                                             className="w-full bg-purple-600 hover:bg-purple-700"
                                             onClick={handleUpgrade}
                                         >
@@ -238,7 +238,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                                             Upgrade to Pro
                                         </Button>
                                         {import.meta.env.DEV && (
-                                            <Button 
+                                            <Button
                                                 variant="outline"
                                                 className="w-full text-xs"
                                                 onClick={handleSimulateSubscription}
@@ -255,7 +255,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
 
                 {/* Additional Information */}
                 <div className="max-w-2xl mx-auto text-center space-y-4">
-                    <div className="bg-gray-50 p-6 rounded-lg dark:bg-gray-900">
+                    <div className="bg-gray-50 p-6 rounded-lg">
                         <h3 className="font-semibold mb-2">Need More Channels?</h3>
                         <p className="text-sm text-muted-foreground mb-3">
                             Pro plan includes 3 channels. Additional channels are just $0.20/day each.
@@ -266,7 +266,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                             </Button>
                         )}
                     </div>
-                    
+
                     <div className="flex justify-center space-x-4 text-sm text-muted-foreground">
                         <span>✓ No setup fees</span>
                         <span>✓ Cancel anytime</span>
@@ -276,4 +276,4 @@ export default function SubscriptionPlans({ user, plans }: Props) {
             </div>
         </AppLayout>
     );
-} 
+}

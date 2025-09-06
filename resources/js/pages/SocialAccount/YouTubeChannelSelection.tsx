@@ -74,7 +74,7 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
         }
 
         setIsSubmitting(true);
-        
+
         router.post(`/channels/${channel.slug}/youtube/select-channel`, {
             youtube_channel_id: selectedChannelId,
         }, {
@@ -106,7 +106,7 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Select YouTube Channel" />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -138,7 +138,7 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
                             Select Your YouTube Channel
                         </CardTitle>
                         <CardDescription>
-                            {youtubeChannels.length === 1 
+                            {youtubeChannels.length === 1
                                 ? "We found 1 YouTube channel associated with your Google account."
                                 : `We found ${youtubeChannels.length} YouTube channels associated with your Google account. Please select the one you want to connect.`
                             }
@@ -149,20 +149,20 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
                             {youtubeChannels.map((ytChannel) => (
                                 <div key={ytChannel.id} className="flex items-center space-x-3">
                                     <RadioGroupItem value={ytChannel.id} id={ytChannel.id} />
-                                    <Label 
-                                        htmlFor={ytChannel.id} 
+                                    <Label
+                                        htmlFor={ytChannel.id}
                                         className="flex-1 flex items-center space-x-4 cursor-pointer p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                                     >
                                         <Avatar className="h-12 w-12">
-                                            <AvatarImage 
-                                                src={ytChannel.snippet.thumbnails?.default?.url} 
-                                                alt={ytChannel.snippet.title} 
+                                            <AvatarImage
+                                                src={ytChannel.snippet.thumbnails?.default?.url}
+                                                alt={ytChannel.snippet.title}
                                             />
                                             <AvatarFallback className="bg-red-100 text-red-600">
                                                 {getInitials(ytChannel.snippet.title)}
                                             </AvatarFallback>
                                         </Avatar>
-                                        
+
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center space-x-2">
                                                 <h3 className="font-semibold text-gray-900 truncate">
@@ -174,13 +174,13 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
                                                     </span>
                                                 )}
                                             </div>
-                                            
+
                                             {ytChannel.snippet.description && (
                                                 <p className="text-sm text-gray-600 truncate mt-1">
                                                     {ytChannel.snippet.description}
                                                 </p>
                                             )}
-                                            
+
                                             <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
                                                 {ytChannel.statistics?.subscriberCount && (
                                                     <div className="flex items-center space-x-1">
@@ -204,9 +204,9 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
                                 <h4 className="font-medium text-blue-900 mb-2">Selected Channel</h4>
                                 <div className="flex items-center space-x-3">
                                     <Avatar className="h-8 w-8">
-                                        <AvatarImage 
-                                            src={selectedChannel.snippet.thumbnails?.default?.url} 
-                                            alt={selectedChannel.snippet.title} 
+                                        <AvatarImage
+                                            src={selectedChannel.snippet.thumbnails?.default?.url}
+                                            alt={selectedChannel.snippet.title}
                                         />
                                         <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
                                             {getInitials(selectedChannel.snippet.title)}
@@ -227,8 +227,8 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
                             <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
                                 Cancel
                             </Button>
-                            <Button 
-                                onClick={handleSubmit} 
+                            <Button
+                                onClick={handleSubmit}
                                 disabled={!selectedChannelId || isSubmitting}
                                 className="bg-red-600 hover:bg-red-700"
                             >
@@ -268,4 +268,4 @@ export default function YouTubeChannelSelection({ channel, youtubeChannels, user
             </div>
         </AppLayout>
     );
-} 
+}

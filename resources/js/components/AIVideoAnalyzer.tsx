@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-    Video, 
-    BarChart3, 
-    FileText, 
-    Image, 
+import {
+    Video,
+    BarChart3,
+    FileText,
+    Image,
     Hash,
     Clock,
     Eye,
@@ -128,7 +128,7 @@ export default function AIVideoAnalyzer({
         }
 
         setIsAnalyzing(true);
-        
+
         try {
             const response = await fetch('/ai/analyze-video', {
                 method: 'POST',
@@ -229,23 +229,23 @@ export default function AIVideoAnalyzer({
 
     const hasQualityIssues = () => {
         if (!analysis?.quality_score) return false;
-        
+
         const resolutionScore = analysis.quality_score.resolution_score || 0;
         const audioScore = analysis.quality_score.audio_score || 0;
         const bitrateScore = analysis.quality_score.bitrate_score || 0;
-        
+
         // Consider it a quality issue if any score is below 70
         return resolutionScore < 70 || audioScore < 70 || bitrateScore < 70;
     };
 
     const getQualityIssues = () => {
         if (!analysis?.quality_score) return [];
-        
+
         const issues = [];
         const resolutionScore = analysis.quality_score.resolution_score || 0;
         const audioScore = analysis.quality_score.audio_score || 0;
         const bitrateScore = analysis.quality_score.bitrate_score || 0;
-        
+
         if (resolutionScore < 70) {
             issues.push({
                 type: 'Resolution',
@@ -253,7 +253,7 @@ export default function AIVideoAnalyzer({
                 severity: resolutionScore < 40 ? 'high' : 'medium'
             });
         }
-        
+
         if (audioScore < 70) {
             issues.push({
                 type: 'Audio Quality',
@@ -261,7 +261,7 @@ export default function AIVideoAnalyzer({
                 severity: audioScore < 40 ? 'high' : 'medium'
             });
         }
-        
+
         if (bitrateScore < 70) {
             issues.push({
                 type: 'Bitrate',
@@ -269,7 +269,7 @@ export default function AIVideoAnalyzer({
                 severity: bitrateScore < 40 ? 'high' : 'medium'
             });
         }
-        
+
         return issues;
     };
 
@@ -306,8 +306,8 @@ export default function AIVideoAnalyzer({
                             <p className="font-medium text-foreground">Engagement Prediction</p>
                         </div>
                     </div>
-                    
-                    <Button 
+
+                    <Button
                         onClick={analyzeVideo}
                         disabled={!videoPath}
                         size="lg"
@@ -316,7 +316,7 @@ export default function AIVideoAnalyzer({
                         <Brain className="w-5 h-5 mr-2" />
                         Start AI Analysis
                     </Button>
-                    
+
                     {!videoPath && (
                         <p className="text-sm text-muted-foreground">
                             Upload a video first to enable AI analysis
@@ -396,7 +396,7 @@ export default function AIVideoAnalyzer({
                             </p>
                         </div>
                     </div>
-                    <Button 
+                    <Button
                         onClick={analyzeVideo}
                         disabled={isAnalyzing}
                         size="sm"
@@ -634,16 +634,16 @@ export default function AIVideoAnalyzer({
                         <div className="space-y-3">
                             {getQualityIssues().map((issue, index) => (
                                 <div key={index} className={cn(
-                                    "flex items-center justify-between p-3 rounded-lg",
+ "flex items-center justify-between p-3 rounded-lg",
                                     issue.severity === 'high' ? 'bg-red-100 border border-red-200' : 'bg-yellow-100 border border-yellow-200'
                                 )}>
                                     <div className="flex items-center gap-2">
                                         <span className={cn(
-                                            "w-2 h-2 rounded-full",
+ "w-2 h-2 rounded-full",
                                             issue.severity === 'high' ? 'bg-red-500' : 'bg-yellow-500'
                                         )}></span>
                                         <span className={cn(
-                                            "font-medium",
+ "font-medium",
                                             issue.severity === 'high' ? 'text-red-800' : 'text-yellow-800'
                                         )}>
                                             {issue.type} needs improvement
@@ -656,7 +656,7 @@ export default function AIVideoAnalyzer({
                                     </Badge>
                                 </div>
                             ))}
-                            
+
                             {/* Show quality suggestions */}
                             {(analysis.quality_score?.suggestions || []).length > 0 && (
                                 <div className="mt-4 pt-3 border-t border-orange-200">

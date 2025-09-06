@@ -10,14 +10,14 @@ interface HashtagValidationWarningProps {
   className?: string;
 }
 
-export default function HashtagValidationWarning({ 
-  platform, 
-  content, 
-  onDismiss, 
-  className = '' 
+export default function HashtagValidationWarning({
+  platform,
+  content,
+  onDismiss,
+  className = ''
 }: HashtagValidationWarningProps) {
   const forbiddenHashtags = findForbiddenHashtags(platform, content);
-  
+
   if (forbiddenHashtags.length === 0) {
     return null;
   }
@@ -32,7 +32,7 @@ export default function HashtagValidationWarning({
         <div>
           <strong>Forbidden Hashtags Detected</strong>
           <br />
-          The following hashtags are not allowed on {platformName}: {hashtagList}. 
+          The following hashtags are not allowed on {platformName}: {hashtagList}.
           They will be automatically removed when you publish.
         </div>
         {onDismiss && (
@@ -55,30 +55,30 @@ interface MultiPlatformHashtagValidationProps {
   className?: string;
 }
 
-export function MultiPlatformHashtagValidation({ 
-  advancedOptions, 
-  onDismiss, 
-  className = '' 
+export function MultiPlatformHashtagValidation({
+  advancedOptions,
+  onDismiss,
+  className = ''
 }: MultiPlatformHashtagValidationProps) {
   const warnings: Array<{ platform: string; content: string }> = [];
 
   Object.entries(advancedOptions).forEach(([platform, options]) => {
     if (options?.caption || options?.hashtags) {
       let content = '';
-      
+
       if (options.caption) {
         content += options.caption + ' ';
       }
-      
+
       if (options.hashtags) {
-        const hashtags = Array.isArray(options.hashtags) 
-          ? options.hashtags.join(' ') 
+        const hashtags = Array.isArray(options.hashtags)
+          ? options.hashtags.join(' ')
           : options.hashtags;
         content += hashtags;
       }
 
       const forbiddenHashtags = findForbiddenHashtags(platform, content);
-      
+
       if (forbiddenHashtags.length > 0) {
         warnings.push({ platform, content });
       }
@@ -101,4 +101,4 @@ export function MultiPlatformHashtagValidation({
       ))}
     </div>
   );
-} 
+}

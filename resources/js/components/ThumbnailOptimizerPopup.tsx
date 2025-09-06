@@ -27,7 +27,7 @@ const ThumbnailOptimizerPopup: React.FC<ThumbnailOptimizerPopupProps> = ({
     confirmElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
     confirmElement.textContent = '✓ Thumbnail optimized successfully!';
     document.body.appendChild(confirmElement);
-    
+
     setTimeout(() => {
       if (document.body.contains(confirmElement)) {
         document.body.removeChild(confirmElement);
@@ -78,4 +78,4 @@ const ThumbnailOptimizerPopup: React.FC<ThumbnailOptimizerPopupProps> = ({
   );
 };
 
-export default ThumbnailOptimizerPopup; 
+export default ThumbnailOptimizerPopup;

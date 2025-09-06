@@ -1,23 +1,25 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-    Youtube, 
-    Instagram, 
-    Video as VideoIcon, 
+import {
+    Youtube,
+    Instagram,
+    Video as VideoIcon,
     Settings,
     Info,
     Facebook,
     Camera,
     Palette,
-    Plus
+    Plus,
+    TestTube
 } from 'lucide-react';
 import XIcon from '@/components/ui/icons/x';
 import { useInitials } from '@/hooks/use-initials';
+import { type SharedData } from '@/types';
 import React from 'react';
 
 interface Channel {
@@ -92,16 +94,25 @@ const breadcrumbs = [
     },
 ];
 
-export default function Connections({ 
-    channels, 
-    socialAccounts, 
-    availablePlatforms, 
-    allowedPlatforms 
+export default function Connections({
+    channels,
+    socialAccounts,
+    availablePlatforms,
+    allowedPlatforms
 }: Props) {
     const getInitials = useInitials();
+    const { app } = usePage<SharedData>().props;
+    const isLocalMode = app.env === 'local';
+
     const handleConnectPlatform = (platform: string, channelSlug: string) => {
         // Use window.location for OAuth to handle redirects properly
         window.location.href = `/channels/${channelSlug}/auth/${platform}`;
+    };
+
+    const handleMockConnect = (platform: string, channelSlug: string) => {
+        if (confirm(`Create a mock ${platform} connection for testing?`)) {
+            window.location.href = `/channels/${channelSlug}/auth/${platform}/simulate`;
+        }
     };
 
     const handleDisconnectPlatform = (platform: string, channelSlug: string) => {
@@ -114,11 +125,25 @@ export default function Connections({
         return socialAccounts.filter(account => account.platform === platform);
     };
 
+    const isMockConnection = (account: SocialAccount) => {
+        return account.access_token === 'fake_token_for_development';
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Platform Connections" />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
+                {/* Development Mode Alert */}
+                {isLocalMode && (
+                    <Alert className="border-blue-200 bg-blue-50">
+                        <TestTube className="h-4 w-4 text-blue-600" />
+                        <AlertDescription className="text-blue-800">
+                            <strong>Development Mode:</strong> You can create mock platform connections for testing using the "Test Connect" buttons below.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -135,7 +160,7 @@ export default function Connections({
                         const IconComponent = platformIcons[platform.name as keyof typeof platformIcons];
                         const connectedChannels = getConnectedChannelsForPlatform(platform.name);
                         const isConnected = connectedChannels.length > 0;
-                        
+
                         return (
                             <Card key={platform.name} className="relative">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -147,7 +172,7 @@ export default function Connections({
                                 <CardContent>
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
-                                            <Badge 
+                                            <Badge
                                                 variant={isConnected ? "default" : "secondary"}
                                                 className={isConnected ? "bg-green-100 text-green-800" : ""}
                                             >
@@ -163,13 +188,13 @@ export default function Connections({
                                                     <div key={account.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                                                         <div className="flex items-center space-x-3 flex-1">
                                                             <Avatar className="h-8 w-8">
-                                                                <AvatarImage 
+                                                                <AvatarImage
                                                                     src={
                                                                         // For YouTube, use channel thumbnail if available, otherwise fall back to profile avatar
                                                                         account.platform === 'youtube' && account.platform_channel_thumbnail_url
                                                                             ? account.platform_channel_thumbnail_url
                                                                             : account.profile_avatar_url
-                                                                    } 
+                                                                    }
                                                                     alt={
                                                                         // For YouTube, use channel name, for Facebook use page name, otherwise use profile name
                                                                         account.platform === 'youtube' && account.platform_channel_name
@@ -177,14 +202,14 @@ export default function Connections({
                                                                             : account.platform === 'facebook' && account.facebook_page_name
                                                                             ? account.facebook_page_name
                                                                             : account.profile_name || account.channel_name
-                                                                    } 
+                                                                    }
                                                                 />
                                                                 <AvatarFallback className="text-xs bg-background">
                                                                     {account.platform === 'youtube' && account.platform_channel_name
                                                                         ? getInitials(account.platform_channel_name)
                                                                         : account.platform === 'facebook' && account.facebook_page_name
                                                                         ? getInitials(account.facebook_page_name)
-                                                                        : account.profile_name 
+                                                                        : account.profile_name
                                                                         ? getInitials(account.profile_name)
                                                                         : getInitials(account.channel_name)
                                                                     }
@@ -195,12 +220,18 @@ export default function Connections({
                                                                     <span className="text-sm font-medium text-gray-900">
                                                                         {account.channel_name}
                                                                     </span>
+                                                                    {isMockConnection(account) && (
+                                                                        <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                                                                            <TestTube className="w-3 h-3 mr-1" />
+                                                                            Mock
+                                                                        </Badge>
+                                                                    )}
                                                                 </div>
                                                                 {/* Show platform-specific connection info */}
                                                                 {(account.platform_channel_name || account.profile_name) && (
                                                                     <p className="text-xs text-gray-600 truncate">
                                                                         Connected as: {account.profile_name || account.platform_channel_name}
-                                                                        {(account.profile_username || account.platform_channel_handle) && 
+                                                                        {(account.profile_username || account.platform_channel_handle) &&
                                                                             ` (${`@${account.profile_username || account.platform_channel_handle}`})`}
                                                                     </p>
                                                                 )}
@@ -249,19 +280,31 @@ export default function Connections({
                                                     const isChannelConnected = connectedChannels.some(
                                                         account => account.channel_id === channel.id
                                                     );
-                                                    
+
                                                     return (
-                                                        <Button
-                                                            key={channel.id}
-                                                            size="sm"
-                                                            variant={isChannelConnected ? "outline" : "default"}
-                                                            onClick={() => handleConnectPlatform(platform.name, channel.slug)}
-                                                            disabled={isChannelConnected}
-                                                            className="w-full justify-start text-xs"
-                                                        >
-                                                            {isChannelConnected ? '✓ ' : '+ '}
-                                                            {channel.name}
-                                                        </Button>
+                                                        <div key={channel.id} className="space-y-1">
+                                                            <Button
+                                                                size="sm"
+                                                                variant={isChannelConnected ? "outline" : "default"}
+                                                                onClick={() => handleConnectPlatform(platform.name, channel.slug)}
+                                                                disabled={isChannelConnected}
+                                                                className="w-full justify-start text-xs"
+                                                            >
+                                                                {isChannelConnected ? '✓ ' : '+ '}
+                                                                {channel.name}
+                                                            </Button>
+                                                            {isLocalMode && !isChannelConnected && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => handleMockConnect(platform.name, channel.slug)}
+                                                                    className="w-full justify-start text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
+                                                                >
+                                                                    <TestTube className="w-3 h-3 mr-1" />
+                                                                    Test Connect
+                                                                </Button>
+                                                            )}
+                                                        </div>
                                                     );
                                                 })}
                                             </div>
@@ -286,14 +329,14 @@ export default function Connections({
                             <div>
                                 <h4 className="font-medium mb-2">Per-Channel Connections</h4>
                                 <p className="text-sm text-muted-foreground">
-                                    Each channel can have its own social media connections. This allows you to manage 
+                                    Each channel can have its own social media connections. This allows you to manage
                                     different brands or content types with separate social accounts.
                                 </p>
                             </div>
                             <div>
                                 <h4 className="font-medium mb-2">OAuth Authentication</h4>
                                 <p className="text-sm text-muted-foreground">
-                                    When you connect a platform, you'll be redirected to authenticate with that service. 
+                                    When you connect a platform, you'll be redirected to authenticate with that service.
                                     Your credentials are securely stored and encrypted.
                                 </p>
                             </div>

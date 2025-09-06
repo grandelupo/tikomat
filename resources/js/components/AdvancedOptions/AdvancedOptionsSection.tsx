@@ -75,12 +75,12 @@ export default function AdvancedOptionsSection({
                             <p className="text-sm text-muted-foreground">
                                 Configure platform-specific settings for your video upload. Each platform has unique options that can help optimize your content's reach and engagement.
                             </p>
-                            
+
                             <div className="space-y-6">
                                 {selectedPlatforms.map((platform) => {
                                     const Component = platformComponents[platform as keyof typeof platformComponents];
                                     const platformName = platformNames[platform as keyof typeof platformNames];
-                                    
+
                                     if (!Component) return null;
 
                                     return (
@@ -94,9 +94,9 @@ export default function AdvancedOptionsSection({
                                 })}
                             </div>
 
-                            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950 dark:border-blue-800">
-                                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">💡 Pro Tips</h4>
-                                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <h4 className="font-medium text-blue-900 mb-2">💡 Pro Tips</h4>
+                                <ul className="text-sm text-blue-800 space-y-1">
                                     <li>• YouTube: Use custom thumbnails and relevant tags to increase discoverability</li>
                                     <li>• TikTok: Add trending hashtags and music to boost engagement</li>
                                     <li>• Instagram: Use location tags and alt text for better accessibility</li>
@@ -112,4 +112,4 @@ export default function AdvancedOptionsSection({
             </Collapsible>
         </Card>
     );
-} 
+}

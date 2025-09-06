@@ -17,7 +17,7 @@ export default function SubscriptionSuccess({ user }: Props) {
     return (
         <AppLayout>
             <Head title="Subscription Successful" />
-            
+
             <div className="flex h-full flex-1 flex-col items-center justify-center gap-8 p-6">
                 {/* Success Icon */}
                 <div className="flex items-center justify-center w-20 h-20 bg-green-100 rounded-full">
@@ -68,7 +68,7 @@ export default function SubscriptionSuccess({ user }: Props) {
                 {/* Next Steps */}
                 <div className="text-center space-y-6">
                     <h3 className="text-xl font-semibold">What's Next?</h3>
-                    
+
                     <div className="grid md:grid-cols-3 gap-4 max-w-2xl">
                         <Card className="text-center p-4">
                             <CardContent className="space-y-3">
@@ -116,7 +116,7 @@ export default function SubscriptionSuccess({ user }: Props) {
                             <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
                     </Link>
-                    
+
                     <Link href="/channels/create">
                         <Button size="lg" variant="outline">
                             Create First Channel
@@ -143,4 +143,4 @@ export default function SubscriptionSuccess({ user }: Props) {
             </div>
         </AppLayout>
     );
-} 
+}

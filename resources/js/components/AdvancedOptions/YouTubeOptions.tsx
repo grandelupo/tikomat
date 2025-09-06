@@ -239,4 +239,4 @@ export default function YouTubeOptions({ options, onChange }: YouTubeOptionsProp
             </CardContent>
         </Card>
     );
-} 
+}

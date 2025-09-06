@@ -8,8 +8,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Schedule workflow processing to run every 5 minutes
-Schedule::command('workflows:process')->everyFiveMinutes();
 
 // Schedule video processing to run every minute
 Schedule::command('videos:process-uploads')->everyMinute();

@@ -2,11 +2,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Head, Link } from '@inertiajs/react';
-import { 
-    Mail, 
-    User, 
-    Calendar, 
-    MessageSquare, 
+import {
+    Mail,
+    User,
+    Calendar,
+    MessageSquare,
     Eye,
     CheckCircle,
     Clock,
@@ -73,7 +73,7 @@ export default function ContactMessages({ messages, stats }: ContactMessagesProp
     return (
         <>
             <Head title="Contact Messages - Admin" />
-            
+
             <div className="container mx-auto px-4 py-8">
                 <div className="mb-8">
                     <div className="flex items-center justify-between">
@@ -103,7 +103,7 @@ export default function ContactMessages({ messages, stats }: ContactMessagesProp
                             <div className="text-2xl font-bold">{stats.total}</div>
                         </CardContent>
                     </Card>
-                    
+
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Unread</CardTitle>
@@ -167,8 +167,8 @@ export default function ContactMessages({ messages, stats }: ContactMessagesProp
                     <CardContent>
                         <div className="space-y-4">
                             {messages.data.map((message) => (
-                                <div 
-                                    key={message.id} 
+                                <div
+                                    key={message.id}
                                     className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
                                         message.status === 'unread' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
                                     }`}
@@ -197,7 +197,7 @@ export default function ContactMessages({ messages, stats }: ContactMessagesProp
                                                 </div>
                                                 <p className="text-gray-900 font-medium mb-2">{message.subject}</p>
                                                 <p className="text-gray-600 line-clamp-2">
-                                                    {message.message.length > 150 
+                                                    {message.message.length > 150
                                                         ? message.message.substring(0, 150) + '...'
                                                         : message.message
                                                     }
@@ -250,4 +250,4 @@ export default function ContactMessages({ messages, stats }: ContactMessagesProp
             </div>
         </>
     );
-} 
+}

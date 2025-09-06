@@ -85,7 +85,7 @@ const AISEOOptimizer: React.FC<AISEOOptimizerProps> = ({ video, contentId, conte
 
     const researchKeywords = async () => {
         if (!settings.topic) return;
-        
+
         setLoading(true);
         try {
             const response = await fetch('/ai/seo-keywords', {
@@ -389,7 +389,7 @@ const AISEOOptimizer: React.FC<AISEOOptimizerProps> = ({ video, contentId, conte
                             id="title"
                             value={settings.content.title}
                             onChange={(e) => setSettings({
-                                ...settings, 
+                                ...settings,
                                 content: {...settings.content, title: e.target.value}
                             })}
                             placeholder="Enter content title"
@@ -405,7 +405,7 @@ const AISEOOptimizer: React.FC<AISEOOptimizerProps> = ({ video, contentId, conte
                             id="description"
                             value={settings.content.description}
                             onChange={(e) => setSettings({
-                                ...settings, 
+                                ...settings,
                                 content: {...settings.content, description: e.target.value}
                             })}
                             placeholder="Enter content description"
@@ -442,7 +442,7 @@ const AISEOOptimizer: React.FC<AISEOOptimizerProps> = ({ video, contentId, conte
                                     const keyword = e.currentTarget.value.trim();
                                     if (keyword && !settings.target_keywords.includes(keyword)) {
                                         setSettings({
-                                            ...settings, 
+                                            ...settings,
                                             target_keywords: [...settings.target_keywords, keyword]
                                         });
                                         e.currentTarget.value = '';
@@ -804,4 +804,4 @@ const AISEOOptimizer: React.FC<AISEOOptimizerProps> = ({ video, contentId, conte
     );
 };
 
-export default AISEOOptimizer; 
+export default AISEOOptimizer;

@@ -3,14 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { User } from 'lucide-react';
-import { 
-    Mail, 
-    Phone, 
-    MapPin, 
-    Clock, 
-    Send, 
-    MessageSquare, 
-    Headphones, 
+import {
+    Mail,
+    Phone,
+    MapPin,
+    Clock,
+    Send,
+    MessageSquare,
+    Headphones,
     Video as VideoIcon,
     Twitter,
     Facebook,
@@ -51,7 +51,7 @@ export default function Contact({ auth }: ContactProps) {
     return (
         <>
             <Head title="Contact Us - Filmate" />
-            
+
             {/* Header */}
             <header className="border-b bg-background">
                 <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -129,7 +129,7 @@ export default function Contact({ auth }: ContactProps) {
                             <p className="text-gray-600 mb-8">
                                 Fill out the form below and we'll get back to you within 24 hours.
                             </p>
-                            
+
                             <Card className="border-gray-200 shadow-lg">
                                 <CardContent className="p-8">
                                     <form onSubmit={handleSubmit} className="space-y-6">
@@ -167,7 +167,7 @@ export default function Contact({ auth }: ContactProps) {
                                                 )}
                                             </div>
                                         </div>
-                                        
+
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                                 Email Address *
@@ -184,12 +184,12 @@ export default function Contact({ auth }: ContactProps) {
                                                 <p className="text-red-500 text-sm mt-1">{errors.email}</p>
                                             )}
                                         </div>
-                                        
+
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                                 Subject *
                                             </label>
-                                            <select 
+                                            <select
                                                 value={data.subject}
                                                 onChange={(e) => setData('subject', e.target.value)}
                                                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.subject ? 'border-red-500' : 'border-gray-300'}`}
@@ -205,7 +205,7 @@ export default function Contact({ auth }: ContactProps) {
                                                 <p className="text-red-500 text-sm mt-1">{errors.subject}</p>
                                             )}
                                         </div>
-                                        
+
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                                 Message *
@@ -222,10 +222,10 @@ export default function Contact({ auth }: ContactProps) {
                                                 <p className="text-red-500 text-sm mt-1">{errors.message}</p>
                                             )}
                                         </div>
-                                        
-                                        <Button 
-                                            type="submit" 
-                                            size="lg" 
+
+                                        <Button
+                                            type="submit"
+                                            size="lg"
                                             disabled={processing}
                                             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50"
                                         >
@@ -344,7 +344,7 @@ export default function Contact({ auth }: ContactProps) {
                             Quick answers to common questions. Don't see what you're looking for? Contact us directly.
                         </p>
                     </div>
-                    
+
                     <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                         {[
                             {
@@ -424,4 +424,4 @@ export default function Contact({ auth }: ContactProps) {
             </footer>
         </>
     );
-} 
+}

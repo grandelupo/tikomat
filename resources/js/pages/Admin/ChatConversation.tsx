@@ -5,11 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { 
+import {
     ArrowLeft,
-    Send, 
-    MessageCircle, 
-    User, 
+    Send,
+    MessageCircle,
+    User,
     Headphones,
     Clock,
     CheckCircle,
@@ -114,11 +114,11 @@ export default function ChatConversation({ conversation, messages: initialMessag
                     if (data.messages && data.messages.length > 0) {
                         // Filter out messages from the current admin to avoid duplicates
                         const newMessages = data.messages.filter((m: Message) => !m.is_from_admin);
-                        
+
                         if (newMessages.length > 0) {
                             setMessages(prev => [...prev, ...newMessages]);
                         }
-                        
+
                         // Update last message ID with all messages (including admin's own)
                         setLastMessageId(Math.max(...data.messages.map((m: Message) => m.id)));
                     }
@@ -145,11 +145,11 @@ export default function ChatConversation({ conversation, messages: initialMessag
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!data.message.trim()) return;
 
         const messageToSend = data.message;
-        
+
         // Add message optimistically
         const optimisticMessage: Message = {
             id: Date.now(), // Temporary ID
@@ -158,18 +158,18 @@ export default function ChatConversation({ conversation, messages: initialMessag
             message: messageToSend,
             is_from_admin: true,
             sender_name: admin.name,
-            formatted_time: new Date().toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
+            formatted_time: new Date().toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
             }),
             created_at: new Date().toISOString(),
             user: admin
         };
-        
+
         setMessages(prev => [...prev, optimisticMessage]);
         reset('message');
         inputRef.current?.focus();
-        
+
         try {
             // Use fetch for direct JSON request instead of Inertia
             const response = await fetch(route('admin.chat.send', conversation.id), {
@@ -189,17 +189,17 @@ export default function ChatConversation({ conversation, messages: initialMessag
             }
 
             const result = await response.json();
-            
+
             if (result.success) {
                 // Update the optimistic message with real data
-                setMessages(prev => prev.map(msg => 
-                    msg.id === optimisticMessage.id 
+                setMessages(prev => prev.map(msg =>
+                    msg.id === optimisticMessage.id
                         ? {
                             ...result.message,
                             sender_name: result.message.user.name,
-                            formatted_time: new Date(result.message.created_at).toLocaleTimeString('en-US', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
+                            formatted_time: new Date(result.message.created_at).toLocaleTimeString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit'
                             }),
                         }
                         : msg
@@ -414,7 +414,7 @@ export default function ChatConversation({ conversation, messages: initialMessag
                                     </div>
                                 ))
                             )}
-                            
+
                             <div ref={messagesEndRef} />
                         </div>
 
@@ -422,8 +422,8 @@ export default function ChatConversation({ conversation, messages: initialMessag
                         <div className="border-t bg-white p-4">
                             {conversation.status === 'closed' ? (
                                 <div className="text-center py-4 text-gray-500">
-                                    This conversation has been closed. 
-                                    <button 
+                                    This conversation has been closed.
+                                    <button
                                         onClick={handleReopenConversation}
                                         className="text-blue-600 hover:text-blue-700 ml-1 underline"
                                     >
@@ -459,7 +459,7 @@ export default function ChatConversation({ conversation, messages: initialMessag
                                     </Button>
                                 </form>
                             )}
-                            
+
                             <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
                                 <span>Press Enter to send</span>
                                 <span>
@@ -520,4 +520,4 @@ export default function ChatConversation({ conversation, messages: initialMessag
             )}
         </AppLayout>
     );
-} 
+}

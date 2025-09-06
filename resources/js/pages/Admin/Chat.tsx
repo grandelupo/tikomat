@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { 
-    MessageCircle, 
-    Users, 
-    Clock, 
-    CheckCircle, 
+import {
+    MessageCircle,
+    Users,
+    Clock,
+    CheckCircle,
     AlertCircle,
     Search,
     Filter,
@@ -84,7 +84,7 @@ export default function AdminChat({ conversations, stats }: ChatProps) {
 
         // Filter by search term
         if (searchTerm) {
-            filtered = filtered.filter(conv => 
+            filtered = filtered.filter(conv =>
                 conv.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 conv.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (conv.latest_message?.message.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -96,7 +96,7 @@ export default function AdminChat({ conversations, stats }: ChatProps) {
 
     const getStatusBadge = (status: string, unreadCount: number = 0) => {
         const hasUnread = unreadCount > 0;
-        
+
         switch (status) {
             case 'waiting':
                 return (
@@ -144,7 +144,7 @@ export default function AdminChat({ conversations, stats }: ChatProps) {
             const createdAt = new Date(conversation.created_at);
             const now = new Date();
             const minutesAgo = (now.getTime() - createdAt.getTime()) / (1000 * 60);
-            
+
             if (minutesAgo > 30) return 'high';
             if (minutesAgo > 15) return 'medium';
         }
@@ -342,7 +342,7 @@ export default function AdminChat({ conversations, stats }: ChatProps) {
                                 <div className="divide-y divide-gray-200">
                                     {filteredConversations.map((conversation) => {
                                         const urgency = getUrgencyLevel(conversation);
-                                        
+
                                         return (
                                             <div
                                                 key={conversation.id}
@@ -424,4 +424,4 @@ export default function AdminChat({ conversations, stats }: ChatProps) {
             </div>
         </AppLayout>
     );
-} 
+}

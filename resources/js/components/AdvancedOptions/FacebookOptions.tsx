@@ -46,8 +46,8 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
             content += safeOptions.message + ' ';
         }
         if (safeOptions.tags) {
-            const tags = Array.isArray(safeOptions.tags) 
-                ? safeOptions.tags.join(' ') 
+            const tags = Array.isArray(safeOptions.tags)
+                ? safeOptions.tags.join(' ')
                 : safeOptions.tags;
             content += tags;
         }
@@ -202,4 +202,4 @@ export default function FacebookOptions({ options, onChange }: FacebookOptionsPr
             </CardContent>
         </Card>
     );
-} 
+}

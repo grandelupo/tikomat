@@ -2,14 +2,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Head, Link } from '@inertiajs/react';
-import { 
-    Upload, 
-    Youtube, 
-    Instagram, 
-    Video as VideoIcon, 
-    CheckCircle, 
-    BarChart3, 
-    Users, 
+import {
+    Upload,
+    Youtube,
+    Instagram,
+    Video as VideoIcon,
+    CheckCircle,
+    BarChart3,
+    Users,
     Calendar,
     Zap,
     Shield,
@@ -38,7 +38,6 @@ import {
     Download,
     Sparkles,
     Timer,
-    Workflow,
     Settings,
     Lock,
     Headphones
@@ -161,7 +160,7 @@ export default function Welcome({ auth }: WelcomeProps) {
     return (
         <>
             <Head title="Filmate - Social Media Video Publisher" />
-            
+
             {/* Header */}
             <header className="border-b bg-white">
                 <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -210,7 +209,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                 <div className="absolute top-10 left-10 w-20 h-20 bg-blue-200 rounded-full opacity-20 animate-pulse"></div>
                 <div className="absolute top-1/3 right-10 w-16 h-16 bg-purple-200 rounded-full opacity-20 animate-pulse delay-1000"></div>
                 <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-pink-200 rounded-full opacity-20 animate-pulse delay-2000"></div>
-                
+
                 <div className="container mx-auto px-4 text-center relative z-10">
                     <Badge className="mb-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 text-sm px-4 py-2">
                         🚀 Join 10,000+ Content Creators
@@ -222,10 +221,10 @@ export default function Welcome({ auth }: WelcomeProps) {
                         </span>
                     </h1>
                     <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-4xl mx-auto leading-relaxed">
-                        The world's most powerful multi-platform video publisher. Save 5+ hours per week and 
+                        The world's most powerful multi-platform video publisher. Save 5+ hours per week and
                         reach 10x more audience with one simple upload to YouTube, TikTok, Instagram, and 7+ platforms.
                     </p>
-                    
+
                     {/* Stats Row */}
                     <div className="flex flex-wrap justify-center gap-8 mb-10 text-sm">
                         <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2">
@@ -347,7 +346,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                                 <ArrowRight className="w-8 h-8" />
                             </div>
                         </div>
-                        
+
                         <div className="text-center relative">
                             <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
                                 <Settings className="w-8 h-8 text-white" />
@@ -372,7 +371,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                                 <ArrowRight className="w-8 h-8" />
                             </div>
                         </div>
-                        
+
                         <div className="text-center">
                             <div className="w-16 h-16 bg-gradient-to-r from-pink-600 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
                                 <Zap className="w-8 h-8 text-white" />
@@ -416,7 +415,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                             Powerful features designed to save you time, increase your reach, and help you dominate social media
                         </p>
                     </div>
-                    
+
                     {/* Featured Highlight */}
                     <div className="mb-16">
                         <Card className="border-0 shadow-2xl bg-gradient-to-r from-blue-50 to-purple-50 overflow-hidden">
@@ -429,7 +428,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                                         AI-Powered Content Optimization
                                     </h3>
                                     <p className="text-gray-600 mb-6 text-lg">
-                                        Our AI automatically optimizes your titles, descriptions, and tags for each platform to maximize reach and engagement. 
+                                        Our AI automatically optimizes your titles, descriptions, and tags for each platform to maximize reach and engagement.
                                         Get 3x more views with zero extra effort.
                                     </p>
                                     <div className="space-y-3">
@@ -492,10 +491,6 @@ export default function Welcome({ auth }: WelcomeProps) {
                         <h3 className="text-2xl font-bold text-gray-900 mb-8">Plus So Much More...</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
                             <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <Workflow className="w-4 h-4 text-blue-600" />
-                                <span>Bulk Upload</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
                                 <Target className="w-4 h-4 text-purple-600" />
                                 <span>A/B Testing</span>
                             </div>
@@ -523,7 +518,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                             Publish to 10+ Platforms
                         </h2>
                         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                            Connect your accounts once and reach billions of users across all major social media platforms. 
+                            Connect your accounts once and reach billions of users across all major social media platforms.
                             More platforms added every month.
                         </p>
                     </div>
@@ -716,7 +711,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                                         ))}
                                     </div>
                                     <blockquote className="text-2xl md:text-3xl font-bold text-gray-900 mb-8 leading-relaxed">
-                                        "Filmate increased my video views by 400% and saved me 8 hours every week. 
+ "Filmate increased my video views by 400% and saved me 8 hours every week.
                                         It's literally transformed my content business."
                                     </blockquote>
                                     <div className="flex items-center justify-center gap-4">
@@ -799,11 +794,11 @@ export default function Welcome({ auth }: WelcomeProps) {
                             Frequently Asked Questions
                         </h2>
                         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                            Everything you need to know about Filmate. Can't find what you're looking for? 
+                            Everything you need to know about Filmate. Can't find what you're looking for?
                             Chat with our friendly team.
                         </p>
                     </div>
-                    
+
                     <div className="max-w-4xl mx-auto">
                         <div className="space-y-4">
                             {[
@@ -847,7 +842,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                                 </Card>
                             ))}
                         </div>
-                        
+
                         <div className="text-center mt-12">
                             <h3 className="text-xl font-bold text-gray-900 mb-4">Still have questions?</h3>
                             <p className="text-gray-600 mb-6">
@@ -869,7 +864,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                 <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
                 <div className="absolute bottom-10 right-10 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
                 <div className="absolute top-1/2 left-1/3 w-16 h-16 bg-white/5 rounded-full blur-lg"></div>
-                
+
                 <div className="container mx-auto px-4 text-center relative z-10">
                     <Badge className="mb-6 bg-white/20 text-white border-white/30 backdrop-blur-sm">
                         🚀 Ready to Transform Your Content Strategy?
@@ -884,7 +879,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                     <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-4xl mx-auto leading-relaxed">
                         Join over 10,000 content creators who are already saving 5+ hours per week and increasing their reach by 300% with Filmate.
                     </p>
-                    
+
                     {/* CTA Benefits */}
                     <div className="flex flex-wrap justify-center gap-6 mb-10 text-white/90">
                         <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
@@ -920,7 +915,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                             🔥 Limited Time: Get Pro features for just $0.60/day
                         </p>
                         <p className="text-blue-100 text-sm">
-                            Usually $1.20/day • Save 50% for the first 1,000 users • 
+                            Usually $1.20/day • Save 50% for the first 1,000 users •
                             <span className="font-semibold text-yellow-300"> 847 spots remaining</span>
                         </p>
                     </div>

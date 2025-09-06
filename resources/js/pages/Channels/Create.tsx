@@ -68,7 +68,7 @@ export default function ChannelCreate({ allowedPlatforms }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Create Channel" />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -161,7 +161,7 @@ export default function ChannelCreate({ allowedPlatforms }: Props) {
                                                         <Icon className={`w-5 h-5 ${info.color}`} />
                                                         <div className="flex-1">
                                                             <div className="flex items-center space-x-2">
-                                                                <Label 
+                                                                <Label
                                                                     htmlFor={platform}
                                                                     className={`font-medium ${!isAllowed ? 'text-gray-400' : ''}`}
                                                                 >
@@ -179,9 +179,9 @@ export default function ChannelCreate({ allowedPlatforms }: Props) {
                                     </div>
 
                                     {allowedPlatforms.length === 1 && (
-                                        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
-                                            <AlertDescription className="text-blue-800 dark:text-blue-200">
-                                                <strong>Free Plan:</strong> You currently have access to YouTube only. 
+                                        <Alert className="bg-blue-50 border-blue-200  "
+                                            <AlertDescription className="text-blue-800 "
+                                                <strong>Free Plan:</strong> You currently have access to YouTube only.
                                                 Upgrade to Pro to unlock Instagram and TikTok publishing for just $0.60/day.
                                             </AlertDescription>
                                         </Alert>
@@ -210,4 +210,4 @@ export default function ChannelCreate({ allowedPlatforms }: Props) {
             </div>
         </AppLayout>
     );
-} 
+}

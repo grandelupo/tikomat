@@ -7,7 +7,7 @@ export default function DataDeletion() {
     return (
         <>
             <Head title="Data Deletion - Filmate" />
-            
+
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
                 <header className="border-b bg-white">
@@ -50,13 +50,13 @@ export default function DataDeletion() {
                             <CardContent className="space-y-4">
                                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                                     <p className="text-orange-800">
-                                        <strong>Warning:</strong> Data deletion is permanent and cannot be undone. 
-                                        Once your data is deleted, you will lose access to all your videos, 
+                                        <strong>Warning:</strong> Data deletion is permanent and cannot be undone.
+                                        Once your data is deleted, you will lose access to all your videos,
                                         social media connections, and account information.
                                     </p>
                                 </div>
                                 <p className="text-gray-600">
-                                    This page allows you to request the deletion of your personal data in compliance 
+                                    This page allows you to request the deletion of your personal data in compliance
                                     with data protection regulations including GDPR and Facebook's data deletion requirements.
                                 </p>
                                 <p className="text-gray-600 mt-2">
@@ -91,7 +91,6 @@ export default function DataDeletion() {
                                         <li>• All uploaded videos and associated metadata</li>
                                         <li>• Video processing history and analytics</li>
                                         <li>• Generated thumbnails and subtitles</li>
-                                        <li>• Workflow configurations and templates</li>
                                     </ul>
                                 </div>
                                 <div>
@@ -159,7 +158,7 @@ export default function DataDeletion() {
                             <CardContent className="space-y-4">
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                     <p className="text-green-800">
-                                        <strong>Complete Removal:</strong> Your data will be permanently deleted from all our systems, 
+                                        <strong>Complete Removal:</strong> Your data will be permanently deleted from all our systems,
                                         including databases, file storage, and backup systems.
                                     </p>
                                 </div>
@@ -246,7 +245,7 @@ export default function DataDeletion() {
 
                     <div className="text-center mt-12 pt-8 border-t">
                         <p className="text-gray-500">
-                            This Data Deletion Policy is effective as of {new Date().toLocaleDateString()} and complies with 
+                            This Data Deletion Policy is effective as of {new Date().toLocaleDateString()} and complies with
                             GDPR, CCPA, and Facebook's data deletion requirements.
                         </p>
                     </div>
@@ -254,4 +253,4 @@ export default function DataDeletion() {
             </div>
         </>
     );
-} 
+}

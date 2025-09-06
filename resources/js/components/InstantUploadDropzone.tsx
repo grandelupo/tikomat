@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-    Upload, 
-    FileVideo, 
-    Zap, 
-    Brain, 
-    Sparkles, 
+import {
+    Upload,
+    FileVideo,
+    Zap,
+    Brain,
+    Sparkles,
     CheckCircle,
     AlertCircle,
     Clock,
@@ -41,7 +41,7 @@ interface QueuedFile {
 export default function InstantUploadDropzone({ channel, className }: InstantUploadDropzoneProps) {
     const [isDragOver, setIsDragOver] = useState(false);
     const [uploadQueue, setUploadQueue] = useState<QueuedFile[]>([]);
-    
+
     const { data, setData, post, processing, errors, progress, reset } = useForm({
         video: null as File | null,
     });
@@ -49,15 +49,15 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragOver(false);
-        
+
         const files = Array.from(e.dataTransfer.files);
         const videoFiles = files.filter(file => file.type.startsWith('video/'));
-        
+
         if (videoFiles.length === 0) {
             console.error('Please select valid video files');
             return;
         }
-        
+
         handleMultipleFileSelect(videoFiles);
     }, []);
 
@@ -110,7 +110,7 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
             }));
 
             setUploadQueue(prevQueue => [...prevQueue, ...newQueuedFiles]);
-            
+
             // Start uploading files one by one
             setTimeout(() => processQueue([...uploadQueue, ...newQueuedFiles]), 100);
         }
@@ -127,12 +127,12 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
 
     const processQueue = async (queue: QueuedFile[]) => {
         const pendingFiles = queue.filter(item => item.status === 'pending');
-        
+
         if (pendingFiles.length === 0) return;
 
         const fileToProcess = pendingFiles[0];
         await handleSingleFileUpload(fileToProcess);
-        
+
         // Process next file after a short delay
         setTimeout(() => {
             const updatedQueue = uploadQueue.filter(item => item.status !== 'completed');
@@ -144,9 +144,9 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
 
     const handleSingleFileUpload = async (queuedFile: QueuedFile) => {
         // Update status to uploading
-        setUploadQueue(prevQueue => 
-            prevQueue.map(item => 
-                item.id === queuedFile.id 
+        setUploadQueue(prevQueue =>
+            prevQueue.map(item =>
+                item.id === queuedFile.id
                     ? { ...item, status: 'uploading', processingStage: 'Uploading video...' }
                     : item
             )
@@ -154,7 +154,7 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
 
         // Create a new form instance for this upload to avoid conflicts
         const formData = new FormData();
-        
+
         // Ensure the file is properly appended to the FormData
         if (queuedFile.file) {
             formData.append('video', queuedFile.file);
@@ -190,11 +190,11 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                 return response.json();
             })
             .then(data => {
-                setUploadQueue(prevQueue => 
-                    prevQueue.map(item => 
-                        item.id === queuedFile.id 
-                            ? { 
-                                ...item, 
+                setUploadQueue(prevQueue =>
+                    prevQueue.map(item =>
+                        item.id === queuedFile.id
+                            ? {
+                                ...item,
                                 status: 'completed',
                                 progress: 100,
                                 processingStage: 'Upload completed successfully!'
@@ -206,11 +206,11 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
             })
             .catch(error => {
                 console.error('Upload failed:', error);
-                setUploadQueue(prevQueue => 
-                    prevQueue.map(item => 
-                        item.id === queuedFile.id 
-                            ? { 
-                                ...item, 
+                setUploadQueue(prevQueue =>
+                    prevQueue.map(item =>
+                        item.id === queuedFile.id
+                            ? {
+                                ...item,
                                 status: 'error',
                                 error: error.message,
                                 processingStage: 'Upload failed'
@@ -228,14 +228,14 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
     };
 
     const retryUpload = (fileId: string) => {
-        setUploadQueue(prevQueue => 
-            prevQueue.map(item => 
-                item.id === fileId 
+        setUploadQueue(prevQueue =>
+            prevQueue.map(item =>
+                item.id === fileId
                     ? { ...item, status: 'pending', error: undefined, progress: 0, processingStage: 'Queued for upload...' }
                     : item
             )
         );
-        
+
         setTimeout(() => processQueue(uploadQueue), 100);
     };
 
@@ -271,7 +271,7 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     {queuedFile.status === 'error' && (
-                                        <Button 
+                                        <Button
                                             onClick={() => retryUpload(queuedFile.id)}
                                             size="sm"
                                             variant="outline"
@@ -281,7 +281,7 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                                         </Button>
                                     )}
                                     {queuedFile.status !== 'uploading' && queuedFile.status !== 'processing' && (
-                                        <Button 
+                                        <Button
                                             onClick={() => removeFromQueue(queuedFile.id)}
                                             size="sm"
                                             variant="ghost"
@@ -292,13 +292,13 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                                     )}
                                 </div>
                             </div>
-                            
+
                             <p className="text-xs text-blue-700 mb-2">{queuedFile.processingStage}</p>
-                            
+
                             {queuedFile.error && (
                                 <p className="text-xs text-red-600 mb-2">{queuedFile.error}</p>
                             )}
-                            
+
                             {(queuedFile.status === 'uploading' || queuedFile.status === 'processing') && queuedFile.progress > 0 && (
                                 <div className="w-full bg-blue-200 rounded-full h-1.5">
                                     <div
@@ -310,11 +310,11 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                         </CardContent>
                     </Card>
                 ))}
-                
+
                 {/* Add more files option */}
-                <Card 
+                <Card
                     className={cn(
-                        "border-2 border-dashed transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30",
+ "border-2 border-dashed transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30",
                         isDragOver ? "border-blue-500 bg-blue-50" : "border-gray-300"
                     )}
                     onDrop={handleDrop}
@@ -340,9 +340,9 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
     }
 
     return (
-        <Card 
+        <Card
             className={cn(
-                "border-2 border-dashed transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30",
+ "border-2 border-dashed transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30",
                 isDragOver ? "border-blue-500 bg-blue-50" : "border-gray-300",
                 className
             )}
@@ -354,15 +354,15 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                 <div className="w-16 h-16 mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                     <Zap className="w-8 h-8 text-white" />
                 </div>
-                
+
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
                     Instant Upload with AI
                 </h3>
-                
+
                 <p className="text-gray-600 mb-4 max-w-md">
                     Drop your videos here or click to select multiple files. AI will automatically generate optimized titles, descriptions, and settings for all your connected platforms.
                 </p>
-                
+
                 <div className="flex flex-wrap gap-2 mb-6 justify-center">
                     <Badge variant="secondary" className="bg-blue-100 text-blue-800">
                         <Brain className="w-3 h-3 mr-1" />
@@ -381,7 +381,7 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                         Multiple Files
                     </Badge>
                 </div>
-                
+
                 <input
                     type="file"
                     accept="video/*"
@@ -390,7 +390,7 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                     className="hidden"
                     id="instant-upload-input"
                 />
-                
+
                 <label htmlFor="instant-upload-input">
                     <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700" asChild>
                         <span>
@@ -399,11 +399,11 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
                         </span>
                     </Button>
                 </label>
-                
+
                 <p className="text-xs text-gray-500 mt-4">
                     Supports MP4, MOV, AVI, WMV, WebM • Max 100MB each • Up to 60 seconds each • Multiple files supported
                 </p>
-                
+
                 {errors.video && (
                     <Alert className="mt-4 max-w-md border-red-200 bg-red-50">
                         <AlertCircle className="w-4 h-4 text-red-600" />
@@ -415,4 +415,4 @@ export default function InstantUploadDropzone({ channel, className }: InstantUpl
             </CardContent>
         </Card>
     );
-} 
+}

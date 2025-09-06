@@ -71,4 +71,4 @@ const InstagramAccountSelection: React.FC<Props> = ({ channel, pages }) => {
   );
 };
 
-export default InstagramAccountSelection; 
+export default InstagramAccountSelection;

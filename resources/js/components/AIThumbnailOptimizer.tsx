@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-    Image, 
+import {
+    Image,
     Eye,
     MousePointer,
     Palette,
@@ -101,7 +101,7 @@ export default function AIThumbnailOptimizer({
         }
 
         setIsAnalyzing(true);
-        
+
         try {
             const response = await fetch('/ai/optimize-thumbnails', {
                 method: 'POST',
@@ -170,7 +170,7 @@ export default function AIThumbnailOptimizer({
                     title: "Thumbnail Set Successfully! 🎯",
                     description: "This thumbnail has been set for all platforms.",
                 });
-                
+
                 // Call the callback if provided
                 if (onThumbnailSet) {
                     onThumbnailSet();
@@ -221,8 +221,8 @@ export default function AIThumbnailOptimizer({
                             <p className="font-medium text-foreground">Text Optimization</p>
                         </div>
                     </div>
-                    
-                    <Button 
+
+                    <Button
                         onClick={optimizeThumbnails}
                         disabled={!videoId}
                         size="lg"
@@ -231,7 +231,7 @@ export default function AIThumbnailOptimizer({
                         <Sparkles className="w-5 h-5 mr-2" />
                         Analyze Video & Extract Thumbnails
                     </Button>
-                    
+
                     {!videoId && (
                         <p className="text-sm text-muted-foreground">
                             Video ID required for thumbnail analysis
@@ -294,7 +294,7 @@ export default function AIThumbnailOptimizer({
                             </p>
                         </div>
                     </div>
-                    <Button 
+                    <Button
                         onClick={optimizeThumbnails}
                         disabled={isAnalyzing}
                         size="sm"
@@ -321,8 +321,8 @@ export default function AIThumbnailOptimizer({
                                     <CardContent className="p-4">
                                         <div className="flex items-start gap-4">
                                             <div className="relative">
-                                                <img 
-                                                    src={suggestion.preview_url} 
+                                                <img
+                                                    src={suggestion.preview_url}
                                                     alt={`Thumbnail at ${suggestion.timestamp}s`}
                                                     className="w-32 h-18 object-cover rounded-lg border-2 border-gray-200"
                                                     onError={(e) => {
@@ -367,7 +367,7 @@ export default function AIThumbnailOptimizer({
                                                             ))}
                                                         </ul>
                                                     </div>
-                                                    
+
                                                     {suggestion.design_scores && (
                                                         <div>
                                                             <h5 className="text-sm font-medium text-gray-700 mb-2">Design Feature Scores:</h5>
@@ -377,13 +377,13 @@ export default function AIThumbnailOptimizer({
                                                                         <span className="text-gray-600 capitalize">
                                                                             {feature.replace('_', ' ')}:
                                                                         </span>
-                                                                        <Badge 
-                                                                            variant="outline" 
+                                                                        <Badge
+                                                                            variant="outline"
                                                                             className={cn(
-                                                                                "text-xs px-1.5 py-0.5",
+ "text-xs px-1.5 py-0.5",
                                                                                 score >= 80 ? "border-green-500 text-green-700 bg-green-50" :
                                                                                 score >= 60 ? "border-yellow-500 text-yellow-700 bg-yellow-50" :
-                                                                                "border-red-500 text-red-700 bg-red-50"
+ "border-red-500 text-red-700 bg-red-50"
                                                                             )}
                                                                         >
                                                                             {score}
@@ -396,8 +396,8 @@ export default function AIThumbnailOptimizer({
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-2">
-                                                <Button 
-                                                    size="sm" 
+                                                <Button
+                                                    size="sm"
                                                     onClick={() => setVideoThumbnail(suggestion.frame_id, suggestion.path)}
                                                     className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                                                 >
@@ -505,4 +505,4 @@ export default function AIThumbnailOptimizer({
             </CardContent>
         </Card>
     );
-} 
+}

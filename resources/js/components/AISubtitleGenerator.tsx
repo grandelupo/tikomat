@@ -66,12 +66,13 @@ interface AISubtitleGeneratorProps {
   videoId?: number;
   videoTitle?: string;
   onSubtitleGenerated?: () => void;
+  hideSubtitleControls?: boolean;
 }
 
-const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, videoId, videoTitle, onSubtitleGenerated }) => {
+const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, videoId, videoTitle, onSubtitleGenerated, hideSubtitleControls = false }) => {
   const { props } = usePage<any>();
   const isLocalEnvironment = props.app?.env === 'local';
-  
+
   const [generationData, setGenerationData] = useState<GenerationData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
@@ -85,14 +86,14 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [videoProcessingResult, setVideoProcessingResult] = useState<any>(null);
   const [wordTimingData, setWordTimingData] = useState<any>(null);
-  
+
   // Video playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [activeWords, setActiveWords] = useState<Set<number>>(new Set());
-  
+
   // Subtitle editing state
   const [editingSubtitle, setEditingSubtitle] = useState<string | null>(null);
   const [subtitleText, setSubtitleText] = useState('');
@@ -260,30 +261,30 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
 
       const result = await response.json();
       console.log('Subtitle check response:', result);
-      
+
       if (result.success && result.data && result.data.processing_status === 'completed') {
         console.log('Found existing subtitles, loading them:', result.data);
-        
+
         // Ensure all subtitles have proper style objects
         const subtitlesWithStyles = result.data.subtitles?.map((subtitle: any) => ({
           ...subtitle,
           style: subtitle.style || defaultStyle,
           position: subtitle.position || { x: 50, y: 85 }
         })) || [];
-        
+
         setGenerationData({
           ...result.data,
           original_video_path: videoPath,
           subtitles: subtitlesWithStyles
         });
-        
+
         console.log('Loaded subtitles with styles:', subtitlesWithStyles);
-        
+
         // Call the callback when subtitles are found
         if (onSubtitleGenerated) {
           onSubtitleGenerated();
         }
-        
+
         // Load word timing data if available
         if (result.data.generation_id) {
           loadWordTimingData(result.data.generation_id);
@@ -311,11 +312,11 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
         if (result.success && result.data) {
           console.log('Word timing data loaded:', result.data);
           setWordTimingData(result.data);
-          
+
           // Merge word timing data with existing subtitles
           setGenerationData(prevData => {
             if (!prevData || !prevData.subtitles) return prevData;
-            
+
             // Create a map of words by subtitle_id for quick lookup
             const wordsBySubtitleId = new Map<string, any[]>();
             result.data.words.forEach((wordData: any) => {
@@ -329,7 +330,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 confidence: wordData.confidence
               });
             });
-            
+
             // Update subtitles with word timing data
             const updatedSubtitles = prevData.subtitles.map(subtitle => {
               const words = wordsBySubtitleId.get(subtitle.id) || [];
@@ -339,15 +340,15 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 words: words
               };
             });
-            
+
             console.log('Updated subtitles with word timing:', updatedSubtitles);
             console.log('First subtitle word count after merge:', updatedSubtitles[0]?.words?.length || 0);
             console.log('First subtitle words sample:', updatedSubtitles[0]?.words?.slice(0, 3));
-            
+
             // Debug: Check if any subtitle has word timing data
             const subtitlesWithWords = updatedSubtitles.filter(s => s.words && s.words.length > 0);
             console.log(`Subtitles with word timing: ${subtitlesWithWords.length}/${updatedSubtitles.length}`);
-            
+
             return {
               ...prevData,
               subtitles: updatedSubtitles
@@ -472,7 +473,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
             ...result.data,
             original_video_path: prevData?.original_video_path || videoPath
           };
-          
+
           // Load word timing data when generation completes
           if (result.data.processing_status === 'completed' && result.data.generation_id && !wordTimingData) {
             loadWordTimingData(result.data.generation_id);
@@ -481,7 +482,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
               onSubtitleGenerated();
             }
           }
-          
+
           return newData;
         });
       }
@@ -511,7 +512,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     const rect = progressBar.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const newTime = (clickX / rect.width) * duration;
-    
+
     video.currentTime = newTime;
     setCurrentTime(newTime);
   };
@@ -519,8 +520,8 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   // Get current subtitle based on video time
   const getCurrentSubtitle = (): Subtitle | null => {
     if (!generationData?.subtitles) return null;
-    
-    return generationData.subtitles.find(subtitle => 
+
+    return generationData.subtitles.find(subtitle =>
       currentTime >= subtitle.start_time && currentTime <= subtitle.end_time
     ) || null;
   };
@@ -529,27 +530,27 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   const setCurrentFrameAsThumbnail = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
+
     if (!video || !canvas || !videoId) {
       alert('Unable to capture frame. Please ensure video is loaded.');
       return;
     }
 
     setIsSettingThumbnail(true);
-    
+
     try {
       // Set canvas dimensions to match video
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      
+
       // Draw current video frame to canvas
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         throw new Error('Unable to get canvas context');
       }
-      
+
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
+
       // Convert canvas to blob
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((blob) => {
@@ -560,14 +561,14 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
           }
         }, 'image/jpeg', 0.8);
       });
-      
+
       // Create form data and upload
       const formData = new FormData();
       formData.append('video_id', videoId.toString());
       formData.append('frame_id', `frame_${Date.now()}`);
       formData.append('thumbnail', blob, 'thumbnail.jpg');
       formData.append('current_time', currentTime.toString());
-      
+
       const response = await fetch('/ai/set-video-thumbnail-from-frame', {
         method: 'POST',
         headers: {
@@ -575,23 +576,23 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
         },
         body: formData,
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         // Show success confirmation
         const confirmElement = document.createElement('div');
         confirmElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
         confirmElement.textContent = '✓ Thumbnail set successfully!';
         document.body.appendChild(confirmElement);
-        
+
         setTimeout(() => {
           document.body.removeChild(confirmElement);
         }, 3000);
       } else {
         alert(`Failed to set thumbnail: ${result.message}`);
       }
-      
+
     } catch (error) {
       console.error('Error setting thumbnail:', error);
       alert('Failed to capture and set thumbnail. Please try again.');
@@ -754,18 +755,18 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     if (!subtitle || !videoRef.current) return;
 
     setDraggedSubtitle(subtitleId);
-    
+
     // Get video element bounds
     const videoRect = videoRef.current.getBoundingClientRect();
-    
+
     // Calculate offset from mouse to the subtitle center point
     const subtitleElement = e.target as HTMLElement;
     const subtitleRect = subtitleElement.getBoundingClientRect();
-    
+
     // Calculate the center of the subtitle element
     const subtitleCenterX = subtitleRect.left + subtitleRect.width / 2;
     const subtitleCenterY = subtitleRect.top + subtitleRect.height / 2;
-    
+
     // Calculate offset from mouse to subtitle center
     setDragOffset({
       x: e.clientX - subtitleCenterX,
@@ -778,11 +779,11 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
 
     // Use video element bounds
     const videoRect = videoRef.current.getBoundingClientRect();
-    
+
     // Calculate where the subtitle center should be positioned
     const centerX = e.clientX - dragOffset.x;
     const centerY = e.clientY - dragOffset.y;
-    
+
     // Convert to percentage relative to video element, positioning the center
     const x = ((centerX - videoRect.left) / videoRect.width) * 100;
     const y = ((centerY - videoRect.top) / videoRect.height) * 100;
@@ -963,7 +964,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     if (videoRef.current && subtitleEditorRef.current) {
       const videoRect = videoRef.current.getBoundingClientRect();
       const containerRect = subtitleEditorRef.current.getBoundingClientRect();
-      
+
       if (containerRect) {
         const baseBounds = {
           width: videoRect.width,
@@ -1002,7 +1003,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   // Save custom bounds to generation data
   const saveCustomBounds = async () => {
     if (!customBounds || !generationData?.generation_id) return;
-    
+
     try {
       const response = await fetch('/ai/subtitle-update-bounds', {
         method: 'POST',
@@ -1015,7 +1016,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
           custom_bounds: customBounds,
         }),
       });
-      
+
       if (response.ok) {
         console.log('Custom bounds saved successfully');
       }
@@ -1035,12 +1036,12 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   const handleBoundsMouseDown = (e: React.MouseEvent, action: 'move' | 'resize-tl' | 'resize-tr' | 'resize-bl' | 'resize-br') => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!customBounds || !videoRef.current) return;
-    
+
     setBoundsBeingDragged(action);
     const videoRect = videoRef.current.getBoundingClientRect();
-    
+
     setBoundsDragStart({
       x: e.clientX,
       y: e.clientY,
@@ -1054,13 +1055,13 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     const videoRect = videoRef.current.getBoundingClientRect();
     const deltaX = e.clientX - boundsDragStart.x;
     const deltaY = e.clientY - boundsDragStart.y;
-    
+
     // Convert pixel deltas to percentages
     const deltaXPercent = (deltaX / videoRect.width) * 100;
     const deltaYPercent = (deltaY / videoRect.height) * 100;
-    
+
     let newBounds = { ...boundsDragStart.bounds };
-    
+
     switch (boundsBeingDragged) {
       case 'move':
         newBounds.x = Math.max(0, Math.min(100 - newBounds.width, newBounds.x + deltaXPercent));
@@ -1087,7 +1088,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
         newBounds.height = Math.max(10, Math.min(100 - newBounds.y, newBounds.height + deltaYPercent));
         break;
     }
-    
+
     setCustomBounds(newBounds);
   };
 
@@ -1103,17 +1104,17 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
       setTimeout(updateVideoBounds, 50);
     };
     const handleVideoLoad = () => updateVideoBounds();
-    
+
     if (videoRef.current) {
       videoRef.current.addEventListener('loadedmetadata', handleVideoLoad);
       videoRef.current.addEventListener('loadeddata', handleVideoLoad);
     }
-    
+
     window.addEventListener('resize', handleResize);
-    
+
     // Initial calculation with delay
     setTimeout(updateVideoBounds, 100);
-    
+
     return () => {
       if (videoRef.current) {
         videoRef.current.removeEventListener('loadedmetadata', handleVideoLoad);
@@ -1136,13 +1137,13 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     }
 
     const newActiveWords = new Set<number>();
-    
+
     currentSubtitle.words.forEach((word, index) => {
       if (currentTime >= word.start_time && currentTime <= word.end_time) {
         newActiveWords.add(index);
       }
     });
-    
+
     setActiveWords(newActiveWords);
   }, [currentTime, currentSubtitle?.words]);
 
@@ -1160,7 +1161,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     return currentSubtitle.words.map((word, index) => {
       const isActive = activeWords.has(index);
       const isLastWord = index === currentSubtitle.words.length - 1;
-      
+
       return (
         <span
           key={`${word.word}-${index}`}
@@ -1195,11 +1196,11 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     if (!currentSubtitle) return {};
     const style = currentSubtitle.style || {};
     const constrainedPos = getConstrainedPosition();
-    
+
     // Calculate responsive font size based on container (video) size
     // Default to 2.5vw (2.5% of viewport width) with min/max constraints
     const responsiveFontSize = Math.max(16, Math.min(48, (style.fontSize || 24)));
-    
+
     return {
       position: 'absolute',
       left: `${constrainedPos.x}%`,
@@ -1209,10 +1210,10 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
       fontSize: `${responsiveFontSize}px`,
       fontWeight: style.fontWeight || 'bold',
       color: style.color || '#FFFFFF',
-      background: style.backgroundColor?.includes('gradient') 
-        ? style.backgroundColor 
+      background: style.backgroundColor?.includes('gradient')
+        ? style.backgroundColor
         : undefined,
-      backgroundColor: !style.backgroundColor?.includes('gradient') 
+      backgroundColor: !style.backgroundColor?.includes('gradient')
         ? (style.backgroundColor || 'rgba(0, 0, 0, 0.7)')
         : undefined,
       textAlign: (style.textAlign as 'left' | 'center' | 'right') || 'center',
@@ -1242,12 +1243,12 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
     <div ref={containerRef} className={`bg-background shadow-sm border ${isFullscreen ? 'h-screen w-screen flex flex-col' : 'rounded-lg'}`}>
       {/* Hidden canvas for frame capture */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
-      
+
       {/* Header */}
       <div className="p-6 border-b bg-gradient-to-r from-muted/50 to-muted/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-between w-full">
-            
+
             <button
               onClick={toggleFullscreen}
               className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors"
@@ -1257,8 +1258,8 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
               {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             </button>
           </div>
-          
-          {!generationData && (
+
+          {!generationData && !hideSubtitleControls && (
             <div className="flex items-center gap-4">
               {!isLocalEnvironment ? (
                 <button
@@ -1344,7 +1345,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
           <div className="space-y-6">
             {/* Video Player with Subtitle Overlay */}
             <div className="relative">
-              <div 
+              <div
                 ref={subtitleEditorRef}
                 className="relative bg-black rounded-lg overflow-hidden"
                 onMouseMove={handleMouseMove}
@@ -1360,9 +1361,9 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                 />
-                
+
                 {/* Subtitle Overlay Container - positioned absolutely over video */}
-                <div 
+                <div
                   className="video-subtitle-overlay"
                   style={{
                     top: videoBounds?.top || 0,
@@ -1395,7 +1396,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
 
                 {/* Bounding Box Editor Overlay */}
                 {isEditingBounds && customBounds && videoRef.current && (
-                  <div 
+                  <div
                     className="bounds-editor-overlay"
                     style={{
                       position: 'absolute',
@@ -1495,7 +1496,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                         }}
                         onMouseDown={(e) => handleBoundsMouseDown(e, 'resize-br')}
                       />
-                      
+
                       {/* Center indicator */}
                       <div
                         className="center-indicator"
@@ -1525,7 +1526,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   >
                     {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
                   </button>
-                  
+
                   <div className="flex-1">
                     <div
                       ref={progressRef}
@@ -1538,11 +1539,11 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       ></div>
                     </div>
                   </div>
-                  
+
                   <span className="text-sm text-muted-foreground min-w-0">
                     {formatTime(currentTime)} / {formatTime(duration)}
                   </span>
-                  
+
                   {/* Set Thumbnail Button */}
                   <button
                     onClick={setCurrentFrameAsThumbnail}
@@ -1568,15 +1569,15 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                 {subtitlesGenerated && (
                 <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
                   <span className="text-sm font-medium text-foreground">Subtitle Area:</span>
-                  
+
                     <button
                       onClick={() => {
                         initializeDefaultBounds();
                         setIsEditingBounds(!isEditingBounds);
                       }}
                       className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm transition-colors ${
-                        isEditingBounds 
-                          ? 'bg-purple-600 text-white' 
+                        isEditingBounds
+                          ? 'bg-purple-600 text-white'
                           : 'bg-muted/50 text-foreground hover:bg-muted'
                       }`}
                     >
@@ -1664,7 +1665,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
             {generationData?.processing_status === 'completed' && selectedSubtitle && (
               <div className="bg-muted rounded-lg p-4">
                 <h4 className="text-lg font-medium text-foreground mb-4">Subtitle Style Editor</h4>
-                
+
                 {/* Style Presets */}
                 <div className="mb-6">
                   <h5 className="text-sm font-medium text-foreground mb-3">Style Presets</h5>
@@ -1679,13 +1680,13 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                             setSelectedStylePreset(key);
                           }}
                           className={`p-3 border rounded-lg text-sm font-medium transition-all ${
-                            isActive 
-                              ? 'border-purple-500 bg-purple-950/20 text-purple-300' 
+                            isActive
+                              ? 'border-purple-500 bg-purple-950/20 text-purple-300'
                               : 'border-border bg-background text-foreground hover:border-purple-300 hover:bg-purple-950/10'
                           }`}
                         >
                           <div className="text-center">
-                            <div 
+                            <div
                               className="text-xs mb-1 px-2 py-1 rounded"
                               style={{
                                 color: preset.style.color,
@@ -1717,7 +1718,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Style Controls */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
@@ -1735,7 +1736,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       <option value="Courier New">Courier New</option>
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">Font Size</label>
                     <input
@@ -1747,7 +1748,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       className="w-full"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">Text Color</label>
                     <input
@@ -1757,7 +1758,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       className="w-full h-8 rounded border"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">Background</label>
                     <div className="flex gap-2">
@@ -1780,7 +1781,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                       </button>
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">Alignment</label>
                     <div className="flex gap-1">
@@ -1805,7 +1806,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 flex gap-2">
                   <button
                     onClick={() => updateSubtitleStyle(selectedSubtitle, { bold: !generationData.subtitles.find(s => s.id === selectedSubtitle)?.style?.bold })}
@@ -1839,7 +1840,7 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
                   <Download className="w-4 h-4" />
                   Export Transcript
                 </button>
-                
+
                 <button
                   onClick={renderVideoWithSubtitles}
                   disabled={isRendering}
@@ -1866,4 +1867,4 @@ const AISubtitleGenerator: React.FC<AISubtitleGeneratorProps> = ({ videoPath, vi
   );
 };
 
-export default AISubtitleGenerator; 
+export default AISubtitleGenerator;

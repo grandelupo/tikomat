@@ -4,6 +4,8 @@
 
 This document describes the complete implementation of the video removal system for Filmate, which allows users to remove videos from individual platforms while maintaining full error handling and graceful recovery.
 
+**Note**: YouTube video removal is not supported by this application. Users can only remove videos from other platforms (Instagram, TikTok, Facebook, X, Snapchat, Pinterest).
+
 ## System Architecture
 
 ### 1. Backend Components
@@ -21,13 +23,14 @@ This document describes the complete implementation of the video removal system 
 
 #### Removal Job Classes
 All located in `app/Jobs/`:
-- `RemoveVideoFromYoutube.php`
 - `RemoveVideoFromInstagram.php`
 - `RemoveVideoFromTiktok.php`
 - `RemoveVideoFromFacebook.php`
 - `RemoveVideoFromX.php`
 - `RemoveVideoFromSnapchat.php`
 - `RemoveVideoFromPinterest.php`
+
+Note: YouTube video removal is not supported.
 
 #### Error Handling Service
 - **Location**: `app/Services/VideoRemovalErrorHandler.php`
@@ -141,10 +144,10 @@ Comprehensive test suite in `tests/Feature/VideoRemovalTest.php` covers:
 
 ### Platform-Specific Implementations
 
-#### YouTube (Google API)
-- Uses `youtube.videos.delete` endpoint
-- Handles token refresh automatically
-- Supports specific error codes (404, 403, 401)
+#### YouTube (Not Supported)
+- YouTube video removal is not supported by this application
+- Videos uploaded to YouTube will remain there permanently
+- Users must manually delete videos from YouTube if needed
 
 #### Instagram (Meta Graph API)
 - Uses `DELETE /{media-id}` endpoint
@@ -194,8 +197,8 @@ $schedule->command('videos:retry-failed-removals')->hourly();
 # Retry all failed removals
 php artisan videos:retry-failed-removals
 
-# Retry specific platform
-php artisan videos:retry-failed-removals --platform=youtube
+# Retry specific platform (example with Instagram)
+php artisan videos:retry-failed-removals --platform=instagram
 
 # Dry run to see what would be retried
 php artisan videos:retry-failed-removals --dry-run

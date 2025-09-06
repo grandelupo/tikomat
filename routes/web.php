@@ -12,8 +12,6 @@ use App\Http\Controllers\AdminChatController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\TutorialController;
-use App\Http\Controllers\CloudStorageController;
-use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\AIController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -45,19 +43,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    // AI Tool Pages
-    Route::get('ai/content-calendar', function () {
-        return Inertia::render('AI/ContentCalendar');
-    })->name('ai.content-calendar');
-    Route::get('ai/trend-analyzer', function () {
-        return Inertia::render('AI/TrendAnalyzer');
-    })->name('ai.trend-analyzer');
-    Route::get('ai/audience-insights', function () {
-        return Inertia::render('AI/AudienceInsights');
-    })->name('ai.audience-insights');
-    Route::get('ai/strategy-planner', function () {
-        return Inertia::render('AI/StrategyPlanner');
-    })->name('ai.strategy-planner');
     
     // Connections
     Route::get('connections', [ConnectionsController::class, 'index'])->name('connections');
@@ -134,29 +119,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('thumbnail-text-suggestions', [AIController::class, 'getThumbnailTextSuggestions'])->name('thumbnail-text-suggestions');
     Route::post('create-thumbnail-ab-test', [AIController::class, 'createThumbnailABTest'])->name('create-thumbnail-ab-test');
         
-        // Content Calendar
-        Route::post('generate-content-calendar', [AIController::class, 'generateContentCalendar'])->name('generate-content-calendar');
-        Route::post('optimal-posting-schedule', [AIController::class, 'getOptimalPostingSchedule'])->name('optimal-posting-schedule');
-        Route::post('trending-opportunities', [AIController::class, 'getTrendingOpportunities'])->name('trending-opportunities');
-        Route::post('analyze-content-gaps', [AIController::class, 'analyzeContentGaps'])->name('analyze-content-gaps');
-        Route::post('seasonal-insights', [AIController::class, 'getSeasonalInsights'])->name('seasonal-insights');
-        Route::post('performance-forecasts', [AIController::class, 'getPerformanceForecasts'])->name('performance-forecasts');
         
-        // Trend Analyzer
-        Route::post('analyze-trends', [AIController::class, 'analyzeTrends'])->name('analyze-trends');
-        Route::post('trending-topics', [AIController::class, 'getTrendingTopics'])->name('trending-topics');
-        Route::post('detect-viral-content', [AIController::class, 'detectViralContent'])->name('detect-viral-content');
-        Route::post('hashtag-trends', [AIController::class, 'analyzeHashtagTrends'])->name('hashtag-trends');
-        Route::post('content-opportunities', [AIController::class, 'identifyContentOpportunities'])->name('content-opportunities');
-        Route::post('competitive-analysis', [AIController::class, 'getCompetitiveAnalysis'])->name('competitive-analysis');
-        
-        // Audience Insights
-        Route::post('audience-insights', [AIController::class, 'analyzeAudienceInsights'])->name('ai.analyze-audience-insights');
-        Route::post('demographic-breakdown', [AIController::class, 'getDemographicBreakdown'])->name('demographic-breakdown');
-        Route::post('audience-segments', [AIController::class, 'getAudienceSegments'])->name('audience-segments');
-        Route::post('behavior-patterns', [AIController::class, 'getBehaviorPatterns'])->name('behavior-patterns');
-        Route::post('audience-growth-opportunities', [AIController::class, 'getAudienceGrowthOpportunities'])->name('audience-growth-opportunities');
-        Route::post('personalization-recommendations', [AIController::class, 'getPersonalizationRecommendations'])->name('personalization-recommendations');
         
         // Content Strategy Planner
         Route::post('strategy-generate', [AIController::class, 'generateContentStrategy'])->name('strategy-generate');
@@ -217,8 +180,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('get-optimized-content-suggestions', [AIController::class, 'getOptimizedContentSuggestions'])->name('get-optimized-content-suggestions');
     });
     
-    // Workflow routes
-    Route::resource('workflow', WorkflowController::class);
     
     // Social Account Management (scoped to channels)
     Route::get('channels/{channel}/auth/{platform}', [SocialAccountController::class, 'redirect'])
@@ -312,17 +273,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('tutorials/reset', [TutorialController::class, 'reset'])->name('tutorials.reset');
     Route::get('tutorials/config/{page}', [TutorialController::class, 'config'])->name('tutorials.config');
     
-    // Cloud Storage routes
-    Route::prefix('cloud-storage')->name('cloud-storage.')->group(function () {
-        Route::get('{provider}/auth', [CloudStorageController::class, 'redirect'])->name('auth');
-        Route::get('{provider}/callback', [CloudStorageController::class, 'callback'])->name('callback');
-        Route::get('{provider}/files', [CloudStorageController::class, 'listFiles'])->name('files');
-        Route::get('{provider}/folders', [CloudStorageController::class, 'listFolders'])->name('folders');
-        Route::post('{provider}/folders', [CloudStorageController::class, 'createFolder'])->name('create-folder');
-        Route::post('{provider}/import', [CloudStorageController::class, 'importFile'])->name('import');
-        Route::delete('{provider}/disconnect', [CloudStorageController::class, 'disconnect'])->name('disconnect');
-        Route::get('connected', [CloudStorageController::class, 'getConnectedAccounts'])->name('connected');
-    });
     
     // Notification routes
     Route::prefix('api/notifications')->name('notifications.')->group(function () {

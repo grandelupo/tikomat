@@ -56,7 +56,7 @@ export default function ChannelEdit({ channel }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Edit ${channel.name}`} />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -150,8 +150,8 @@ export default function ChannelEdit({ channel }: Props) {
                                             This action cannot be undone. All videos and connections will be lost.
                                         </p>
                                     </div>
-                                    <Button 
-                                        variant="destructive" 
+                                    <Button
+                                        variant="destructive"
                                         onClick={handleDelete}
                                         className="ml-4"
                                     >
@@ -166,4 +166,4 @@ export default function ChannelEdit({ channel }: Props) {
             </div>
         </AppLayout>
     );
-} 
+}

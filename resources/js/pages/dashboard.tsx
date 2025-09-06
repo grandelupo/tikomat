@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -17,12 +17,12 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { 
-    Plus, 
-    Youtube, 
-    Instagram, 
-    Video as VideoIcon, 
-    Users, 
+import {
+    Plus,
+    Youtube,
+    Instagram,
+    Video as VideoIcon,
+    Users,
     BarChart3,
     Clock,
     CheckCircle,
@@ -169,16 +169,16 @@ const platformData = {
     }
 };
 
-export default function Dashboard({ 
-    channels, 
-    defaultChannel, 
-    recentVideos, 
-    subscription, 
-    allowedPlatforms, 
+export default function Dashboard({
+    channels,
+    defaultChannel,
+    recentVideos,
+    subscription,
+    allowedPlatforms,
     canCreateChannel
 }: Props) {
     const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
-    
+
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         description: '',
@@ -210,7 +210,7 @@ export default function Dashboard({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -307,7 +307,7 @@ export default function Dashboard({
                                                             <div className="flex items-center space-x-3 flex-1">
                                                                 <Icon className={`w-4 h-4 ${info.color}`} />
                                                                 <div className="flex-1">
-                                                                    <Label 
+                                                                    <Label
                                                                         htmlFor={platform}
                                                                         className={`font-medium text-sm ${!isAllowed ? 'text-gray-400' : ''}`}
                                                                     >
@@ -325,8 +325,8 @@ export default function Dashboard({
 
                                             {safeAllowedPlatforms.length === 1 && (
                                                 <Alert className="bg-blue-950/20 border-blue-800">
-                                                    <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm">
-                                                        <strong>Free Plan:</strong> You currently have access to YouTube only. 
+                                                    <AlertDescription className="text-blue-800  text-sm">
+                                                        <strong>Free Plan:</strong> You currently have access to YouTube only.
                                                         Upgrade to Pro to unlock Instagram and TikTok publishing for just $0.60/day.
                                                     </AlertDescription>
                                                 </Alert>
@@ -338,9 +338,9 @@ export default function Dashboard({
                                         </div>
 
                                         <DialogFooter>
-                                            <Button 
-                                                type="button" 
-                                                variant="outline" 
+                                            <Button
+                                                type="button"
+                                                variant="outline"
                                                 onClick={() => setIsCreateChannelOpen(false)}
                                             >
                                                 Cancel
@@ -358,29 +358,45 @@ export default function Dashboard({
 
                 {/* Subscription Status */}
                 {!subscription?.is_active && (
-                    <Card className="border-blue-800 bg-blue-950/20">
-                        <CardHeader>
-                            <CardTitle className="flex items-center">
-                                <Crown className="w-5 h-5 mr-2 text-blue-600" />
+                    <Card className="relative overflow-hidden border-2 border-gradient-to-r from-blue-200 to-purple-200 bg-gradient-to-br from-blue-50 to-purple-50">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200/30 to-purple-200/30 rounded-full -translate-y-16 translate-x-16"></div>
+                        <CardHeader className="relative z-10">
+                            <CardTitle className="flex items-center text-lg font-semibold text-gray-900">
+                                <Crown className="w-6 h-6 mr-2 text-purple-600" />
                                 Upgrade to Pro
                             </CardTitle>
-                            <CardDescription>
-                                Unlock all platforms and create up to 3 channels for just $0.60/day
+                            <CardDescription className="text-gray-700">
+                                Unlock all platforms and create up to 3 channels for just <span className="font-semibold text-purple-700">$0.60/day</span>
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium">Pro Features:</p>
-                                    <ul className="text-sm text-gray-600 space-y-1">
-                                        <li>• Instagram & TikTok publishing</li>
-                                        <li>• Up to 3 channels</li>
-                                        <li>• Priority support</li>
-                                    </ul>
+                        <CardContent className="relative z-10">
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                                <div className="space-y-3">
+                                    <p className="text-sm font-semibold text-gray-800">Pro Features:</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
+                                        <div className="flex items-center text-sm text-gray-700">
+                                            <div className="w-2 h-2 bg-purple-500 rounded-full mr-3 flex-shrink-0"></div>
+                                            Instagram & TikTok publishing
+                                        </div>
+                                        <div className="flex items-center text-sm text-gray-700">
+                                            <div className="w-2 h-2 bg-purple-500 rounded-full mr-3 flex-shrink-0"></div>
+                                            Up to 3 channels
+                                        </div>
+                                        <div className="flex items-center text-sm text-gray-700">
+                                            <div className="w-2 h-2 bg-purple-500 rounded-full mr-3 flex-shrink-0"></div>
+                                            Priority support
+                                        </div>
+                                    </div>
                                 </div>
-                                <Button onClick={handleUpgradeClick} className="bg-blue-600 hover:bg-blue-700">
-                                    Upgrade Now
-                                </Button>
+                                <div className="flex-shrink-0">
+                                    <Button 
+                                        onClick={handleUpgradeClick} 
+                                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium px-6 py-2.5 shadow-lg hover:shadow-xl transition-all duration-200"
+                                    >
+                                        <Crown className="w-4 h-4 mr-2" />
+                                        Upgrade Now
+                                    </Button>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -391,8 +407,8 @@ export default function Dashboard({
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {safeChannels.map((channel) => (
-                            <Card 
-                                key={channel.id} 
+                            <Card
+                                key={channel.id}
                                 className="cursor-pointer hover:shadow-lg transition-shadow"
                                 onClick={() => handleChannelClick(channel.slug)}
                             >
@@ -446,4 +462,4 @@ export default function Dashboard({
             </div>
         </AppLayout>
     );
-} 
+}

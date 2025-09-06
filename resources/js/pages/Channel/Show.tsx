@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { 
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -15,12 +15,12 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { 
-    Plus, 
-    Youtube, 
-    Instagram, 
-    Video as VideoIcon, 
-    Settings, 
+import {
+    Plus,
+    Youtube,
+    Instagram,
+    Video as VideoIcon,
+    Settings,
     Clock,
     CheckCircle,
     XCircle,
@@ -28,6 +28,7 @@ import {
     Crown,
     Info,
     Facebook,
+    TestTube,
     Camera,
     Palette,
     Zap,
@@ -39,6 +40,7 @@ import {
 } from 'lucide-react';
 import XIcon from '@/components/ui/icons/x';
 import { useInitials } from '@/hooks/use-initials';
+import { type SharedData } from '@/types';
 import React, { useState } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
 import InstantUploadDropzone from '@/components/InstantUploadDropzone';
@@ -118,10 +120,10 @@ const platformIcons = {
 };
 
 const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/20 dark:text-yellow-300',
-    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-950/20 dark:text-blue-300',
-    success: 'bg-green-100 text-green-800 dark:bg-green-950/20 dark:text-green-300',
-    failed: 'bg-red-100 text-red-800 dark:bg-red-950/20 dark:text-red-300',
+    pending: 'bg-yellow-100 text-yellow-800',
+    processing: 'bg-blue-100 text-blue-800',
+    success: 'bg-green-100 text-green-800',
+    failed: 'bg-red-100 text-red-800',
 };
 
 const statusIcons = {
@@ -131,19 +133,21 @@ const statusIcons = {
     failed: XCircle,
 };
 
-export default function ChannelShow({ 
-    channel, 
-    socialAccounts, 
-    videos, 
-    availablePlatforms, 
-    allowedPlatforms 
+export default function ChannelShow({
+    channel,
+    socialAccounts,
+    videos,
+    availablePlatforms,
+    allowedPlatforms
 }: Props) {
     const getInitials = useInitials();
+    const { app } = usePage<SharedData>().props;
+    const isLocalMode = app.env === 'local';
     const [isConnectPlatformsOpen, setIsConnectPlatformsOpen] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [deleteVideoId, setDeleteVideoId] = useState<number | null>(null);
     const [deleteOption, setDeleteOption] = useState<'all' | 'filmate'>('filmate');
-    
+
     const breadcrumbs = [
         {
             title: 'My channels',
@@ -158,6 +162,16 @@ export default function ChannelShow({
     const handleConnectPlatform = (platform: string) => {
         // Use window.location for OAuth to handle redirects properly
         window.location.href = `/channels/${channel.slug}/auth/${platform}`;
+    };
+
+    const handleMockConnect = (platform: string) => {
+        if (confirm(`Create a mock ${platform} connection for testing?`)) {
+            window.location.href = `/channels/${channel.slug}/auth/${platform}/simulate`;
+        }
+    };
+
+    const isMockConnection = (account: any) => {
+        return account.access_token === 'fake_token_for_development';
     };
 
     const handleDisconnectPlatform = (platform: string) => {
@@ -201,7 +215,7 @@ export default function ChannelShow({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${channel.name} - Channel`} />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
@@ -246,7 +260,7 @@ export default function ChannelShow({
                         </div>
                         <Dialog open={isConnectPlatformsOpen} onOpenChange={setIsConnectPlatformsOpen}>
                             <DialogTrigger asChild>
-                                <Button 
+                                <Button
                                     variant="outline"
                                     className="flex items-center space-x-2"
                                 >
@@ -266,22 +280,22 @@ export default function ChannelShow({
                                         const isConnected = platform.connected;
                                         const isAllowed = platform.allowed;
                                         const PlatformIcon = platformIcons[platform.name as keyof typeof platformIcons];
-                                        
+
                                         return (
-                                            <Card key={platform.name} className={`transition-all ${isConnected ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20' : 'border-border'}`}>
+                                            <Card key={platform.name} className={`transition-all ${isConnected ? 'border-green-200 bg-green-50' : 'border-border'}`}>
                                                 <CardContent className="p-4">
                                                     {/* Platform Icon and Name */}
                                                     <div className="flex items-center space-x-3 mb-4">
-                                                        <div className={`p-2 rounded-lg ${isConnected ? 'bg-green-100 dark:bg-green-900/20' : 'bg-muted'}`}>
-                                                            <PlatformIcon className={`w-5 h-5 ${isConnected ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
+                                                        <div className={`p-2 rounded-lg ${isConnected ? 'bg-green-100' : 'bg-muted'}`}>
+                                                            <PlatformIcon className={`w-5 h-5 ${isConnected ? 'text-green-600' : 'text-muted-foreground'}`} />
                                                         </div>
                                                         <div className="flex-1">
                                                             <h4 className="font-medium text-sm">{platform.label}</h4>
                                                             {isConnected && (
-                                                                <p className="text-xs text-green-600 dark:text-green-400">Connected</p>
+                                                                <p className="text-xs text-green-600">Connected</p>
                                                             )}
                                                             {!isAllowed && (
-                                                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-950/20 dark:text-yellow-300 text-xs mt-1">
+                                                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs mt-1">
                                                                     Pro Only
                                                                 </Badge>
                                                             )}
@@ -316,22 +330,38 @@ export default function ChannelShow({
                                                                 </Button>
                                                             </>
                                                         ) : (
-                                                            <Button
-                                                                size="sm"
-                                                                onClick={() => {
-                                                                    if (isAllowed) {
-                                                                        handleConnectPlatform(platform.name);
-                                                                        setIsConnectPlatformsOpen(false);
-                                                                    } else {
-                                                                        handleUpgradeClick();
-                                                                        setIsConnectPlatformsOpen(false);
-                                                                    }
-                                                                }}
-                                                                disabled={!isAllowed}
-                                                                className={`w-full ${isAllowed ? 'bg-blue-600 hover:bg-blue-700' : 'opacity-50'}`}
-                                                            >
-                                                                {isAllowed ? 'Connect' : 'Upgrade to Connect'}
-                                                            </Button>
+                                                            <div className="space-y-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        if (isAllowed) {
+                                                                            handleConnectPlatform(platform.name);
+                                                                            setIsConnectPlatformsOpen(false);
+                                                                        } else {
+                                                                            handleUpgradeClick();
+                                                                            setIsConnectPlatformsOpen(false);
+                                                                        }
+                                                                    }}
+                                                                    disabled={!isAllowed}
+                                                                    className={`w-full ${isAllowed ? 'bg-blue-600 hover:bg-blue-700' : 'opacity-50'}`}
+                                                                >
+                                                                    {isAllowed ? 'Connect' : 'Upgrade to Connect'}
+                                                                </Button>
+                                                                {isLocalMode && isAllowed && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => {
+                                                                            handleMockConnect(platform.name);
+                                                                            setIsConnectPlatformsOpen(false);
+                                                                        }}
+                                                                        className="w-full text-orange-600 border-orange-200 hover:bg-orange-50"
+                                                                    >
+                                                                        <TestTube className="w-3 h-3 mr-1" />
+                                                                        Test Connect
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </CardContent>
@@ -339,23 +369,23 @@ export default function ChannelShow({
                                         );
                                     })}
                                 </div>
-                                
+
                                 {/* Upgrade banner if there are restricted platforms */}
                                 {availablePlatforms.filter(p => !p.allowed).length > 0 && (
-                                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 dark:bg-blue-950/20 dark:border-blue-800 rounded-lg">
+                                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3">
-                                                <div className="p-2 bg-blue-100 dark:bg-blue-950/20 rounded-lg">
-                                                    <Crown className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                <div className="p-2 bg-blue-100 rounded-lg">
+                                                    <Crown className="w-4 h-4 text-blue-600" />
                                                 </div>
                                                 <div>
-                                                    <h4 className="font-medium text-blue-800 dark:text-blue-300 text-sm">Unlock More Platforms</h4>
-                                                    <p className="text-xs text-blue-700 dark:text-blue-200">
+                                                    <h4 className="font-medium text-blue-800 text-sm">Unlock More Platforms</h4>
+                                                    <p className="text-xs text-blue-700">
                                                         Upgrade to Pro to access Instagram, TikTok, and more platforms for just $0.60/day
                                                     </p>
                                                 </div>
                                             </div>
-                                            <Button 
+                                            <Button
                                                 onClick={() => {
                                                     handleUpgradeClick();
                                                     setIsConnectPlatformsOpen(false);
@@ -378,20 +408,20 @@ export default function ChannelShow({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {socialAccounts.map((account) => {
                                 const PlatformIcon = platformIcons[account.platform as keyof typeof platformIcons];
-                                
+
                                 return (
-                                    <Card key={account.id} className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20">
+                                    <Card key={account.id} className="border-green-200 bg-green-50">
                                         <CardContent className="p-4">
                                             {/* Profile Header */}
                                             <div className="flex items-center space-x-3 mb-4">
                                                 <Avatar className="h-10 w-10">
-                                                    <AvatarImage 
+                                                    <AvatarImage
                                                         src={
                                                             // For YouTube, use channel thumbnail if available, otherwise fall back to profile avatar
                                                             account.platform === 'youtube' && account.platform_channel_thumbnail_url
                                                                 ? account.platform_channel_thumbnail_url
                                                                 : account.profile_avatar_url
-                                                        } 
+                                                        }
                                                         alt={
                                                             // For YouTube, use channel name, for Facebook use page name, otherwise use profile name
                                                             account.platform === 'youtube' && account.platform_channel_name
@@ -399,14 +429,14 @@ export default function ChannelShow({
                                                                 : account.platform === 'facebook' && account.facebook_page_name
                                                                 ? account.facebook_page_name
                                                                 : account.profile_name || 'Profile'
-                                                        } 
+                                                        }
                                                     />
                                                     <AvatarFallback className="bg-background">
                                                         {account.platform === 'youtube' && account.platform_channel_name
                                                             ? getInitials(account.platform_channel_name)
                                                             : account.platform === 'facebook' && account.facebook_page_name
                                                             ? getInitials(account.facebook_page_name)
-                                                            : account.profile_name 
+                                                            : account.profile_name
                                                             ? getInitials(account.profile_name)
                                                             : <PlatformIcon className="w-4 h-4" />
                                                         }
@@ -414,10 +444,16 @@ export default function ChannelShow({
                                                 </Avatar>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center space-x-2 mb-1">
-                                                        <PlatformIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                                        <PlatformIcon className="w-4 h-4 text-green-600" />
                                                         <h4 className="font-medium text-sm text-foreground capitalize">
                                                             {account.platform}
                                                         </h4>
+                                                        {isMockConnection(account) && (
+                                                            <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                                                                <TestTube className="w-3 h-3 mr-1" />
+                                                                Mock
+                                                            </Badge>
+                                                        )}
                                                     </div>
                                                     {/* Show platform-specific channel name or fallback to profile name */}
                                                     {(account.platform_channel_name || account.profile_name) && (
@@ -472,7 +508,7 @@ export default function ChannelShow({
                                         <p className="text-sm text-muted-foreground mb-4">
                                             Connect your social media accounts to start publishing videos across platforms.
                                         </p>
-                                        <Button 
+                                        <Button
                                             onClick={() => setIsConnectPlatformsOpen(true)}
                                             className="bg-blue-600 hover:bg-blue-700"
                                         >
@@ -574,10 +610,10 @@ export default function ChannelShow({
                                                     {video.targets.map((target) => {
                                                         const StatusIcon = statusIcons[target.status as keyof typeof statusIcons];
                                                         const PlatformIcon = platformIcons[target.platform as keyof typeof platformIcons];
-                                                        
+
                                                         return (
                                                             <div key={target.id} className="flex items-center">
-                                                                <Badge 
+                                                                <Badge
                                                                     variant="secondary"
                                                                     className={`${statusColors[target.status as keyof typeof statusColors]} flex items-center gap-1 text-xs text-foreground`}
                                                                 >
@@ -611,8 +647,8 @@ export default function ChannelShow({
                                                             Edit
                                                         </Button>
                                                     </Link>
-                                                    <Button 
-                                                        variant="outline" 
+                                                    <Button
+                                                        variant="outline"
                                                         size="sm"
                                                         onClick={() => handleDeleteVideo(video.id)}
                                                         className="text-red-600 hover:text-red-700"
@@ -660,7 +696,7 @@ export default function ChannelShow({
                                         </p>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted cursor-pointer" onClick={() => setDeleteOption('all')}>
                                     <input
                                         type="radio"
@@ -686,8 +722,8 @@ export default function ChannelShow({
                             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
                                 Cancel
                             </Button>
-                            <Button 
-                                variant="destructive" 
+                            <Button
+                                variant="destructive"
                                 onClick={confirmDelete}
                             >
                                 {deleteOption === 'all' ? 'Take Down Video' : 'Remove from Filmate'}
@@ -698,4 +734,4 @@ export default function ChannelShow({
             </div>
         </AppLayout>
     );
-} 
+}

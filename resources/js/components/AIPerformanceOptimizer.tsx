@@ -7,11 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-    TrendingUp, 
+import {
+    TrendingUp,
     TrendingDown,
-    BarChart3, 
-    Target, 
+    BarChart3,
+    Target,
     Clock,
     Eye,
     Heart,
@@ -148,7 +148,7 @@ export default function AIPerformanceOptimizer({
         }
 
         setIsAnalyzing(true);
-        
+
         try {
             const response = await fetch('/ai/analyze-video-performance', {
                 method: 'POST',
@@ -296,8 +296,8 @@ export default function AIPerformanceOptimizer({
                             <p className="font-medium">Timing Optimization</p>
                         </div>
                     </div>
-                    
-                    <Button 
+
+                    <Button
                         onClick={analyzePerformance}
                         disabled={!videoId}
                         size="lg"
@@ -306,7 +306,7 @@ export default function AIPerformanceOptimizer({
                         <BarChart3 className="w-5 h-5 mr-2" />
                         Start Performance Analysis
                     </Button>
-                    
+
                     {!videoId && (
                         <p className="text-sm text-gray-500">
                             Select a video first to enable performance analysis
@@ -351,7 +351,7 @@ export default function AIPerformanceOptimizer({
     }
 
     // Safety checks for analysis data
-    if (!analysis || !analysis.overall_performance || !analysis.comparative_analysis || 
+    if (!analysis || !analysis.overall_performance || !analysis.comparative_analysis ||
         !analysis.platform_breakdown || !analysis.trend_analysis) {
         return (
             <Card className={cn("border-2 border-red-200 bg-gradient-to-br from-red-50 to-orange-50", className)}>
@@ -389,7 +389,7 @@ export default function AIPerformanceOptimizer({
                             </p>
                         </div>
                     </div>
-                    <Button 
+                    <Button
                         onClick={analyzePerformance}
                         disabled={isAnalyzing}
                         size="sm"
@@ -464,9 +464,9 @@ export default function AIPerformanceOptimizer({
                                                     <ArrowDown className="w-3 h-3 text-red-600" />
                                                 )}
                                                 <span className={cn(
-                                                    "text-sm font-medium",
-                                                    (analysis.comparative_analysis?.views_vs_industry?.performance || 'below_average') === 'above_average' ? 
-                                                        "text-green-600" : "text-red-600"
+ "text-sm font-medium",
+                                                    (analysis.comparative_analysis?.views_vs_industry?.performance || 'below_average') === 'above_average' ?
+ "text-green-600" : "text-red-600"
                                                 )}>
                                                     {Math.abs(analysis.comparative_analysis?.views_vs_industry?.difference_percentage || 0)}%
                                                 </span>
@@ -481,9 +481,9 @@ export default function AIPerformanceOptimizer({
                                                     <ArrowDown className="w-3 h-3 text-red-600" />
                                                 )}
                                                 <span className={cn(
-                                                    "text-sm font-medium",
-                                                    (analysis.comparative_analysis?.engagement_vs_industry?.performance || 'below_average') === 'above_average' ? 
-                                                        "text-green-600" : "text-red-600"
+ "text-sm font-medium",
+                                                    (analysis.comparative_analysis?.engagement_vs_industry?.performance || 'below_average') === 'above_average' ?
+ "text-green-600" : "text-red-600"
                                                 )}>
                                                     {Math.abs(analysis.comparative_analysis?.engagement_vs_industry?.difference_percentage || 0)}%
                                                 </span>
@@ -900,7 +900,7 @@ export default function AIPerformanceOptimizer({
                                     </SelectContent>
                                 </Select>
                             </div>
-                            
+
                             <div>
                                 <label className="text-sm font-medium mb-2 block">Success Metrics</label>
                                 <div className="space-y-2">

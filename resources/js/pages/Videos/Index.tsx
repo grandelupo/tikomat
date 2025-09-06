@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -18,7 +18,6 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Plus, Youtube, Instagram, Video as VideoIcon, Clock, CheckCircle, XCircle, AlertCircle, Eye, Edit, Trash2, Search, Filter } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import VideoThumbnail from '@/components/VideoThumbnail';
-import CloudUploadStatus from '@/components/CloudUploadStatus';
 
 interface Video {
     id: number;
@@ -121,7 +120,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
         if (selectedChannel && selectedChannel !== 'all') params.set('channel', selectedChannel);
         if (selectedPlatform && selectedPlatform !== 'all') params.set('platform', selectedPlatform);
         if (selectedStatus && selectedStatus !== 'all') params.set('status', selectedStatus);
-        
+
         router.get('/videos', Object.fromEntries(params), { preserveState: true });
     };
 
@@ -203,7 +202,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                     />
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <label className="text-sm font-medium mb-2 block">Channel</label>
                                 <Select value={selectedChannel || 'all'} onValueChange={(value) => setSelectedChannel(value === 'all' ? '' : value)}>
@@ -334,7 +333,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                             </TableCell>
                                             <TableCell>
                                                 {video.channel ? (
-                                                    <Link 
+                                                    <Link
                                                         href={`/channels/${video.channel.slug}`}
                                                         className="text-blue-600 hover:text-blue-700"
                                                     >
@@ -368,10 +367,10 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                                     {video.targets.map((target) => {
                                                         const StatusIcon = statusIcons[target.status];
                                                         const PlatformIcon = platformIcons[target.platform as keyof typeof platformIcons];
-                                                        
+
                                                         return (
                                                             <div key={target.id} className="flex items-center">
-                                                                <Badge 
+                                                                <Badge
                                                                     variant="secondary"
                                                                     className={`${statusColors[target.status]} flex items-center gap-1 text-xs text-foreground`}
                                                                 >
@@ -411,8 +410,8 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                                             Edit
                                                         </Button>
                                                     </Link>
-                                                    <Button 
-                                                        variant="outline" 
+                                                    <Button
+                                                        variant="outline"
                                                         size="sm"
                                                         onClick={() => handleDeleteVideo(video.id)}
                                                         className="text-red-600 hover:text-red-700"
@@ -460,7 +459,7 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                                         </p>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted cursor-pointer" onClick={() => setDeleteOption('all')}>
                                     <input
                                         type="radio"
@@ -486,8 +485,8 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
                             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
                                 Cancel
                             </Button>
-                            <Button 
-                                variant="destructive" 
+                            <Button
+                                variant="destructive"
                                 onClick={confirmDelete}
                             >
                                 {deleteOption === 'all' ? 'Take Down Video' : 'Remove from Filmate'}
@@ -498,4 +497,4 @@ export default function VideosIndex({ videos, channels, filters }: VideosIndexPr
             </div>
         </AppLayout>
     );
-} 
+}

@@ -38,13 +38,13 @@ export default function StrategyPlannerPage() {
                         </p>
                     </div>
                 </div>
-                
+
                 <ErrorBoundary>
-                    <AIContentStrategyPlanner 
+                    <AIContentStrategyPlanner
                         video={mockVideo}
                     />
                 </ErrorBoundary>
             </div>
         </AppLayout>
     );
-} 
+}

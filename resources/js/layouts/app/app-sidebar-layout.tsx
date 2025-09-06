@@ -9,7 +9,7 @@ import { usePage } from '@inertiajs/react';
 
 export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
     const { auth } = usePage().props as any;
-    
+
     return (
         <AppShell variant="sidebar">
             <AppSidebar />

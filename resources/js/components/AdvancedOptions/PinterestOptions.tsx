@@ -270,4 +270,4 @@ export default function PinterestOptions({ options, onChange }: PinterestOptions
             </CardContent>
         </Card>
     );
-} 
+}

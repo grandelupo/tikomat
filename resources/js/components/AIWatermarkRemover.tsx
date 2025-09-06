@@ -4,8 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-    Scan, Trash2, Download, Settings, BarChart3, 
+import {
+    Scan, Trash2, Download, Settings, BarChart3,
     Eye, Zap, RefreshCw, AlertCircle, CheckCircle,
     Clock, Target, Layers, Sparkles, PlayCircle,
     StopCircle, Pause, Play, Upload, Image
@@ -59,10 +59,10 @@ interface RemovalProgress {
     quality_assessment: any;
 }
 
-const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({ 
-    videoPath, 
-    onRemovalComplete, 
-    className 
+const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
+    videoPath,
+    onRemovalComplete,
+    className
 }) => {
     const [activeTab, setActiveTab] = useState('detection');
     const [loading, setLoading] = useState(false);
@@ -98,10 +98,10 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
             alert('No video path provided');
             return;
         }
-        
+
         setAutoRemovalInProgress(true);
         setLoading(true);
-        
+
         try {
             // Step 1: Detect watermarks with enhanced detection
             const response = await fetch('/ai/watermark-detect', {
@@ -126,7 +126,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
 
             setDetection(detectionData.data);
             const detectedWatermarks = detectionData.data.detected_watermarks || [];
-            
+
             if (detectedWatermarks.length === 0) {
                 alert('🎉 No watermarks detected in your video! Your video is clean.');
                 setAutoRemovalInProgress(false);
@@ -159,7 +159,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
             }
 
             setRemovalProgress(removalData.data);
-            
+
             // Start polling for progress updates
             pollProgress(removalData.data.removal_id);
 
@@ -173,7 +173,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
 
     const detectWatermarks = async () => {
         if (!videoPath) return;
-        
+
         setLoading(true);
         try {
             const response = await fetch('/ai/watermark-detect', {
@@ -263,21 +263,21 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                 const data = await response.json();
                 if (data.success) {
                     setRemovalProgress(data.data);
-                    
+
                     if (data.data.processing_status === 'completed') {
                         setAutoRemovalInProgress(false);
                         setLoading(false);
                         onRemovalComplete?.(data.data);
                         return;
                     }
-                    
+
                     if (data.data.processing_status === 'failed') {
                         setAutoRemovalInProgress(false);
                         setLoading(false);
                         alert('Watermark removal failed. Please try again.');
                         return;
                     }
-                    
+
                     if (data.data.processing_status === 'processing') {
                         setTimeout(poll, 3000); // Poll every 3 seconds
                     }
@@ -381,7 +381,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                                                     </Badge>
                                                 )}
                                             </div>
-                                            
+
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                                 <div>
                                                     <span className="text-gray-600">Confidence:</span>
@@ -404,7 +404,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                                                     <div className="font-medium">{watermark.frames_detected}</div>
                                                 </div>
                                             </div>
-                                            
+
                                             {watermark.detection_method && (
                                                 <div className="mt-3 text-xs text-gray-500">
                                                     Detected using: {watermark.detection_method.replace('_', ' ')}
@@ -440,8 +440,8 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                         <div
                             key={method.id}
                             className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                                removalSettings.method === method.id 
-                                    ? 'border-blue-500 bg-blue-950/20' 
+                                removalSettings.method === method.id
+                                    ? 'border-blue-500 bg-blue-950/20'
                                     : 'border-gray-200 hover:border-gray-300'
                             }`}
                             onClick={() => setRemovalSettings(prev => ({ ...prev, method: method.id }))}
@@ -461,8 +461,8 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                                             <div
                                                 key={i}
                                                 className={`w-2 h-2 rounded-full ${
-                                                    i < Math.floor(method.accuracy / 20) 
-                                                        ? 'bg-green-500' 
+                                                    i < Math.floor(method.accuracy / 20)
+                                                        ? 'bg-green-500'
                                                         : 'bg-gray-300'
                                                 }`}
                                             />
@@ -542,8 +542,8 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                             <div>
                                 <h3 className="text-lg font-semibold mb-2">Removal Progress</h3>
                                 <p className="text-green-100">
-                                    {removalProgress.processing_status === 'completed' ? 'Completed' : 
-                                     removalProgress.processing_status === 'processing' ? 'Processing...' : 
+                                    {removalProgress.processing_status === 'completed' ? 'Completed' :
+                                     removalProgress.processing_status === 'processing' ? 'Processing...' :
                                      removalProgress.processing_status}
                                 </p>
                             </div>
@@ -726,7 +726,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                             Automatically detect and remove watermarks from your video using AI
                         </p>
                     </div>
-                    <Button 
+                    <Button
                         onClick={findAndRemoveWatermarks}
                         disabled={loading || !videoPath}
                         size="lg"
@@ -748,7 +748,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                         This will scan your entire video and automatically remove detected watermarks
                     </div>
                 </div>
-                
+
                 {/* Advanced Options */}
                 <details className="mt-6">
                     <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
@@ -757,7 +757,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                     <div className="mt-3 space-y-3 p-3 border rounded-lg bg-muted/30">
                         <div>
                             <label className="text-sm font-medium">Detection Sensitivity</label>
-                            <select 
+                            <select
                                 value={removalSettings.sensitivity}
                                 onChange={(e) => setRemovalSettings({...removalSettings, sensitivity: e.target.value})}
                                 className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
@@ -769,7 +769,7 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
                         </div>
                         <div>
                             <label className="text-sm font-medium">Removal Method</label>
-                            <select 
+                            <select
                                 value={removalSettings.method}
                                 onChange={(e) => setRemovalSettings({...removalSettings, method: e.target.value})}
                                 className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
@@ -834,4 +834,4 @@ const AIWatermarkRemover: React.FC<WatermarkRemoverProps> = ({
     );
 };
 
-export default AIWatermarkRemover; 
+export default AIWatermarkRemover;

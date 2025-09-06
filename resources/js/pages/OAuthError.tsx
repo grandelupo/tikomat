@@ -3,14 +3,14 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-    AlertTriangle, 
-    RefreshCw, 
-    ArrowLeft, 
+import {
+    AlertTriangle,
+    RefreshCw,
+    ArrowLeft,
     ExternalLink,
-    Youtube, 
-    Instagram, 
-    Video as VideoIcon, 
+    Youtube,
+    Instagram,
+    Video as VideoIcon,
     Facebook,
     Twitter,
     Camera,
@@ -68,12 +68,12 @@ const breadcrumbs = [
     },
 ];
 
-export default function OAuthError({ 
-    platform, 
-    channelSlug, 
-    channelName, 
-    errorMessage, 
-    errorCode, 
+export default function OAuthError({
+    platform,
+    channelSlug,
+    channelName,
+    errorMessage,
+    errorCode,
     errorDescription,
     suggestedActions = [],
     supportInfo = {}
@@ -92,15 +92,15 @@ export default function OAuthError({
 
     const getErrorDetails = () => {
         const details = [];
-        
+
         if (errorCode) {
             details.push(`Error Code: ${errorCode}`);
         }
-        
+
         if (errorDescription && errorDescription !== errorMessage) {
             details.push(`Details: ${errorDescription}`);
         }
-        
+
         return details;
     };
 
@@ -141,7 +141,7 @@ export default function OAuthError({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${platformName} Connection Error`} />
-            
+
             <div className="flex h-full flex-1 flex-col gap-6 p-6 max-w-4xl mx-auto">
                 {/* Error Header */}
                 <div className="text-center">
@@ -175,7 +175,7 @@ export default function OAuthError({
                                 {errorMessage}
                             </AlertDescription>
                         </Alert>
-                        
+
                         {getErrorDetails().length > 0 && (
                             <div className="text-sm text-red-600 space-y-1">
                                 {getErrorDetails().map((detail, index) => (
@@ -242,7 +242,7 @@ export default function OAuthError({
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Try Again
                     </Button>
-                    
+
                     <Button variant="outline" asChild className="w-full sm:w-auto">
                         <Link href="/connections">
                             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -276,12 +276,12 @@ export default function OAuthError({
                                     </Button>
                                 </div>
                             )}
-                            
+
                             {supportInfo.contactEmail && (
                                 <div>
                                     <p className="text-sm text-gray-600">
                                         If the problem persists, contact support at{' '}
-                                        <a 
+                                        <a
                                             href={`mailto:${supportInfo.contactEmail}`}
                                             className="text-blue-600 hover:underline"
                                         >
@@ -320,4 +320,4 @@ export default function OAuthError({
             </div>
         </AppLayout>
     );
-} 
+}

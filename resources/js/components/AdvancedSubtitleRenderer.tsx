@@ -61,11 +61,11 @@ const createConfettiParticle = (x: number, y: number, color: string) => {
   particle.style.borderRadius = '50%';
   particle.style.pointerEvents = 'none';
   particle.style.zIndex = '1000';
-  
+
   // Random animation
   const deltaX = (Math.random() - 0.5) * 100;
   const deltaY = (Math.random() - 0.5) * 100;
-  
+
   particle.animate([
     { transform: 'translate(0, 0) rotate(0deg)', opacity: 1 },
     { transform: `translate(${deltaX}px, ${deltaY}px) rotate(360deg)`, opacity: 0 }
@@ -77,7 +77,7 @@ const createConfettiParticle = (x: number, y: number, color: string) => {
       particle.parentNode.removeChild(particle);
     }
   };
-  
+
   return particle;
 };
 
@@ -104,13 +104,13 @@ const AdvancedSubtitleRenderer: React.FC<AdvancedSubtitleRendererProps> = ({
     }
 
     const newActiveWords = new Set<number>();
-    
+
     subtitle.words.forEach((word, index) => {
       if (currentTime >= word.start_time && currentTime <= word.end_time) {
         newActiveWords.add(index);
       }
     });
-    
+
     setActiveWords(newActiveWords);
   }, [currentTime, subtitle.words]);
 
@@ -128,7 +128,7 @@ const AdvancedSubtitleRenderer: React.FC<AdvancedSubtitleRendererProps> = ({
     return subtitle.words.map((word, index) => {
       const isActive = activeWords.has(index);
       const isLastWord = index === subtitle.words.length - 1;
-      
+
       return (
         <span
           key={`${word.word}-${index}`}
@@ -161,11 +161,11 @@ const AdvancedSubtitleRenderer: React.FC<AdvancedSubtitleRendererProps> = ({
   const getContainerStyle = (): React.CSSProperties => {
     const style = subtitle.style || {};
     const constrainedPos = getConstrainedPosition();
-    
+
     // Calculate responsive font size based on container (video) size
     // Default to 2.5vw (2.5% of viewport width) with min/max constraints
     const responsiveFontSize = Math.max(16, Math.min(48, (style.fontSize || 24)));
-    
+
     return {
       position: 'absolute',
       left: `${constrainedPos.x}%`,
@@ -175,10 +175,10 @@ const AdvancedSubtitleRenderer: React.FC<AdvancedSubtitleRendererProps> = ({
       fontSize: `${responsiveFontSize}px`,
       fontWeight: style.fontWeight || 'bold',
       color: style.color || '#FFFFFF',
-      background: style.backgroundColor?.includes('gradient') 
-        ? style.backgroundColor 
+      background: style.backgroundColor?.includes('gradient')
+        ? style.backgroundColor
         : undefined,
-      backgroundColor: !style.backgroundColor?.includes('gradient') 
+      backgroundColor: !style.backgroundColor?.includes('gradient')
         ? (style.backgroundColor || 'rgba(0, 0, 0, 0.7)')
         : undefined,
       textAlign: (style.textAlign as 'left' | 'center' | 'right') || 'center',
@@ -252,7 +252,7 @@ const AdvancedSubtitleRenderer: React.FC<AdvancedSubtitleRendererProps> = ({
           autoFocus
         />
       ) : (
-        <div 
+        <div
           className="subtitle-content"
           style={{
             textAlign: 'inherit',
@@ -273,4 +273,4 @@ const AdvancedSubtitleRenderer: React.FC<AdvancedSubtitleRendererProps> = ({
   );
 };
 
-export default AdvancedSubtitleRenderer; 
+export default AdvancedSubtitleRenderer;

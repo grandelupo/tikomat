@@ -10,13 +10,13 @@ interface VideoThumbnailProps {
     height?: number;
 }
 
-export default function VideoThumbnail({ 
-    src, 
-    alt, 
-    videoPath, 
+export default function VideoThumbnail({
+    src,
+    alt,
+    videoPath,
     className = '',
     width,
-    height 
+    height
 }: VideoThumbnailProps) {
     const [aspectRatio, setAspectRatio] = useState<number>(16/9);
     const [isLoading, setIsLoading] = useState(true);
@@ -72,18 +72,18 @@ export default function VideoThumbnail({
     }
 
     return (
-        <div 
+        <div
             className={`w-full bg-gray-100 rounded-lg overflow-hidden ${className}`}
-            style={{ 
+            style={{
                 aspectRatio: aspectRatio,
                 maxHeight: '240px'
             }}
         >
-            <img 
-                src={src} 
+            <img
+                src={src}
                 alt={alt}
                 className="w-full h-full object-cover"
             />
         </div>
     );
-} 
+}

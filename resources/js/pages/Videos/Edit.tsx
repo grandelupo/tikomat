@@ -3,21 +3,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import AppLayout from '@/layouts/app-layout';
-import AIVideoAnalyzer from '@/components/AIVideoAnalyzer';
-import AIPerformanceOptimizer from '@/components/AIPerformanceOptimizer';
 import AIThumbnailOptimizer from '@/components/AIThumbnailOptimizer';
 import AISubtitleGenerator from '@/components/AISubtitleGenerator';
-import AIWatermarkRemover from '@/components/AIWatermarkRemover';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Play, Clock, CheckCircle, XCircle, AlertCircle, Youtube, Instagram, Video as VideoIcon, ExternalLink, X, Trash2, Upload, Zap, Star, Eye, Heart, Share, ThumbsUp, Camera, Palette, Type, Target, Layers, TrendingUp, Plus, Minus, Settings2, Sparkles, Tag, RefreshCw, FileText, Subtitles } from 'lucide-react';
+import { ArrowLeft, Save, Brain, Wand2, BarChart3, Image, Play, Clock, CheckCircle, XCircle, AlertCircle, Youtube, Instagram, Video as VideoIcon, ExternalLink, X, Trash2, Upload, Star, Eye, Heart, Share, ThumbsUp, Camera, Palette, Type, Layers, Plus, Minus, Settings2, Sparkles, Tag, RefreshCw, FileText } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ThumbnailOptimizerPopup from '@/components/ThumbnailOptimizerPopup';
 
@@ -54,7 +50,7 @@ interface VideoEditProps {
 
 // Change tracking interface
 interface VideoChange {
-    type: 'title' | 'description' | 'tags' | 'thumbnail' | 'subtitles' | 'watermark_removal';
+    type: 'title' | 'description' | 'tags' | 'thumbnail' | 'subtitles';
     field: string;
     oldValue: any;
     newValue: any;
@@ -80,26 +76,26 @@ const statusIcons = {
 };
 
 const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/20 dark:text-yellow-300',
-    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-950/20 dark:text-blue-300',
-    success: 'bg-green-100 text-green-800 dark:bg-green-950/20 dark:text-green-300',
-    failed: 'bg-red-100 text-red-800 dark:bg-red-950/20 dark:text-red-300',
+    pending: 'bg-yellow-100 text-yellow-800',
+    processing: 'bg-blue-100 text-blue-800',
+    success: 'bg-green-100 text-green-800',
+    failed: 'bg-red-100 text-red-800',
 };
 
 // Video quality assessment helper
 const getVideoQualityStatus = (width?: number, height?: number) => {
     if (!width || !height) return { status: 'unknown', color: 'text-muted-foreground', label: 'Unknown' };
-    
+
     const pixels = width * height;
-    if (pixels >= 1920 * 1080) return { status: 'great', color: 'text-green-600 dark:text-green-400', label: '1080p+' };
-    if (pixels >= 1280 * 720) return { status: 'good', color: 'text-orange-500 dark:text-orange-400', label: '720p' };
-    return { status: 'poor', color: 'text-red-600 dark:text-red-400', label: 'Low Quality' };
+    if (pixels >= 1920 * 1080) return { status: 'great', color: 'text-green-600', label: '1080p+' };
+    if (pixels >= 1280 * 720) return { status: 'good', color: 'text-orange-500', label: '720p' };
+    return { status: 'poor', color: 'text-red-600', label: 'Low Quality' };
 };
 
 export default function VideoEdit({ video }: VideoEditProps) {
     const { props } = usePage<any>();
     const isLocalEnvironment = props.app?.env === 'local';
-    
+
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'My channels',
@@ -122,7 +118,6 @@ export default function VideoEdit({ video }: VideoEditProps) {
         thumbnail: null,
     });
 
-    const [activeTab, setActiveTab] = useState('overview');
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [deleteOption, setDeleteOption] = useState<'all' | 'filmate'>('filmate');
     const [generatingTitle, setGeneratingTitle] = useState(false);
@@ -130,7 +125,6 @@ export default function VideoEdit({ video }: VideoEditProps) {
     const [selectedThumbnail, setSelectedThumbnail] = useState<string | null>(video.thumbnail || null);
     const [thumbnailSliderValue, setThumbnailSliderValue] = useState([0]);
     const [customThumbnail, setCustomThumbnail] = useState<File | null>(null);
-    const [videoAnalysis, setVideoAnalysis] = useState<any>(null);
     const [thumbnailSuggestions, setThumbnailSuggestions] = useState<any[]>([]);
     const [showThumbnailOptimizer, setShowThumbnailOptimizer] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -143,8 +137,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
         description: video.description || '',
         tags: video.tags || [],
         thumbnail: video.thumbnail || null,
-        subtitles: false,
-        watermark_removal: false
+        subtitles: false
     });
     const [isSaving, setIsSaving] = useState(false);
     const [isAutoSaving, setIsAutoSaving] = useState(false);
@@ -163,7 +156,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
             });
-            
+
             if (response.ok) {
                 const result = await response.json();
                 if (result.has_unsaved_changes) {
@@ -209,11 +202,11 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     },
                     body: JSON.stringify(changeData),
                 });
-                
+
                 if (response.ok) {
                     const result = await response.json();
                     setHasUnsavedChanges(true);
-                    
+
                     // Show subtle auto-save indicator
                     const indicator = document.createElement('div');
                     indicator.className = 'fixed bottom-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-md shadow-lg z-50 text-sm';
@@ -246,13 +239,13 @@ export default function VideoEdit({ video }: VideoEditProps) {
             newValue,
             timestamp: new Date()
         };
-        
+
         setChanges(prev => {
             // Remove any existing change of the same type
             const filtered = prev.filter(c => c.type !== type);
             return [...filtered, change];
         });
-        
+
         // Trigger auto-save
         const changeData = {
             type,
@@ -260,7 +253,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
             value: newValue,
             [field]: newValue
         };
-        
+
         autoSave(changeData);
     };
 
@@ -340,31 +333,31 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     current_title: data.title
                 }),
             });
-            
+
             if (response.ok) {
                 const result = await response.json();
                 if (result.success && result.data.optimized_title) {
                     const oldTitle = data.title;
                     const newTitle = result.data.optimized_title;
-                    
+
                     setData('title', newTitle);
                     addChange('title', 'title', oldTitle, newTitle);
-                    
+
                     // Show analysis info if available
                     const analysis = result.data.analysis_summary;
                     let message = "Title generated based on video content analysis";
-                    
+
                     if (analysis) {
                         const details = [];
                         if (analysis.has_transcript) details.push("audio transcription");
                         if (analysis.scenes_detected > 0) details.push(`${analysis.scenes_detected} visual scenes`);
                         if (analysis.content_category !== 'unknown') details.push(`${analysis.content_category} content`);
-                        
+
                         if (details.length > 0) {
                             message += `. Analyzed: ${details.join(', ')}.`;
                         }
                     }
-                    
+
                     alert(`✅ AI Title Generated!\n\n${message}`);
                 }
             } else {
@@ -395,31 +388,31 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     current_description: data.description
                 }),
             });
-            
+
             if (response.ok) {
                 const result = await response.json();
                 if (result.success && result.data.optimized_description) {
                     const oldDescription = data.description;
                     const newDescription = result.data.optimized_description;
-                    
+
                     setData('description', newDescription);
                     addChange('description', 'description', oldDescription, newDescription);
-                    
+
                     // Show analysis info if available
                     const analysis = result.data.analysis_summary;
                     let message = "Description generated based on video content analysis";
-                    
+
                     if (analysis) {
                         const details = [];
                         if (analysis.has_transcript) details.push("audio transcription");
                         if (analysis.scenes_detected > 0) details.push(`${analysis.scenes_detected} visual scenes`);
                         if (analysis.content_category !== 'unknown') details.push(`${analysis.content_category} content`);
-                        
+
                         if (details.length > 0) {
                             message += `. Analyzed: ${details.join(', ')}.`;
                         }
                     }
-                    
+
                     alert(`✅ AI Description Generated!\n\n${message}`);
                 }
             } else {
@@ -475,18 +468,18 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
             console.log('Response status:', response.status);
             console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-            
+
             if (response.ok) {
                 const result = await response.json();
                 if (result.success) {
                     const oldThumbnail = selectedThumbnail;
                     const newThumbnail = result.thumbnail_url;
-                    
+
                     setSelectedThumbnail(newThumbnail);
-                    
+
                     // This will trigger auto-save and show the unsaved changes window
                     addChange('thumbnail', 'thumbnail', oldThumbnail, newThumbnail);
-                    
+
                     // Show success message
                     const successElement = document.createElement('div');
                     successElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
@@ -504,7 +497,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                 // Check if response is JSON
                 const contentType = response.headers.get('content-type');
                 console.log('Error response content-type:', contentType);
-                
+
                 if (contentType && contentType.includes('application/json')) {
                     const error = await response.json();
                     throw new Error(error.message || `HTTP ${response.status}: Upload failed`);
@@ -517,7 +510,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
             }
         } catch (error) {
             console.error('Failed to upload thumbnail:', error);
-            
+
             // Show error message
             const errorElement = document.createElement('div');
             errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
@@ -544,9 +537,6 @@ export default function VideoEdit({ video }: VideoEditProps) {
         }
     };
 
-    const handleVideoAnalysisComplete = (analysis: any) => {
-        setVideoAnalysis(analysis);
-    };
 
     const generateThumbnailSuggestions = async () => {
         try {
@@ -558,7 +548,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                 },
                 body: JSON.stringify({ video_id: video.id }),
             });
-            
+
             if (response.ok) {
                 const result = await response.json();
                 setThumbnailSuggestions(result.suggestions || []);
@@ -609,13 +599,13 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
     const generateTags = async () => {
         setIsGeneratingTags(true);
-        
+
         const makeRequest = async (retryCount = 0) => {
             try {
                 // Get CSRF token with fallback
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
                                 document.querySelector('input[name="_token"]')?.getAttribute('value') || '';
-                
+
                 if (!csrfToken) {
                     throw new Error('CSRF token not found');
                 }
@@ -637,7 +627,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                 // If we get a CSRF error and haven't retried yet, try to refresh the token
                 if (response.status === 419 && retryCount === 0) {
                     console.log('CSRF token expired, refreshing...');
-                    
+
                     // Try to refresh the CSRF token
                     const tokenResponse = await fetch('/');
                     if (tokenResponse.ok) {
@@ -645,14 +635,14 @@ export default function VideoEdit({ video }: VideoEditProps) {
                         const parser = new DOMParser();
                         const doc = parser.parseFromString(html, 'text/html');
                         const newToken = doc.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-                        
+
                         if (newToken) {
                             // Update the token in the current page
                             const currentTokenMeta = document.querySelector('meta[name="csrf-token"]');
                             if (currentTokenMeta) {
                                 currentTokenMeta.setAttribute('content', newToken);
                             }
-                            
+
                             // Retry the request with the new token
                             return makeRequest(1);
                         }
@@ -672,15 +662,15 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
         try {
             const response = await makeRequest();
-            
+
             if (response.ok) {
                 const result = await response.json();
                 console.log('Tag generation response:', result);
-                
+
                 if (result.success && result.data && result.data.analysis.tags) {
                     const oldTags = data.tags;
                     const newTags = result.data.analysis.tags;
-                    
+
                     setData('tags', newTags);
                     addChange('tags', 'tags', oldTags, newTags);
                 } else {
@@ -700,7 +690,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                 // Handle HTTP error response
                 const errorText = await response.text();
                 console.error('HTTP Error:', response.status, response.statusText, errorText);
-                
+
                 // Show user-friendly error message
                 const errorElement = document.createElement('div');
                 errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
@@ -714,7 +704,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
             }
         } catch (error) {
             console.error('Failed to generate tags:', error);
-            
+
             // Show user-friendly error message
             const errorElement = document.createElement('div');
             errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
@@ -754,30 +744,30 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
             });
-            
+
             if (response.ok) {
                 const result = await response.json();
                 clearAllChanges();
-                
+
                 // Show success message
                 const confirmElement = document.createElement('div');
                 confirmElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
                 confirmElement.textContent = result.message || '✓ Changes published to all platforms successfully!';
                 document.body.appendChild(confirmElement);
-                
+
                 setTimeout(() => {
                     if (document.body.contains(confirmElement)) {
                         document.body.removeChild(confirmElement);
                     }
                 }, 3000);
-                
+
                 // If jobs were created, show additional info
                 if (result.jobs_created > 0) {
                     const jobInfo = document.createElement('div');
                     jobInfo.className = 'fixed top-16 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
                     jobInfo.textContent = `📋 ${result.jobs_created} update job(s) queued for processing`;
                     document.body.appendChild(jobInfo);
-                    
+
                     setTimeout(() => {
                         if (document.body.contains(jobInfo)) {
                             document.body.removeChild(jobInfo);
@@ -787,12 +777,12 @@ export default function VideoEdit({ video }: VideoEditProps) {
             } else {
                 const error = await response.json();
                 console.error('Failed to publish changes:', error);
-                
+
                 const errorElement = document.createElement('div');
                 errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
                 errorElement.textContent = `❌ Failed to publish changes: ${error.message || 'Unknown error'}`;
                 document.body.appendChild(errorElement);
-                
+
                 setTimeout(() => {
                     if (document.body.contains(errorElement)) {
                         document.body.removeChild(errorElement);
@@ -801,12 +791,12 @@ export default function VideoEdit({ video }: VideoEditProps) {
             }
         } catch (error) {
             console.error('Failed to publish changes:', error);
-            
+
             const errorElement = document.createElement('div');
             errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
             errorElement.textContent = '❌ Network error while publishing changes';
             document.body.appendChild(errorElement);
-            
+
             setTimeout(() => {
                 if (document.body.contains(errorElement)) {
                     document.body.removeChild(errorElement);
@@ -827,10 +817,10 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
             });
-            
+
             if (response.ok) {
                 const result = await response.json();
-                
+
                 // Restore original data from database backup
                 if (result.original_data) {
                     setData('title', result.original_data.title || '');
@@ -838,15 +828,15 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     setData('tags', result.original_data.tags || []);
                     setSelectedThumbnail(result.original_data.thumbnail || null);
                 }
-                
+
                 clearAllChanges();
-                
+
                 // Show success message
                 const confirmElement = document.createElement('div');
                 confirmElement.className = 'fixed top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
                 confirmElement.textContent = '↺ All changes discarded and reverted to original version';
                 document.body.appendChild(confirmElement);
-                
+
                 setTimeout(() => {
                     if (document.body.contains(confirmElement)) {
                         document.body.removeChild(confirmElement);
@@ -855,12 +845,12 @@ export default function VideoEdit({ video }: VideoEditProps) {
             } else {
                 const error = await response.json();
                 console.error('Failed to discard changes:', error);
-                
+
                 const errorElement = document.createElement('div');
                 errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
                 errorElement.textContent = `❌ Failed to discard changes: ${error.message || 'Unknown error'}`;
                 document.body.appendChild(errorElement);
-                
+
                 setTimeout(() => {
                     if (document.body.contains(errorElement)) {
                         document.body.removeChild(errorElement);
@@ -869,12 +859,12 @@ export default function VideoEdit({ video }: VideoEditProps) {
             }
         } catch (error) {
             console.error('Failed to discard changes:', error);
-            
+
             const errorElement = document.createElement('div');
             errorElement.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
             errorElement.textContent = '❌ Network error while discarding changes';
             document.body.appendChild(errorElement);
-            
+
             setTimeout(() => {
                 if (document.body.contains(errorElement)) {
                     document.body.removeChild(errorElement);
@@ -887,10 +877,6 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
     const handleSubtitleGenerated = () => {
         addChange('subtitles', 'subtitles', false, true);
-    };
-
-    const handleWatermarkRemoved = () => {
-        addChange('watermark_removal', 'watermark_removal', false, true);
     };
 
     return (
@@ -920,8 +906,8 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                 Auto-saving...
                             </div>
                         )}
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={handleDeleteVideo}
                             className="text-red-600 hover:text-red-700"
                         >
@@ -933,7 +919,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
 
                 {/* Unsaved Changes Window - Show when there are unsaved changes */}
                 {hasUnsavedChanges && (
-                    <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
+                    <Card className="border-orange-200 bg-orange-50">
                         <CardContent className="p-6">
                             <div className="space-y-4">
                                 <div className="flex items-center gap-3">
@@ -941,22 +927,21 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         <AlertCircle className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-orange-800 dark:text-orange-300 text-lg">Unsaved Changes Detected</h3>
-                                        <p className="text-sm text-orange-700 dark:text-orange-200">The following changes have been made to your video:</p>
+                                        <h3 className="font-semibold text-orange-800 text-lg">Unsaved Changes Detected</h3>
+                                        <p className="text-sm text-orange-700">The following changes have been made to your video:</p>
                                     </div>
                                 </div>
-                                
+
                                 {/* List of Changes */}
                                 <div className="space-y-2">
                                     {changes.map((change, index) => (
-                                        <div key={index} className="flex items-center gap-3 p-3 bg-background rounded-lg border border-orange-200 dark:border-orange-800">
+                                        <div key={index} className="flex items-center gap-3 p-3 bg-background rounded-lg border border-orange-200">
                                             <div className="flex-shrink-0">
                                                 {change.type === 'title' && <Type className="w-4 h-4 text-blue-600" />}
                                                 {change.type === 'description' && <FileText className="w-4 h-4 text-green-600" />}
                                                 {change.type === 'tags' && <Tag className="w-4 h-4 text-purple-600" />}
                                                 {change.type === 'thumbnail' && <Image className="w-4 h-4 text-pink-600" />}
-                                                {change.type === 'subtitles' && <Subtitles className="w-4 h-4 text-indigo-600" />}
-                                                {change.type === 'watermark_removal' && <Trash2 className="w-4 h-4 text-red-600" />}
+                                                {change.type === 'subtitles' && <Play className="w-4 h-4 text-indigo-600" />}
                                             </div>
                                             <div className="flex-1">
                                                 <p className="font-medium text-foreground capitalize">
@@ -968,7 +953,6 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                     {change.type === 'tags' && `${change.oldValue.length} → ${change.newValue.length} tags`}
                                                     {change.type === 'thumbnail' && 'Custom thumbnail uploaded'}
                                                     {change.type === 'subtitles' && 'Subtitles generated and applied'}
-                                                    {change.type === 'watermark_removal' && 'Watermarks detected and removed'}
                                                 </p>
                                             </div>
                                             <div className="text-xs text-muted-foreground">
@@ -977,14 +961,14 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         </div>
                                     ))}
                                 </div>
-                                
+
                                 {/* Action Buttons */}
                                 <div className="flex gap-3 pt-2">
-                                    <Button 
+                                    <Button
                                         onClick={discardAllChanges}
                                         variant="outline"
                                         disabled={isSaving}
-                                        className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/20"
+                                        className="border-red-200 text-red-600 hover:bg-red-50"
                                     >
                                         {isSaving ? (
                                             <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
@@ -993,7 +977,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         )}
                                         {isSaving ? 'Discarding...' : 'Discard All Changes'}
                                     </Button>
-                                    <Button 
+                                    <Button
                                         onClick={updateAllPlatforms}
                                         disabled={isSaving}
                                         className="bg-orange-600 hover:bg-orange-700"
@@ -1011,172 +995,33 @@ export default function VideoEdit({ video }: VideoEditProps) {
                     </Card>
                 )}
 
-                {/* Simplified Tabs */}
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="overview">Overview/Edit</TabsTrigger>
-                        <TabsTrigger value="performance">Performance</TabsTrigger>
-                    </TabsList>
-
-                    {/* Overview/Edit Tab */}
-                    <TabsContent value="overview" className="space-y-6">
+                {/* Content */}
+                <div className="space-y-6">
                         <div className="grid lg:grid-cols-2 gap-6">
                             {/* Left Column */}
                             <div className="space-y-6">
 
-                                {/* 2. Subtitle Generator Button */}
+
+
+
+
+                                {/* Video Preview */}
                                 <Card>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
-                                            Video Editor
+                                            Video Preview
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         <ErrorBoundary>
-                                            <AISubtitleGenerator 
+                                            <AISubtitleGenerator
                                                 videoPath={video.video_path || video.file_path || ''}
                                                 videoId={video.id}
                                                 videoTitle={video.title}
                                                 onSubtitleGenerated={handleSubtitleGenerated}
+                                                hideSubtitleControls={true}
                                             />
                                         </ErrorBoundary>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Watermark Removal Section */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Trash2 className="w-5 h-5" />
-                                            Watermark Removal
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Automatically detect and remove watermarks from your video
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        {!isLocalEnvironment ? (
-                                            <div className="flex flex-col items-center justify-center py-8 text-center">
-                                                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                                                    <Trash2 className="w-8 h-8 text-muted-foreground" />
-                                                </div>
-                                                <h3 className="text-lg font-semibold text-muted-foreground mb-2">Coming Soon</h3>
-                                                <p className="text-sm text-muted-foreground max-w-md">
-                                                    AI-powered watermark detection and removal is currently in development. 
-                                                    This feature will automatically identify and remove watermarks from your videos.
-                                                </p>
-                                                <div className="mt-4 px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-950/20 dark:text-blue-300 rounded-full text-xs font-medium">
-                                                    Feature in Development
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <ErrorBoundary>
-                                                <AIWatermarkRemover 
-                                                    videoPath={video.original_file_path || video.file_path || ''}
-                                                    onRemovalComplete={(result) => {
-                                                        console.log('Watermark removal completed:', result);
-                                                        handleWatermarkRemoved();
-                                                        // Show success message
-                                                        const successElement = document.createElement('div');
-                                                        successElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-                                                        successElement.textContent = '✅ Watermarks removed successfully!';
-                                                        document.body.appendChild(successElement);
-                                                        setTimeout(() => {
-                                                            if (document.body.contains(successElement)) {
-                                                                document.body.removeChild(successElement);
-                                                            }
-                                                        }, 5000);
-                                                    }}
-                                                />
-                                            </ErrorBoundary>
-                                        )}
-                                    </CardContent>
-                                </Card>
-
-                                {/* AI Analysis Section */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Target className="w-5 h-5" />
-                                            AI Analysis
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <ErrorBoundary>
-                                            <AIVideoAnalyzer 
-                                                videoId={video.id}
-                                                videoPath={video.original_file_path || video.file_path}
-                                                onAnalysisComplete={handleVideoAnalysisComplete}
-                                            />
-                                        </ErrorBoundary>
-                                        {videoAnalysis && (
-                                            <div className="mt-4 space-y-3">
-                                                <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Category</p>
-                                                    <p className="text-lg">{videoAnalysis.category || 'Entertainment'}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Mood</p>
-                                                    <p className="text-lg">{videoAnalysis.mood || 'Positive'}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">AI Tags</p>
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {(videoAnalysis.tags || ['creative', 'engaging', 'trending']).map((tag: string, index: number) => (
-                                                            <Badge key={index} variant="secondary" className="text-xs">
-                                                                {tag}
-                                                            </Badge>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-
-                                {/* AI Suggestions Section */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Zap className="w-5 h-5" />
-                                            AI Suggestions
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Most important optimization recommendations
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-4">
-                                            <div className="p-4 border border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20 rounded-lg">
-                                                <div className="flex items-start gap-3">
-                                                    <TrendingUp className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
-                                                    <div>
-                                                        <h4 className="font-medium text-orange-800 dark:text-orange-300">Increase Engagement</h4>
-                                                        <p className="text-sm text-orange-700 dark:text-orange-200">Add a call-to-action in the first 5 seconds to boost viewer retention.</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="p-4 border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 rounded-lg">
-                                                <div className="flex items-start gap-3">
-                                                    <Eye className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                                                    <div>
-                                                        <h4 className="font-medium text-blue-800 dark:text-blue-300">Optimize Thumbnail</h4>
-                                                        <p className="text-sm text-blue-700 dark:text-blue-200">Consider adding text overlay to your thumbnail to increase click-through rate.</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="p-4 border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20 rounded-lg">
-                                                <div className="flex items-start gap-3">
-                                                    <Tag className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
-                                                    <div>
-                                                        <h4 className="font-medium text-green-800 dark:text-green-300">Add More Tags</h4>
-                                                        <p className="text-sm text-green-700 dark:text-green-200">Include platform-specific hashtags to improve discoverability.</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
                                     </CardContent>
                                 </Card>
 
@@ -1195,7 +1040,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                     const StatusIcon = statusIcons[target.status as keyof typeof statusIcons];
                                                     const PlatformIcon = platformIcons[target.platform as keyof typeof platformIcons];
                                                     const platformUrl = getPlatformUrl(target);
-                                                    
+
                                                     return (
                                                         <div key={target.id} className="flex items-center justify-between p-3 border rounded-lg">
                                                             <div className="flex items-center gap-3">
@@ -1215,7 +1060,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                                     {target.status}
                                                                 </Badge>
                                                                 {platformUrl && target.status === 'success' && (
-                                                                    <a 
+                                                                    <a
                                                                         href={platformUrl}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
@@ -1224,12 +1069,24 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                                         <ExternalLink className="w-4 h-4" />
                                                                     </a>
                                                                 )}
-                                                                {target.status === 'success' && (
+                                                                {target.status === 'success' && target.platform !== 'youtube' && (
                                                                     <Button
                                                                         size="sm"
                                                                         variant="outline"
                                                                         onClick={() => handleRemoveFromPlatform(target.id, target.platform)}
                                                                         className="text-red-600 hover:text-red-700"
+                                                                    >
+                                                                        <X className="w-3 h-3 mr-1" />
+                                                                        Remove
+                                                                    </Button>
+                                                                )}
+                                                                {target.status === 'success' && target.platform === 'youtube' && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        disabled
+                                                                        className="text-gray-400"
+                                                                        title="YouTube video removal is not supported"
                                                                     >
                                                                         <X className="w-3 h-3 mr-1" />
                                                                         Remove
@@ -1355,7 +1212,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                         <p className="text-sm text-muted-foreground">No tags added yet</p>
                                                     )}
                                                 </div>
-                                                
+
                                                 <div className="flex gap-2">
                                                     <Input
                                                         placeholder="Add a tag..."
@@ -1387,7 +1244,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                         )}
                                                     </Button>
                                                 </div>
-                                                
+
                                                 {data.tags.length > 0 && (
                                                     <p className="text-xs text-muted-foreground">
                                                         Tags help categorize your video and improve discoverability across platforms
@@ -1465,10 +1322,10 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                                 className="hidden"
                                             />
                                         </div>
-                                        
+
                                         {selectedThumbnail && (
-                                            <div className="mt-4 p-3 bg-green-50 border border-green-200 dark:bg-green-950/20 dark:border-green-800 rounded-lg">
-                                                <p className="text-sm text-green-700 dark:text-green-300">
+                                            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                                <p className="text-sm text-green-700">
                                                     ✓ Thumbnail has been set for this video
                                                 </p>
                                             </div>
@@ -1477,9 +1334,9 @@ export default function VideoEdit({ video }: VideoEditProps) {
                                         {video.thumbnail && (
                                             <div className="mt-4">
                                                 <p className="text-sm font-medium text-muted-foreground mb-2">Current Thumbnail:</p>
-                                                <img 
-                                                    src={`${video.thumbnail}`} 
-                                                    alt="Current thumbnail" 
+                                                <img
+                                                    src={`${video.thumbnail}`}
+                                                    alt="Current thumbnail"
                                                     className="w-32 object-cover rounded-lg border"
                                                     onError={(e) => {
                                                         const target = e.target as HTMLImageElement;
@@ -1498,16 +1355,7 @@ export default function VideoEdit({ video }: VideoEditProps) {
                             </div>
                         </div>
 
-
-                    </TabsContent>
-
-                    {/* Performance Tab */}
-                    <TabsContent value="performance" className="space-y-6">
-                        <ErrorBoundary>
-                            <AIPerformanceOptimizer videoId={video.id} />
-                        </ErrorBoundary>
-                    </TabsContent>
-                </Tabs>
+                </div>
 
                 {/* Delete Dialog */}
                 <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -1573,4 +1421,4 @@ export default function VideoEdit({ video }: VideoEditProps) {
             </div>
         </AppLayout>
     );
-} 
+}

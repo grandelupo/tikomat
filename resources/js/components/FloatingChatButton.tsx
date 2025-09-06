@@ -39,14 +39,14 @@ export default function FloatingChatButton({ user, unreadCount = 0 }: FloatingCh
                         onMouseLeave={() => setShowTooltip(false)}
                     >
                         <MessageSquare className="w-6 h-6 text-white" />
-                        
+
                         {/* Unread count badge */}
                         {unreadCount > 0 && (
                             <Badge className="absolute -top-2 -right-2 bg-red-600 text-white border-2 border-white min-w-[1.25rem] h-5 text-xs flex items-center justify-center rounded-full">
                                 {unreadCount > 99 ? '99+' : unreadCount}
                             </Badge>
                         )}
-                        
+
                         {/* Pulse animation for new messages */}
                         {unreadCount > 0 && (
                             <div className="absolute inset-0 rounded-full bg-blue-600 animate-ping opacity-75"></div>
@@ -56,4 +56,4 @@ export default function FloatingChatButton({ user, unreadCount = 0 }: FloatingCh
             </div>
         </div>
     );
-} 
+}

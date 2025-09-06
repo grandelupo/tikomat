@@ -46,10 +46,10 @@ export function NavUser() {
         };
 
         fetchUnreadCount();
-        
+
         // Poll for new notifications every 30 seconds
         const interval = setInterval(fetchUnreadCount, 30000);
-        
+
         return () => clearInterval(interval);
     }, []);
 
@@ -80,9 +80,9 @@ export function NavUser() {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
             });
-            
+
             // Update local state
-            setNotifications(prev => prev.map(n => 
+            setNotifications(prev => prev.map(n =>
                 n.id === notificationId ? { ...n, read: true } : n
             ));
             setUnreadCount(prev => Math.max(0, prev - 1));
@@ -100,7 +100,7 @@ export function NavUser() {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
             });
-            
+
             // Update local state
             setNotifications(prev => prev.map(n => ({ ...n, read: true })));
             setUnreadCount(0);
@@ -118,7 +118,7 @@ export function NavUser() {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
             });
-            
+
             // Update local state
             setNotifications([]);
             setUnreadCount(0);
@@ -151,8 +151,8 @@ export function NavUser() {
                     }
                 }}>
                     <DropdownMenuTrigger asChild>
-                        <SidebarMenuButton 
-                            size="lg" 
+                        <SidebarMenuButton
+                            size="lg"
                             className="text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent group relative"
                         >
                             <Bell className="size-4" />
@@ -191,7 +191,7 @@ export function NavUser() {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="p-2">
                             {notifications.length === 0 ? (
                                 <div className="text-center py-8 text-gray-500">
@@ -204,8 +204,8 @@ export function NavUser() {
                                         <div
                                             key={notification.id}
                                             className={`p-3 rounded-lg border ${
-                                                notification.read 
-                                                    ? 'bg-gray-50 border-gray-200' 
+                                                notification.read
+                                                    ? 'bg-gray-50 border-gray-200'
                                                     : 'bg-blue-50 border-blue-200'
                                             }`}
                                         >

@@ -35,8 +35,8 @@ export default function TikTokOptions({ options, onChange }: TikTokOptionsProps)
             content += safeOptions.caption + ' ';
         }
         if (safeOptions.hashtags) {
-            const hashtags = Array.isArray(safeOptions.hashtags) 
-                ? safeOptions.hashtags.join(' ') 
+            const hashtags = Array.isArray(safeOptions.hashtags)
+                ? safeOptions.hashtags.join(' ')
                 : safeOptions.hashtags;
             content += hashtags;
         }
@@ -230,12 +230,12 @@ export default function TikTokOptions({ options, onChange }: TikTokOptionsProps)
                 </div>
 
                 {/* Schedule Note */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 dark:bg-blue-950 dark:border-blue-800">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3  "
+                    <p className="text-sm text-blue-800 "
                         <strong>Note:</strong> Some advanced features may require TikTok Business API access or may not be available in all regions.
                     </p>
                 </div>
             </CardContent>
         </Card>
     );
-} 
+}

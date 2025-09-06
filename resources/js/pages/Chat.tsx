@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-    Send, 
-    MessageCircle, 
-    User, 
+import {
+    Send,
+    MessageCircle,
+    User,
     Headphones,
     Clock,
     CheckCircle,
@@ -114,13 +114,13 @@ export default function Chat({ conversations, activeConversation, messages: init
                     if (data.messages && data.messages.length > 0) {
                         // Filter out messages from the current user to avoid duplicates
                         const newMessages = data.messages.filter((m: Message) => m.is_from_admin);
-                        
+
                         if (newMessages.length > 0) {
                             setMessages(prev => [...prev, ...newMessages]);
                             setIsTyping(true);
                             setTimeout(() => setIsTyping(false), 500);
                         }
-                        
+
                         // Update last message ID with all messages (including user's own)
                         setLastMessageId(Math.max(...data.messages.map((m: Message) => m.id)));
                     }
@@ -147,11 +147,11 @@ export default function Chat({ conversations, activeConversation, messages: init
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!data.message.trim()) return;
 
         const messageToSend = data.message;
-        
+
         // Add message optimistically
         const optimisticMessage: Message = {
             id: Date.now(), // Temporary ID
@@ -160,18 +160,18 @@ export default function Chat({ conversations, activeConversation, messages: init
             message: messageToSend,
             is_from_admin: false,
             sender_name: user.name,
-            formatted_time: new Date().toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
+            formatted_time: new Date().toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
             }),
             created_at: new Date().toISOString(),
             user: user
         };
-        
+
         setMessages(prev => [...prev, optimisticMessage]);
         reset('message');
         inputRef.current?.focus();
-        
+
         try {
             // Use fetch for direct JSON request instead of Inertia
             const response = await fetch(route('chat.store'), {
@@ -192,22 +192,22 @@ export default function Chat({ conversations, activeConversation, messages: init
             }
 
             const result = await response.json();
-            
+
             if (result.success) {
                 // Update the optimistic message with real data
-                setMessages(prev => prev.map(msg => 
-                    msg.id === optimisticMessage.id 
+                setMessages(prev => prev.map(msg =>
+                    msg.id === optimisticMessage.id
                         ? {
                             ...result.message,
                             sender_name: result.message.user.name,
-                            formatted_time: new Date(result.message.created_at).toLocaleTimeString('en-US', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
+                            formatted_time: new Date(result.message.created_at).toLocaleTimeString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit'
                             }),
                         }
                         : msg
                 ));
-                
+
                 // Update conversation if needed
                 if (result.conversation && !conversation) {
                     // This would need to be handled by parent component
@@ -353,7 +353,7 @@ export default function Chat({ conversations, activeConversation, messages: init
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center space-x-2">
-                                                        <Badge 
+                                                        <Badge
                                                             className={
                                                                 conv.status === 'waiting' ? 'bg-yellow-100 text-yellow-800' :
                                                                 conv.status === 'active' ? 'bg-green-100 text-green-800' :
@@ -454,7 +454,7 @@ export default function Chat({ conversations, activeConversation, messages: init
                                     </div>
                                 ))
                             )}
-                            
+
                             {isTyping && (
                                 <div className="flex justify-start">
                                     <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-white text-gray-900 shadow-sm border">
@@ -470,7 +470,7 @@ export default function Chat({ conversations, activeConversation, messages: init
                                     </div>
                                 </div>
                             )}
-                            
+
                             <div ref={messagesEndRef} />
                         </div>
 
@@ -503,21 +503,21 @@ export default function Chat({ conversations, activeConversation, messages: init
                                     )}
                                 </Button>
                             </form>
-                            
+
                             <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
                                 <span>Press Enter to send</span>
                                 <span>
                                     {activeConversation?.status === 'waiting' && (
-                                        "We'll connect you with an agent shortly"
+ "We'll connect you with an agent shortly"
                                     )}
                                     {activeConversation?.status === 'active' && (
-                                        "Connected with support team"
+ "Connected with support team"
                                     )}
                                     {activeConversation?.status === 'closed' && (
-                                        "This conversation has been closed"
+ "This conversation has been closed"
                                     )}
                                     {!activeConversation && (
-                                        "Start typing to begin a new conversation"
+ "Start typing to begin a new conversation"
                                     )}
                                 </span>
                             </div>
@@ -602,4 +602,4 @@ export default function Chat({ conversations, activeConversation, messages: init
             </div>
         </AppLayout>
     );
-} 
+}

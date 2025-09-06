@@ -44,14 +44,14 @@ export default function FacebookPageSelection({ channel, pages }: Props) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!selectedPageId) {
             alert('Please select a Facebook page to connect.');
             return;
         }
 
         setIsSubmitting(true);
-        
+
         router.post(`/channels/${channel.slug}/facebook/select-page`, {
             page_id: selectedPageId,
         }, {
@@ -87,30 +87,30 @@ export default function FacebookPageSelection({ channel, pages }: Props) {
                             <span>Select Your Facebook Page</span>
                         </CardTitle>
                         <CardDescription>
-                            Choose which Facebook page you want to connect to your "{channel.name}" channel. 
+                            Choose which Facebook page you want to connect to your "{channel.name}" channel.
                             You can only connect one page at a time.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit}>
                             <div className="space-y-4">
-                                <RadioGroup 
-                                    value={selectedPageId} 
+                                <RadioGroup
+                                    value={selectedPageId}
                                     onValueChange={setSelectedPageId}
                                     className="space-y-3"
                                 >
                                     {pages.map((page) => (
-                                        <div 
-                                            key={page.id} 
+                                        <div
+                                            key={page.id}
                                             className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-gray-50 transition-colors"
                                         >
-                                            <RadioGroupItem 
-                                                value={page.id} 
+                                            <RadioGroupItem
+                                                value={page.id}
                                                 id={page.id}
                                                 className="mt-0.5"
                                             />
-                                            <Label 
-                                                htmlFor={page.id} 
+                                            <Label
+                                                htmlFor={page.id}
                                                 className="flex-1 cursor-pointer"
                                             >
                                                 <div className="flex items-center justify-between">
@@ -197,4 +197,4 @@ export default function FacebookPageSelection({ channel, pages }: Props) {
             </div>
         </AppLayout>
     );
-} 
+}

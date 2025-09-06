@@ -33,8 +33,8 @@ export default function InstagramOptions({ options, onChange }: InstagramOptions
             content += options.caption + ' ';
         }
         if (options.hashtags) {
-            const hashtags = Array.isArray(options.hashtags) 
-                ? options.hashtags.join(' ') 
+            const hashtags = Array.isArray(options.hashtags)
+                ? options.hashtags.join(' ')
                 : options.hashtags;
             content += hashtags;
         }
@@ -262,4 +262,4 @@ export default function InstagramOptions({ options, onChange }: InstagramOptions
             </CardContent>
         </Card>
     );
-} 
+}
