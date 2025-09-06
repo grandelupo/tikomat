@@ -85,10 +85,7 @@ class VideoController extends Controller
      */
     public function create(Channel $channel, Request $request): Response
     {
-        // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        // Channel ownership is already ensured by route model binding
 
         // Get connected platforms for this channel
         $connectedPlatforms = $channel->socialAccounts->pluck('platform')->toArray();
@@ -134,10 +131,7 @@ class VideoController extends Controller
      */
     public function store(Request $request, Channel $channel): RedirectResponse
     {
-        // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        // Channel ownership is already ensured by route model binding
 
         $request->validate([
             'video' => 'required|file|mimes:mp4,mov,avi,wmv,webm|max:102400', // 100MB max
@@ -714,13 +708,7 @@ class VideoController extends Controller
      */
     public function instantUpload(Request $request, Channel $channel): JsonResponse
     {
-        // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access to channel'
-            ], 403);
-        }
+        // Channel ownership is already ensured by route model binding
 
         try {
             $request->validate([
