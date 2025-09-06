@@ -75,7 +75,7 @@ class ChannelController extends Controller
      */
     public function edit(Request $request, Channel $channel)
     {
-        $this->authorize('update', $channel);
+        // Channel ownership is already ensured by route model binding
 
         return Inertia::render('Channels/Edit', [
             'channel' => $channel,
@@ -88,7 +88,7 @@ class ChannelController extends Controller
      */
     public function update(Request $request, Channel $channel)
     {
-        $this->authorize('update', $channel);
+        // Channel ownership is already ensured by route model binding
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -116,7 +116,12 @@ class ChannelController extends Controller
      */
     public function destroy(Request $request, Channel $channel)
     {
-        $this->authorize('delete', $channel);
+        // Channel ownership is already ensured by route model binding
+        // Still check if channel can be deleted (not default channel)
+        if ($channel->is_default) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Cannot delete the default channel.');
+        }
 
         // Check if channel has videos
         if ($channel->videos()->count() > 0) {

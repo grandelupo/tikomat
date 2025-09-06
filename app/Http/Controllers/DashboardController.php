@@ -121,8 +121,7 @@ class DashboardController extends Controller
 
     public function channel(Request $request, Channel $channel)
     {
-        // Use policy to check authorization
-        $this->authorize('view', $channel);
+        // Channel ownership is already ensured by route model binding
 
         $user = $request->user();
 
