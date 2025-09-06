@@ -32,15 +32,10 @@ class ChannelController extends Controller
      */
     public function create(Request $request)
     {
-        $user = $request->user();
-        
-        if (!$user->canCreateChannel()) {
-            return redirect()->route('dashboard')
-                ->with('error', 'You have reached the maximum number of channels for your plan.');
-        }
+        $this->authorize('create', Channel::class);
 
         return Inertia::render('Channels/Create', [
-            'allowedPlatforms' => $user->getAllowedPlatforms(),
+            'allowedPlatforms' => $request->user()->getAllowedPlatforms(),
         ]);
     }
 
@@ -49,12 +44,9 @@ class ChannelController extends Controller
      */
     public function store(Request $request)
     {
-        $user = $request->user();
+        $this->authorize('create', Channel::class);
         
-        if (!$user->canCreateChannel()) {
-            return redirect()->route('dashboard')
-                ->with('error', 'You have reached the maximum number of channels for your plan.');
-        }
+        $user = $request->user();
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -83,10 +75,7 @@ class ChannelController extends Controller
      */
     public function edit(Request $request, Channel $channel)
     {
-        // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('update', $channel);
 
         return Inertia::render('Channels/Edit', [
             'channel' => $channel,
@@ -99,10 +88,7 @@ class ChannelController extends Controller
      */
     public function update(Request $request, Channel $channel)
     {
-        // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('update', $channel);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -130,16 +116,7 @@ class ChannelController extends Controller
      */
     public function destroy(Request $request, Channel $channel)
     {
-        // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
-
-        // Prevent deletion of default channel
-        if ($channel->is_default) {
-            return redirect()->route('dashboard')
-                ->with('error', 'Cannot delete the default channel.');
-        }
+        $this->authorize('delete', $channel);
 
         // Check if channel has videos
         if ($channel->videos()->count() > 0) {

@@ -28,9 +28,7 @@ class SocialAccountController extends Controller
     {
         try {
             // Ensure user owns this channel
-            if ($channel->user_id !== $request->user()->id) {
-                abort(403);
-            }
+            $this->authorize('view', $channel);
 
             if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])) {
                 $this->errorHandler->logConfigurationError($platform, 'Invalid platform selected');
@@ -119,9 +117,7 @@ class SocialAccountController extends Controller
     {
         try {
             // Ensure user owns this channel
-            if ($channel->user_id !== $request->user()->id) {
-                abort(403);
-            }
+            $this->authorize('view', $channel);
 
             if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])) {
                 $this->errorHandler->logConfigurationError($platform, 'Invalid platform selected in callback');
@@ -261,9 +257,7 @@ class SocialAccountController extends Controller
     public function disconnect(Channel $channel, string $platform, Request $request): RedirectResponse
     {
         // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('view', $channel);
 
         if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])) {
             return redirect()->route('channels.show', $channel->slug)
@@ -306,9 +300,7 @@ class SocialAccountController extends Controller
     public function simulateConnection(Channel $channel, string $platform, Request $request): RedirectResponse
     {
         // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('view', $channel);
 
         if (!in_array($platform, ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'])) {
             return redirect()->route('channels.show', $channel->slug)
@@ -668,9 +660,7 @@ class SocialAccountController extends Controller
     public function forceReconnect(Channel $channel, string $platform, Request $request): RedirectResponse
     {
         // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('view', $channel);
 
         // For YouTube/Google, revoke existing permissions first
         if ($platform === 'youtube') {
@@ -1143,9 +1133,7 @@ class SocialAccountController extends Controller
     public function showFacebookPageSelection(Channel $channel, Request $request)
     {
         // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('view', $channel);
 
         // Get OAuth data from session
         $oauthData = session('facebook_oauth_data');
@@ -1171,9 +1159,7 @@ class SocialAccountController extends Controller
     public function selectFacebookPage(Channel $channel, Request $request): RedirectResponse
     {
         // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('view', $channel);
 
         $request->validate([
             'page_id' => 'required|string',
@@ -1459,9 +1445,7 @@ class SocialAccountController extends Controller
     public function showYouTubeChannelSelection(Channel $channel, Request $request)
     {
         // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('view', $channel);
 
         // Get OAuth data from session
         $oauthData = session('youtube_oauth_data');
@@ -1488,9 +1472,7 @@ class SocialAccountController extends Controller
     public function selectYouTubeChannel(Channel $channel, Request $request): RedirectResponse
     {
         // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('view', $channel);
 
         $request->validate([
             'youtube_channel_id' => 'required|string',
@@ -1650,9 +1632,7 @@ class SocialAccountController extends Controller
     // Add new method for Instagram account selection UI
     public function showInstagramAccountSelection(Channel $channel, Request $request)
     {
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('view', $channel);
         $oauthData = session('instagram_oauth_data');
         if (!$oauthData || $oauthData['channel_slug'] !== $channel->slug) {
             return redirect()->route('channels.show', $channel->slug)
@@ -1670,9 +1650,7 @@ class SocialAccountController extends Controller
     // Add new method for handling Instagram account selection POST
     public function selectInstagramAccount(Channel $channel, Request $request): RedirectResponse
     {
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorize('view', $channel);
         $request->validate(['page_id' => 'required|string']);
         $oauthData = session('instagram_oauth_data');
         if (!$oauthData || $oauthData['channel_slug'] !== $channel->slug) {

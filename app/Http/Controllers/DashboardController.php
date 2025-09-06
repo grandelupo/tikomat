@@ -121,10 +121,8 @@ class DashboardController extends Controller
 
     public function channel(Request $request, Channel $channel)
     {
-        // Ensure user owns this channel
-        if ($channel->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        // Use policy to check authorization
+        $this->authorize('view', $channel);
 
         $user = $request->user();
 
