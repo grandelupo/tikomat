@@ -361,7 +361,7 @@ class VideoController extends Controller
      */
     public function edit(Video $video): Response
     {
-        $this->authorize('update', $video);
+        // Video ownership is already ensured by route model binding
 
         $video->load(['targets']);
 
@@ -375,7 +375,7 @@ class VideoController extends Controller
      */
     public function update(Request $request, Video $video): RedirectResponse
     {
-        $this->authorize('update', $video);
+        // Video ownership is already ensured by route model binding
 
         $request->validate([
             'title' => 'required|string|max:255',
@@ -443,7 +443,7 @@ class VideoController extends Controller
      */
     public function destroy(Video $video): RedirectResponse
     {
-        $this->authorize('delete', $video);
+        // Video ownership is already ensured by route model binding
 
         $video->delete();
 
@@ -456,7 +456,10 @@ class VideoController extends Controller
      */
     public function retryTarget(VideoTarget $target): RedirectResponse
     {
-        $this->authorize('update', $target->video);
+        // Video ownership check - we need to verify the target belongs to user's video
+        if ($target->video->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         try {
             $this->uploadService->retryFailedTarget($target);
@@ -474,7 +477,10 @@ class VideoController extends Controller
      */
     public function deleteTarget(VideoTarget $target): RedirectResponse
     {
-        $this->authorize('update', $target->video);
+        // Video ownership check - we need to verify the target belongs to user's video
+        if ($target->video->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $platform = ucfirst($target->platform);
         
@@ -598,7 +604,7 @@ class VideoController extends Controller
      */
     public function updateAllPlatforms(Request $request, Video $video): JsonResponse
     {
-        $this->authorize('update', $video);
+        // Video ownership is already ensured by route model binding
 
         $request->validate([
             'title' => 'required|string|max:255',
@@ -825,7 +831,7 @@ class VideoController extends Controller
      */
     public function checkUnsavedChanges(Request $request, Video $video): JsonResponse
     {
-        $this->authorize('update', $video);
+        // Video ownership is already ensured by route model binding
 
         try {
             $hasUnsavedChanges = $video->hasUnsavedChanges();
@@ -901,7 +907,7 @@ class VideoController extends Controller
      */
     public function autoSave(Request $request, Video $video): JsonResponse
     {
-        $this->authorize('update', $video);
+        // Video ownership is already ensured by route model binding
 
         try {
             $request->validate([
@@ -999,7 +1005,7 @@ class VideoController extends Controller
      */
     public function publishChanges(Request $request, Video $video): JsonResponse
     {
-        $this->authorize('update', $video);
+        // Video ownership is already ensured by route model binding
 
         try {
             if (!$video->hasUnsavedChanges()) {
@@ -1089,7 +1095,7 @@ class VideoController extends Controller
      */
     public function discardChanges(Request $request, Video $video): JsonResponse
     {
-        $this->authorize('update', $video);
+        // Video ownership is already ensured by route model binding
 
         try {
             $backupVersion = $video->backupVersion();

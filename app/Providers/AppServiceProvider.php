@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Channel;
+use App\Models\Video;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
@@ -47,6 +48,25 @@ class AppServiceProvider extends ServiceProvider
             
             // Fallback to default behavior if no auth
             return Channel::where('slug', $value)->firstOrFail();
+        });
+
+        // Custom route model binding for videos scoped to current user
+        Route::bind('video', function ($value, $route) {
+            // Only apply user scoping if we have an authenticated user
+            if (auth()->check()) {
+                $video = Video::where('id', $value)
+                    ->where('user_id', auth()->id())
+                    ->first();
+                
+                if (!$video) {
+                    throw new ModelNotFoundException();
+                }
+                
+                return $video;
+            }
+            
+            // Fallback to default behavior if no auth
+            return Video::findOrFail($value);
         });
     }
 }
