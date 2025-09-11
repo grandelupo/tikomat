@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, BarChart3, Link as LinkIcon, Video } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, BarChart3, Link as LinkIcon, Video, Shield, FileText } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -32,7 +32,18 @@ const mainNavItems: NavItem[] = [
 
 const aiToolsNavItems: NavItem[] = [];
 
-const footerNavItems: NavItem[] = [];
+const footerNavItems: NavItem[] = [
+    {
+        title: 'Privacy Policy',
+        href: '/privacy',
+        icon: Shield,
+    },
+    {
+        title: 'Terms of Service',
+        href: '/terms',
+        icon: FileText,
+    },
+];
 
 export function AppSidebar() {
     return (

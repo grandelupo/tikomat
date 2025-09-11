@@ -68,6 +68,14 @@ export default function Privacy() {
                                         When you connect social media accounts, we store OAuth tokens securely to enable video publishing.
                                         We never access your social media accounts beyond video publishing functionality.
                                     </p>
+                                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                        <h4 className="font-medium text-gray-800 mb-2">Snapchat Integration</h4>
+                                        <p className="text-gray-600 text-sm">
+                                            When you connect your Snapchat account, we use Snapchat's Login Kit for authentication and Creative Kit for content sharing.
+                                            This allows us to publish your videos directly to your Snapchat account. We only access the minimum permissions
+                                            necessary for video publishing and do not store or access your Snapchat friends list, personal snaps, or other private content.
+                                        </p>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -122,6 +130,14 @@ export default function Privacy() {
                                     <li>• With service providers who help us operate our platform (under strict confidentiality)</li>
                                     <li>• When required by law or to protect our rights and users' safety</li>
                                 </ul>
+                                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <h4 className="font-medium text-yellow-800 mb-2">Snapchat Data Sharing</h4>
+                                    <p className="text-yellow-700 text-sm">
+                                        When you use our Snapchat integration, your video content is shared directly with Snapchat through their
+                                        Creative Kit API. This data transfer is governed by Snapchat's privacy policy and terms of service.
+                                        We do not store copies of content sent to Snapchat beyond the temporary processing period required for publishing.
+                                    </p>
+                                </div>
                             </CardContent>
                         </Card>
 
