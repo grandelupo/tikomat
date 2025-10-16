@@ -1,4 +1,4 @@
-import { Head, useForm, Link } from '@inertiajs/react';
+import { Head, useForm, Link, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +32,7 @@ export default function ChannelEdit({ channel }: Props) {
         },
         {
             title: 'Edit',
-            href: `/channels/${channel.id}/edit`,
+            href: `/channels/${channel.slug}/edit`,
         },
     ];
 
@@ -43,13 +43,12 @@ export default function ChannelEdit({ channel }: Props) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(`/channels/${channel.id}`);
+        put(`/channels/${channel.slug}`);
     };
 
     const handleDelete = () => {
         if (confirm('Are you sure you want to delete this channel? This action cannot be undone.')) {
-            // Use router.delete instead of form
-            window.location.href = `/channels/${channel.id}`;
+            router.delete(`/channels/${channel.slug}`);
         }
     };
 

@@ -812,7 +812,7 @@ export default function Welcome({ auth }: WelcomeProps) {
                                 },
                                 {
                                     question: "Is there a free plan?",
-                                    answer: "Yes! Our free plan includes YouTube publishing, basic scheduling, and status tracking. You can upgrade to Pro to unlock all platforms and advanced features."
+                                    answer: "Yes! Our free plan includes publishing to all platforms (YouTube, Instagram, TikTok, Facebook, etc.) on 1 channel. You can upgrade to Pro to create up to 3 channels and get additional features."
                                 },
                                 {
                                     question: "How secure is my content?",
@@ -915,8 +915,8 @@ export default function Welcome({ auth }: WelcomeProps) {
                             🔥 Limited Time: Get Pro features for just $0.60/day
                         </p>
                         <p className="text-blue-100 text-sm">
-                            Usually $1.20/day • Save 50% for the first 1,000 users •
-                            <span className="font-semibold text-yellow-300"> 847 spots remaining</span>
+                            Create unlimited channels • Additional channels only +$0.10/day •
+                            <span className="font-semibold text-yellow-300"> All platforms included</span>
                         </p>
                     </div>
 

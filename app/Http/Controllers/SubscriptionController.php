@@ -32,7 +32,7 @@ class SubscriptionController extends Controller
                     'price' => 0,
                     'features' => [
                         '1 Channel',
-                        'YouTube Publishing',
+                        'All Platforms (YouTube, Instagram, TikTok, Facebook, etc.)',
                         'Basic Video Upload',
                         'Community Support'
                     ]
@@ -41,11 +41,10 @@ class SubscriptionController extends Controller
                     'name' => 'Pro',
                     'price' => 18.00, // $0.60 * 30 days
                     'features' => [
-                        '3 Channels',
-                        'All Platforms (YouTube, Instagram, TikTok)',
-                        'Video Thumbnails',
-                        'Priority Support',
-                        'Advanced Scheduling'
+                        'Up to 3 Channels',
+                        'All Platforms (YouTube, Instagram, TikTok, Facebook, etc.)',
+                        'Additional Channels (+$0.10/day each)',
+                        'Priority Support'
                     ]
                 ]
             ]

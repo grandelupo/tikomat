@@ -370,8 +370,8 @@ export default function ChannelShow({
                                     })}
                                 </div>
 
-                                {/* Upgrade banner if there are restricted platforms */}
-                                {availablePlatforms.filter(p => !p.allowed).length > 0 && (
+                                {/* Upgrade banner for non-pro users to create additional channels */}
+                                {!usePage<SharedData>().props.auth.user.has_subscription && (
                                     <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center space-x-3">
@@ -379,9 +379,9 @@ export default function ChannelShow({
                                                     <Crown className="w-4 h-4 text-blue-600" />
                                                 </div>
                                                 <div>
-                                                    <h4 className="font-medium text-blue-800 text-sm">Unlock More Platforms</h4>
+                                                    <h4 className="font-medium text-blue-800 text-sm">Create Additional Channels</h4>
                                                     <p className="text-xs text-blue-700">
-                                                        Upgrade to Pro to access Instagram, TikTok, and more platforms for just $0.60/day
+                                                        Upgrade to Pro to create up to 3 channels for just $0.60/day. Additional channels only +$0.10/day each.
                                                     </p>
                                                 </div>
                                             </div>

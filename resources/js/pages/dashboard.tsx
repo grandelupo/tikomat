@@ -323,14 +323,6 @@ export default function Dashboard({
                                                 })}
                                             </div>
 
-                                            {safeAllowedPlatforms.length === 1 && (
-                                                <Alert className="bg-blue-950/20 border-blue-800">
-                                                    <AlertDescription className="text-blue-800  text-sm">
-                                                        <strong>Free Plan:</strong> You currently have access to YouTube only.
-                                                        Upgrade to Pro to unlock Instagram and TikTok publishing for just $0.60/day.
-                                                    </AlertDescription>
-                                                </Alert>
-                                            )}
 
                                             {errors.default_platforms && (
                                                 <p className="text-sm text-red-600">{errors.default_platforms}</p>
@@ -366,7 +358,7 @@ export default function Dashboard({
                                 Upgrade to Pro
                             </CardTitle>
                             <CardDescription className="text-gray-700">
-                                Unlock all platforms and create up to 3 channels for just <span className="font-semibold text-purple-700">$0.60/day</span>
+                                Create up to 3 channels for just <span className="font-semibold text-purple-700">$0.60/day</span>. Additional channels only <span className="font-semibold text-purple-700">+$0.10/day</span> each.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="relative z-10">
@@ -376,11 +368,11 @@ export default function Dashboard({
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
                                         <div className="flex items-center text-sm text-gray-700">
                                             <div className="w-2 h-2 bg-purple-500 rounded-full mr-3 flex-shrink-0"></div>
-                                            Instagram & TikTok publishing
+                                            Up to 3 channels
                                         </div>
                                         <div className="flex items-center text-sm text-gray-700">
                                             <div className="w-2 h-2 bg-purple-500 rounded-full mr-3 flex-shrink-0"></div>
-                                            Up to 3 channels
+                                            Additional channels (+$0.10/day)
                                         </div>
                                         <div className="flex items-center text-sm text-gray-700">
                                             <div className="w-2 h-2 bg-purple-500 rounded-full mr-3 flex-shrink-0"></div>
@@ -431,7 +423,7 @@ export default function Dashboard({
                                         {/* Connected Platforms */}
                                         <div>
                                             <p className="text-sm font-medium mb-2">Connected Platforms</p>
-                                            <div className="flex space-x-2">
+                                            <div className="flex flex-wrap gap-2">
                                                 {(channel.connected_platforms || []).length > 0 ? (
                                                     channel.connected_platforms.map((platform) => {
                                                         const Icon = platformIcons[platform as keyof typeof platformIcons];

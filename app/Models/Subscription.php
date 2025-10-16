@@ -54,11 +54,8 @@ class Subscription extends Model
      */
     public function getAllowedPlatforms(): array
     {
-        if (!$this->isActive()) {
-            return ['youtube']; // Free users only get YouTube
-        }
-        
-        return ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x']; // Paid users get all platforms
+        // All users get access to all platforms
+        return ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'];
     }
 
     /**

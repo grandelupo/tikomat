@@ -177,8 +177,9 @@ export function NotificationDropdown({ className }: NotificationDropdownProps) {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className={cn("relative", className)}>
+        <Button variant="ghost" className={cn("relative flex items-center gap-2 h-9 px-3", className)}>
           <Bell className="h-5 w-5" />
+          <span className="text-sm font-medium">Notifications</span>
           {unreadCount > 0 && (
             <Badge
               variant="destructive"

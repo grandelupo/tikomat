@@ -3,7 +3,8 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Crown, Zap, Youtube, Instagram, Video as VideoIcon } from 'lucide-react';
+import { Check, Crown, Zap, Youtube, Instagram, Video as VideoIcon, Facebook, Camera, Palette } from 'lucide-react';
+import XIcon from '@/components/ui/icons/x';
 import axios from 'axios';
 
 interface User {
@@ -28,6 +29,26 @@ interface Props {
         pro: Plan;
     };
 }
+
+const platformIcons = {
+    youtube: Youtube,
+    instagram: Instagram,
+    tiktok: VideoIcon,
+    facebook: Facebook,
+    snapchat: Camera,
+    pinterest: Palette,
+    x: XIcon,
+};
+
+const platformLabels = {
+    youtube: 'YouTube',
+    instagram: 'Instagram',
+    tiktok: 'TikTok',
+    facebook: 'Facebook',
+    snapchat: 'Snapchat',
+    pinterest: 'Pinterest',
+    x: 'X (Twitter)',
+};
 
 export default function SubscriptionPlans({ user, plans }: Props) {
     const breadcrumbs = [
@@ -157,9 +178,16 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                             </div>
 
                             <div className="pt-4">
-                                <div className="flex items-center justify-center space-x-2 mb-4">
-                                    <Youtube className="w-6 h-6 text-red-600" />
-                                    <span className="text-sm font-medium">YouTube Only</span>
+                                <div className="text-center mb-4">
+                                    <span className="text-sm font-medium mb-3 block">All Platforms Included</span>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {Object.entries(platformIcons).map(([platform, Icon]) => (
+                                            <div key={platform} className="flex items-center space-x-1">
+                                                <Icon className="w-4 h-4" />
+                                                <span className="text-xs">{platformLabels[platform as keyof typeof platformLabels]}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {user.current_plan === 'free' ? (
@@ -209,18 +237,15 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                             </div>
 
                             <div className="pt-4">
-                                <div className="flex items-center justify-center space-x-4 mb-4">
-                                    <div className="flex items-center space-x-1">
-                                        <Youtube className="w-5 h-5 text-red-600" />
-                                        <span className="text-xs">YouTube</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                        <Instagram className="w-5 h-5 text-pink-600" />
-                                        <span className="text-xs">Instagram</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                        <VideoIcon className="w-5 h-5 text-black" />
-                                        <span className="text-xs">TikTok</span>
+                                <div className="text-center mb-4">
+                                    <span className="text-sm font-medium mb-3 block">All Platforms Included</span>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {Object.entries(platformIcons).map(([platform, Icon]) => (
+                                            <div key={platform} className="flex items-center space-x-1">
+                                                <Icon className="w-4 h-4" />
+                                                <span className="text-xs">{platformLabels[platform as keyof typeof platformLabels]}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
 
@@ -258,7 +283,7 @@ export default function SubscriptionPlans({ user, plans }: Props) {
                     <div className="bg-gray-50 p-6 rounded-lg">
                         <h3 className="font-semibold mb-2">Need More Channels?</h3>
                         <p className="text-sm text-muted-foreground mb-3">
-                            Pro plan includes 3 channels. Additional channels are just $0.20/day each.
+                            Pro plan includes 3 channels. Additional channels are just $0.10/day each.
                         </p>
                         {user.has_subscription && user.channels_count >= user.max_channels && (
                             <Button size="sm" onClick={handleAddChannel}>

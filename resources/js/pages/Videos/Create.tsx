@@ -280,14 +280,6 @@ export default function CreateVideo({
                     </Alert>
                 )}
 
-                {allowedPlatforms.length === 1 && (
-                    <Alert className="bg-blue-950/20 border-blue-800">
-                        <AlertDescription className="text-blue-200">
-                            <strong>Free Plan:</strong> You currently have access to YouTube only.
-                            Upgrade to Pro to unlock Instagram and TikTok publishing.
-                        </AlertDescription>
-                    </Alert>
-                )}
 
                 <Card className="max-w-2xl">
                     <CardHeader>

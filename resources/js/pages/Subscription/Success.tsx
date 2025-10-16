@@ -51,7 +51,7 @@ export default function SubscriptionSuccess({ user }: Props) {
                             </div>
                             <div className="flex items-center space-x-3">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span>YouTube, Instagram & TikTok</span>
+                                <span>All Platforms (YouTube, Instagram, TikTok, Facebook, etc.)</span>
                             </div>
                             <div className="flex items-center space-x-3">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -60,6 +60,10 @@ export default function SubscriptionSuccess({ user }: Props) {
                             <div className="flex items-center space-x-3">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                 <span>Priority Support</span>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span>Additional Channels (+$0.10/day each)</span>
                             </div>
                         </div>
                     </CardContent>

@@ -107,12 +107,8 @@ class User extends Authenticatable
      */
     public function getAllowedPlatforms(): array
     {
-        // Free users get full access for 30 days, then limited to YouTube
-        if ($this->hasActiveSubscription() || $this->isInFreeTrialPeriod()) {
-            return ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'];
-        }
-        
-        return ['youtube'];
+        // All users get access to all platforms on their channels
+        return ['youtube', 'instagram', 'tiktok', 'facebook', 'snapchat', 'pinterest', 'x'];
     }
 
     /**
@@ -139,8 +135,8 @@ class User extends Authenticatable
      */
     public function getMaxChannels(): int
     {
-        // Free users get unlimited channels during trial, paid users get more
-        if ($this->hasActiveSubscription() || $this->isInFreeTrialPeriod()) {
+        // Only pro users get multiple channels
+        if ($this->hasActiveSubscription()) {
             // Pro users get 3 base channels plus any additional channels
             $subscription = $this->subscription('default');
             if ($subscription && $subscription->hasPrice(env('STRIPE_PRICE_ADDITIONAL_CHANNEL'))) {
@@ -153,6 +149,7 @@ class User extends Authenticatable
             return 3;
         }
         
+        // Free users (including trial users) get only 1 channel
         return 1;
     }
 
@@ -225,7 +222,7 @@ class User extends Authenticatable
 
         $baseCost = 0.60 * 30; // $0.60 per day for 30 days
         $additionalChannels = max(0, $this->getMaxChannels() - 3);
-        $additionalCost = $additionalChannels * 0.20 * 30; // $0.20 per day per additional channel
+        $additionalCost = $additionalChannels * 0.10 * 30; // $0.10 per day per additional channel
 
         return $baseCost + $additionalCost;
     }
