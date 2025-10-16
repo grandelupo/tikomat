@@ -52,8 +52,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Channel routes
     Route::get('channels/{channel:slug}', [DashboardController::class, 'channel'])->name('channels.show');
-    Route::resource('channels', ChannelController::class)->except(['show']);
+    Route::get('channels', [ChannelController::class, 'index'])->name('channels.index');
+    Route::get('channels/create', [ChannelController::class, 'create'])->name('channels.create');
+    Route::post('channels', [ChannelController::class, 'store'])->name('channels.store');
     Route::get('channels/{channel:slug}/edit', [ChannelController::class, 'edit'])->name('channels.edit');
+    Route::put('channels/{channel:slug}', [ChannelController::class, 'update'])->name('channels.update');
+    Route::patch('channels/{channel:slug}', [ChannelController::class, 'update'])->name('channels.update');
+    Route::delete('channels/{channel:slug}', [ChannelController::class, 'destroy'])->name('channels.destroy');
     
     // Video routes (scoped to channels)
     Route::get('channels/{channel:slug}/videos/create', [VideoController::class, 'create'])->name('videos.create');
@@ -182,21 +187,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     
     // Social Account Management (scoped to channels)
-    Route::get('channels/{channel}/auth/{platform}', [SocialAccountController::class, 'redirect'])
+    Route::get('channels/{channel:slug}/auth/{platform}', [SocialAccountController::class, 'redirect'])
         ->name('social.redirect');
-    Route::get('channels/{channel}/auth/{platform}/callback', [SocialAccountController::class, 'callback'])
+    Route::get('channels/{channel:slug}/auth/{platform}/callback', [SocialAccountController::class, 'callback'])
         ->name('social.callback');
-    Route::delete('channels/{channel}/social/{platform}', [SocialAccountController::class, 'disconnect'])
+    Route::delete('channels/{channel:slug}/social/{platform}', [SocialAccountController::class, 'disconnect'])
         ->name('social.disconnect');
-    Route::get('channels/{channel}/auth/{platform}/force-reconnect', [SocialAccountController::class, 'forceReconnect'])
+    Route::get('channels/{channel:slug}/auth/{platform}/force-reconnect', [SocialAccountController::class, 'forceReconnect'])
         ->name('social.force-reconnect');
-    Route::get('channels/{channel}/auth/{platform}/simulate', [SocialAccountController::class, 'simulateConnection'])
+    Route::get('channels/{channel:slug}/auth/{platform}/simulate', [SocialAccountController::class, 'simulateConnection'])
         ->name('social.simulate');
     
     // Social platform specific routes
-    Route::post('channels/{channel}/facebook/select-page', [SocialAccountController::class, 'selectFacebookPage'])
+    Route::post('channels/{channel:slug}/facebook/select-page', [SocialAccountController::class, 'selectFacebookPage'])
         ->name('social.facebook.select-page');
-    Route::post('channels/{channel}/youtube/select-channel', [SocialAccountController::class, 'selectYouTubeChannel'])
+    Route::post('channels/{channel:slug}/youtube/select-channel', [SocialAccountController::class, 'selectYouTubeChannel'])
         ->name('social.youtube.select-channel');
     
     // General OAuth callbacks (for OAuth providers that need exact URLs)

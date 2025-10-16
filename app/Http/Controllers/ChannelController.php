@@ -116,22 +116,59 @@ class ChannelController extends Controller
      */
     public function destroy(Request $request, Channel $channel)
     {
+        // Authorize the deletion
+        $this->authorize('delete', $channel);
+        
         // Channel ownership is already ensured by route model binding
+        \Log::info('Channel deletion attempt', [
+            'user_id' => $request->user()->id,
+            'channel_id' => $channel->id,
+            'channel_slug' => $channel->slug,
+            'is_default' => $channel->is_default,
+            'videos_count' => $channel->videos()->count(),
+        ]);
+
         // Still check if channel can be deleted (not default channel)
         if ($channel->is_default) {
+            \Log::warning('Attempted to delete default channel', [
+                'user_id' => $request->user()->id,
+                'channel_id' => $channel->id,
+            ]);
             return redirect()->route('dashboard')
                 ->with('error', 'Cannot delete the default channel.');
         }
 
         // Check if channel has videos
-        if ($channel->videos()->count() > 0) {
+        $videosCount = $channel->videos()->count();
+        if ($videosCount > 0) {
+            \Log::warning('Attempted to delete channel with videos', [
+                'user_id' => $request->user()->id,
+                'channel_id' => $channel->id,
+                'videos_count' => $videosCount,
+            ]);
             return redirect()->route('channels.show', $channel->slug)
                 ->with('error', 'Cannot delete channel with existing videos. Please delete all videos first.');
         }
 
-        $channel->delete();
+        try {
+            $channel->delete();
+            \Log::info('Channel deleted successfully', [
+                'user_id' => $request->user()->id,
+                'channel_id' => $channel->id,
+                'channel_slug' => $channel->slug,
+            ]);
 
-        return redirect()->route('dashboard')
-            ->with('success', 'Channel deleted successfully!');
+            return redirect()->route('dashboard')
+                ->with('success', 'Channel deleted successfully!');
+        } catch (\Exception $e) {
+            \Log::error('Failed to delete channel', [
+                'user_id' => $request->user()->id,
+                'channel_id' => $channel->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            return redirect()->route('channels.show', $channel->slug)
+                ->with('error', 'Failed to delete channel. Please try again.');
+        }
     }
 }

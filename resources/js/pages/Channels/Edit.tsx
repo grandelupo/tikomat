@@ -48,7 +48,15 @@ export default function ChannelEdit({ channel }: Props) {
 
     const handleDelete = () => {
         if (confirm('Are you sure you want to delete this channel? This action cannot be undone.')) {
-            router.delete(`/channels/${channel.slug}`);
+            router.delete(`/channels/${channel.slug}`, {
+                onSuccess: () => {
+                    // Success is handled by the redirect from the controller
+                },
+                onError: (errors) => {
+                    console.error('Channel deletion failed:', errors);
+                    alert('Failed to delete channel. Please check if the channel has videos that need to be deleted first.');
+                }
+            });
         }
     };
 
