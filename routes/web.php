@@ -203,6 +203,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('social.facebook.select-page');
     Route::post('channels/{channel:slug}/youtube/select-channel', [SocialAccountController::class, 'selectYouTubeChannel'])
         ->name('social.youtube.select-channel');
+    Route::post('channels/{channel:slug}/instagram/select-account', [SocialAccountController::class, 'selectInstagramAccount'])
+        ->name('social.instagram.select-account');
     
     // General OAuth callbacks (for OAuth providers that need exact URLs)
     Route::get('auth/{platform}/callback', [SocialAccountController::class, 'generalCallback'])
@@ -215,6 +217,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // YouTube channel selection routes
     Route::get('channels/{channel:slug}/youtube/channel-selection', [SocialAccountController::class, 'showYouTubeChannelSelection'])
         ->name('youtube.channel-selection');
+    
+    // Instagram account selection routes
+    Route::get('channels/{channel:slug}/instagram/account-selection', [SocialAccountController::class, 'showInstagramAccountSelection'])
+        ->name('instagram.account-selection');
     
     // OAuth error page
     Route::get('oauth/error', function () {

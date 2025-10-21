@@ -187,6 +187,16 @@ class SocialAccountController extends Controller
                 return $this->handleYouTubeChannelSelection($channel, $socialUser);
             }
 
+            // Handle Instagram account selection if platform is Instagram
+            if ($platform === 'instagram') {
+                \Log::info('Instagram OAuth callback - starting account selection', [
+                    'channel_slug' => $channel->slug,
+                    'user_id' => Auth::id(),
+                    'has_token' => !empty($socialUser->token),
+                ]);
+                return $this->handleInstagramAccountSelection($channel, $socialUser);
+            }
+
             // Store or update social account
             // First, delete any existing social account for this user+channel+platform combination
             // to avoid conflicts with the unique constraint and allow reconnection
@@ -570,6 +580,16 @@ class SocialAccountController extends Controller
                 return $this->handleYouTubeChannelSelection($channel, $socialUser);
             }
 
+            // Handle Instagram account selection if platform is Instagram
+            if ($platform === 'instagram') {
+                \Log::info('Instagram OAuth general callback - starting account selection', [
+                    'channel_slug' => $channel->slug,
+                    'user_id' => Auth::id(),
+                    'has_token' => !empty($socialUser->token),
+                ]);
+                return $this->handleInstagramAccountSelection($channel, $socialUser);
+            }
+
             // Store or update social account
             // First, delete any existing social account for this user+channel+platform combination
             // to avoid conflicts with the unique constraint and allow reconnection
@@ -703,23 +723,17 @@ class SocialAccountController extends Controller
                 ])
                 ->redirect();
         } elseif ($platform === 'instagram') {
-            // Instagram via Facebook Login: use Facebook + Instagram scopes
+            // Instagram Basic Display API: use Instagram driver with proper scopes
             $scopes = [
-                'pages_show_list',
-                'pages_read_engagement',
-                'pages_manage_posts',
-                'instagram_content_publish',
-                'public_profile',
-                'email',
+                'instagram_business_basic',
+                'instagram_business_content_publish',
+                'instagram_business_manage_comments',
             ];
-            return Socialite::driver('facebook')
+            return Socialite::driver($driver)
                 ->scopes($scopes)
                 ->with([
                     'state' => $state,
-                    'auth_type' => 'rerequest',
-                    'prompt' => 'select_account consent',
                     'response_type' => 'code',
-                    'display' => 'popup',
                 ])
                 ->redirect();
         } elseif ($platform === 'tiktok') {
@@ -1616,6 +1630,70 @@ class SocialAccountController extends Controller
                 $channel->slug, 
                 'Failed to connect YouTube channel. Please try again.',
                 'youtube_connection_failure'
+            );
+        }
+    }
+
+    /**
+     * Handle Instagram account selection flow.
+     */
+    protected function handleInstagramAccountSelection(Channel $channel, $socialUser): RedirectResponse
+    {
+        try {
+            // Log that we're starting the Instagram account selection process
+            \Log::info('Starting Instagram account selection', [
+                'channel_slug' => $channel->slug,
+                'user_id' => Auth::id(),
+                'has_token' => !empty($socialUser->token),
+                'instagram_user_id' => $socialUser->getId(),
+            ]);
+
+            // For Instagram Basic Display API, we can directly connect the account
+            // without needing to select from multiple accounts like Facebook pages
+            $accountData = [
+                'user_id' => Auth::id(),
+                'channel_id' => $channel->id,
+                'platform' => 'instagram',
+                'access_token' => $socialUser->token,
+                'platform_channel_id' => $socialUser->getId(),
+                'platform_channel_name' => $socialUser->getNickname() ?? $socialUser->getName(),
+                'platform_channel_handle' => '@' . ($socialUser->getNickname() ?? ''),
+                'profile_name' => $socialUser->getName(),
+                'profile_avatar_url' => $socialUser->getAvatar(),
+                'is_platform_channel_specific' => true,
+            ];
+
+            // Delete any existing Instagram account for this channel
+            SocialAccount::where('user_id', Auth::id())
+                ->where('channel_id', $channel->id)
+                ->where('platform', 'instagram')
+                ->delete();
+
+            // Create the new Instagram account
+            $socialAccount = SocialAccount::create($accountData);
+
+            \Log::info('Instagram account connected successfully', [
+                'channel_slug' => $channel->slug,
+                'user_id' => Auth::id(),
+                'social_account_id' => $socialAccount->id,
+                'instagram_user_id' => $socialUser->getId(),
+                'instagram_username' => $socialUser->getNickname(),
+            ]);
+
+            return redirect()->route('connections')->with('success', 'Instagram account connected successfully!');
+
+        } catch (\Exception $e) {
+            \Log::error('Instagram account selection failed', [
+                'channel_slug' => $channel->slug,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return $this->redirectToErrorPage(
+                'instagram',
+                $channel->slug,
+                'Failed to connect Instagram account: ' . $e->getMessage(),
+                'instagram_connection_failed'
             );
         }
     }
