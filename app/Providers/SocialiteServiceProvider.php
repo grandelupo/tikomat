@@ -14,6 +14,7 @@ use SocialiteProviders\Instagram\Provider as InstagramProvider;
 use SocialiteProviders\TikTok\Provider as TikTokProvider;
 use SocialiteProviders\Snapchat\Provider as SnapchatProvider;
 use SocialiteProviders\Pinterest\Provider as PinterestProvider;
+use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class XProvider extends AbstractProvider
 {
@@ -133,46 +134,25 @@ class SocialiteServiceProvider extends ServiceProvider
             );
         });
 
-        // Register Facebook provider
-        Socialite::extend('facebook', function ($app) {
-            $config = $app['config']['services.facebook'];
-            return Socialite::buildProvider(FacebookProvider::class, $config);
-        });
-
-        // Register Instagram provider
-        Socialite::extend('instagram', function ($app) {
-            $config = $app['config']['services.instagram'];
-            return Socialite::buildProvider(InstagramProvider::class, $config);
-        });
-
-        // Register TikTok provider
-        Socialite::extend('tiktok', function ($app) {
-            $config = $app['config']['services.tiktok'];
-            return Socialite::buildProvider(TikTokProvider::class, $config);
-        });
-
-        // Register Snapchat provider
-        Socialite::extend('snapchat', function ($app) {
-            $config = $app['config']['services.snapchat'];
-            return Socialite::buildProvider(SnapchatProvider::class, $config);
-        });
-
-        // Register Pinterest provider
-        Socialite::extend('pinterest', function ($app) {
-            $config = $app['config']['services.pinterest'];
-            return Socialite::buildProvider(PinterestProvider::class, $config);
-        });
+        // Set up event listener for SocialiteProviders
+        $this->app['events']->listen(
+            \SocialiteProviders\Manager\SocialiteWasCalled::class,
+            function (\SocialiteProviders\Manager\SocialiteWasCalled $event) {
+                // Add SocialiteProviders
+                $event->extendSocialite('snapchat', \SocialiteProviders\Snapchat\Provider::class);
+                $event->extendSocialite('pinterest', \SocialiteProviders\Pinterest\Provider::class);
+                $event->extendSocialite('tiktok', \SocialiteProviders\TikTok\Provider::class);
+                $event->extendSocialite('facebook', \SocialiteProviders\Facebook\Provider::class);
+                $event->extendSocialite('instagram', \SocialiteProviders\Instagram\Provider::class);
+                $event->extendSocialite('dropbox', \SocialiteProviders\Dropbox\Provider::class);
+                $event->extendSocialite('google', \SocialiteProviders\Google\Provider::class);
+            }
+        );
 
         // Register Google Drive provider (extended Google provider with drive scopes)
         Socialite::extend('google_drive', function ($app) {
             $config = $app['config']['services.google_drive'];
             return Socialite::buildProvider(GoogleProvider::class, $config);
-        });
-
-        // Register Dropbox provider
-        Socialite::extend('dropbox', function ($app) {
-            $config = $app['config']['services.dropbox'];
-            return Socialite::buildProvider(DropboxProvider::class, $config);
         });
     }
 }
