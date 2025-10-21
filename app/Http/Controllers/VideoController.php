@@ -490,7 +490,10 @@ class VideoController extends Controller
                 'target_video_user_id' => $target->video->user_id,
                 'current_user_id' => auth()->id(),
             ]);
-            abort(403, 'Unauthorized access to video target');
+            
+            // Temporary: Show detailed error for debugging
+            $errorDetails = "Target ID: {$targetId}, Video Owner: {$target->video->user_id}, Current User: " . auth()->id();
+            abort(403, "Unauthorized access to video target. Debug: {$errorDetails}");
         }
 
         \Log::info('retryTarget authorization passed', [
