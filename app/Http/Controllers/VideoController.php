@@ -454,52 +454,9 @@ class VideoController extends Controller
     /**
      * Retry failed video target.
      */
-    public function retryTarget($targetId): RedirectResponse
+    public function retryTarget(VideoTarget $target): RedirectResponse
     {
-        \Log::info('retryTarget method called', [
-            'target_id' => $targetId,
-            'current_user_id' => auth()->id(),
-            'request_method' => request()->method(),
-            'request_url' => request()->fullUrl(),
-            'user_agent' => request()->userAgent(),
-            'ip' => request()->ip(),
-        ]);
-
-        // Manual lookup and authorization check
-        $target = \App\Models\VideoTarget::with('video')->find($targetId);
-        
-        if (!$target) {
-            \Log::warning('VideoTarget not found', ['target_id' => $targetId]);
-            abort(404, 'Video target not found');
-        }
-
-        \Log::info('VideoTarget authorization check details', [
-            'target_id' => $targetId,
-            'target_exists' => $target ? true : false,
-            'target_video_id' => $target?->video_id,
-            'target_video_exists' => $target?->video ? true : false,
-            'target_video_user_id' => $target?->video?->user_id,
-            'current_user_id' => auth()->id(),
-            'user_authenticated' => auth()->check(),
-            'authorization_will_pass' => $target?->video?->user_id === auth()->id(),
-        ]);
-
-        // Fix: Use loose comparison to handle type mismatch between string and integer user IDs
-        if ($target->video->user_id != auth()->id()) {
-            \Log::warning('VideoTarget unauthorized access', [
-                'target_id' => $targetId,
-                'target_video_user_id' => $target->video->user_id,
-                'current_user_id' => auth()->id(),
-            ]);
-            abort(403, 'Unauthorized access to video target');
-        }
-
-        \Log::info('retryTarget authorization passed', [
-            'target_id' => $target->id,
-            'target_platform' => $target->platform,
-            'target_status' => $target->status,
-            'video_id' => $target->video_id,
-        ]);
+        // Authorization is handled by route model binding in AppServiceProvider
 
         try {
             $this->uploadService->retryFailedTarget($target);

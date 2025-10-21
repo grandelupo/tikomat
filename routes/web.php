@@ -68,12 +68,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('videos', VideoController::class)->except(['create', 'store', 'index', 'show']);
     Route::post('video-targets/{target}/retry', [VideoController::class, 'retryTarget'])
         ->name('video-targets.retry');
-    
-    // Test route for debugging 403 issues
-    Route::post('test-403-debug/{id}', function($id) {
-        \Log::info('Test route reached', ['id' => $id, 'user_id' => auth()->id()]);
-        return response()->json(['success' => true, 'message' => 'Test route works', 'id' => $id]);
-    })->name('test-403-debug');
     Route::delete('video-targets/{target}', [VideoController::class, 'deleteTarget'])
         ->name('video-targets.delete');
     Route::post('videos/{video}/update-platforms', [VideoController::class, 'updateAllPlatforms'])
