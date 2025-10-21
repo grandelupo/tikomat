@@ -456,10 +456,7 @@ class VideoController extends Controller
      */
     public function retryTarget(VideoTarget $target): RedirectResponse
     {
-        // Video ownership check - we need to verify the target belongs to user's video
-        if ($target->video->user_id !== auth()->id()) {
-            abort(403);
-        }
+        // Video ownership is already ensured by route model binding
 
         try {
             $this->uploadService->retryFailedTarget($target);
@@ -477,10 +474,7 @@ class VideoController extends Controller
      */
     public function deleteTarget(VideoTarget $target): RedirectResponse
     {
-        // Video ownership check - we need to verify the target belongs to user's video
-        if ($target->video->user_id !== auth()->id()) {
-            abort(403);
-        }
+        // Video ownership is already ensured by route model binding
 
         $platform = ucfirst($target->platform);
         

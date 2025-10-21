@@ -68,5 +68,27 @@ class AppServiceProvider extends ServiceProvider
             // Fallback to default behavior if no auth
             return Video::findOrFail($value);
         });
+
+        // Custom route model binding for video targets scoped to current user
+        Route::bind('target', function ($value, $route) {
+            // Only apply user scoping if we have an authenticated user
+            if (auth()->check()) {
+                $target = \App\Models\VideoTarget::with('video')
+                    ->whereHas('video', function ($query) {
+                        $query->where('user_id', auth()->id());
+                    })
+                    ->where('id', $value)
+                    ->first();
+                
+                if (!$target) {
+                    throw new ModelNotFoundException();
+                }
+                
+                return $target;
+            }
+            
+            // Fallback to default behavior if no auth
+            return \App\Models\VideoTarget::findOrFail($value);
+        });
     }
 }
