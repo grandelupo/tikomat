@@ -191,6 +191,18 @@ export default function ChannelShow({
         router.post(`/video-targets/${targetId}/retry`);
     };
 
+    const handleTestRoute = (targetId: number) => {
+        router.post(`/test-403-debug/${targetId}`, {}, {
+            onSuccess: () => {
+                alert('Test route worked!');
+            },
+            onError: (errors) => {
+                console.error('Test route failed:', errors);
+                alert('Test route failed - check console');
+            }
+        });
+    };
+
     const handleUpgradeClick = () => {
         router.visit('/subscription/plans');
     };
@@ -622,14 +634,24 @@ export default function ChannelShow({
                                                                     {target.platform.charAt(0).toUpperCase() + target.platform.slice(1)}
                                                                 </Badge>
                                                                 {target.status === 'failed' && (
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => handleRetryTarget(target.id)}
-                                                                        className="text-xs px-1 py-0 h-auto ml-1 text-red-600"
-                                                                    >
-                                                                        Retry
-                                                                    </Button>
+                                                                    <>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() => handleRetryTarget(target.id)}
+                                                                            className="text-xs px-1 py-0 h-auto ml-1 text-red-600"
+                                                                        >
+                                                                            Retry
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() => handleTestRoute(target.id)}
+                                                                            className="text-xs px-1 py-0 h-auto ml-1 text-yellow-600"
+                                                                        >
+                                                                            Test
+                                                                        </Button>
+                                                                    </>
                                                                 )}
                                                             </div>
                                                         );
