@@ -187,14 +187,14 @@ class SocialAccountController extends Controller
                 return $this->handleYouTubeChannelSelection($channel, $socialUser);
             }
 
-            // Handle Instagram account selection if platform is Instagram
+            // Handle Instagram account selection if platform is Instagram (uses Facebook page flow)
             if ($platform === 'instagram') {
-                \Log::info('Instagram OAuth callback - starting account selection', [
+                \Log::info('Instagram OAuth callback - starting Instagram page selection', [
                     'channel_slug' => $channel->slug,
                     'user_id' => Auth::id(),
                     'has_token' => !empty($socialUser->token),
                 ]);
-                return $this->handleInstagramAccountSelection($channel, $socialUser);
+                return $this->handleInstagramPageSelection($channel, $socialUser);
             }
 
             // Store or update social account
@@ -446,7 +446,7 @@ class SocialAccountController extends Controller
     {
         return match ($platform) {
             'youtube' => 'google',
-            'instagram' => 'instagram',
+            'instagram' => 'facebook', // Instagram uses Facebook OAuth for content publishing
             'tiktok' => 'tiktok',
             'facebook' => 'facebook',
             'snapchat' => 'snapchat',
@@ -580,14 +580,14 @@ class SocialAccountController extends Controller
                 return $this->handleYouTubeChannelSelection($channel, $socialUser);
             }
 
-            // Handle Instagram account selection if platform is Instagram
+            // Handle Instagram account selection if platform is Instagram (uses Facebook page flow)
             if ($platform === 'instagram') {
-                \Log::info('Instagram OAuth general callback - starting account selection', [
+                \Log::info('Instagram OAuth general callback - starting Instagram page selection', [
                     'channel_slug' => $channel->slug,
                     'user_id' => Auth::id(),
                     'has_token' => !empty($socialUser->token),
                 ]);
-                return $this->handleInstagramAccountSelection($channel, $socialUser);
+                return $this->handleInstagramPageSelection($channel, $socialUser);
             }
 
             // Store or update social account
@@ -723,17 +723,25 @@ class SocialAccountController extends Controller
                 ])
                 ->redirect();
         } elseif ($platform === 'instagram') {
-            // Instagram Basic Display API: use Instagram driver with proper scopes
+            // Instagram Content Publishing API: use Facebook driver with Instagram Business scopes
             $scopes = [
+                'pages_show_list',
+                'pages_read_engagement', 
+                'pages_manage_posts',
                 'instagram_business_basic',
                 'instagram_business_content_publish',
                 'instagram_business_manage_comments',
+                'public_profile',
+                'email',
             ];
-            return Socialite::driver($driver)
+            return Socialite::driver('facebook')
                 ->scopes($scopes)
                 ->with([
                     'state' => $state,
+                    'auth_type' => 'rerequest',
+                    'prompt' => 'select_account consent',
                     'response_type' => 'code',
+                    'display' => 'popup',
                 ])
                 ->redirect();
         } elseif ($platform === 'tiktok') {
@@ -1630,6 +1638,89 @@ class SocialAccountController extends Controller
                 $channel->slug, 
                 'Failed to connect YouTube channel. Please try again.',
                 'youtube_connection_failure'
+            );
+        }
+    }
+
+    /**
+     * Handle Instagram page selection flow (uses Facebook pages with Instagram Business accounts).
+     */
+    protected function handleInstagramPageSelection(Channel $channel, $socialUser): RedirectResponse
+    {
+        try {
+            // Log that we're starting the Instagram page selection process
+            \Log::info('Starting Instagram page selection', [
+                'channel_slug' => $channel->slug,
+                'user_id' => Auth::id(),
+                'has_token' => !empty($socialUser->token),
+                'has_refresh_token' => !empty($socialUser->refreshToken),
+            ]);
+
+            // Get user's Facebook pages using Facebook Graph API
+            $response = Http::get('https://graph.facebook.com/v18.0/me/accounts', [
+                'access_token' => $socialUser->token,
+                'fields' => 'id,name,access_token,instagram_business_account{id,name,username,profile_picture_url}'
+            ]);
+
+            \Log::info('Facebook pages API response for Instagram', [
+                'status' => $response->status(),
+                'successful' => $response->successful(),
+                'body_preview' => substr($response->body(), 0, 500),
+            ]);
+
+            if (!$response->successful()) {
+                throw new \Exception('Failed to fetch Facebook pages for Instagram: ' . $response->body());
+            }
+
+            $data = $response->json();
+            $pages = $data['data'] ?? [];
+
+            // Filter pages that have Instagram Business accounts
+            $instagramPages = array_filter($pages, function($page) {
+                return isset($page['instagram_business_account']) && !empty($page['instagram_business_account']['id']);
+            });
+
+            if (empty($instagramPages)) {
+                throw new \Exception('No Instagram Business accounts found. Please connect an Instagram Business account to your Facebook page first.');
+            }
+
+            // Store OAuth data in session for page selection
+            session([
+                'instagram_oauth_data' => [
+                    'access_token' => $socialUser->token,
+                    'refresh_token' => $socialUser->refreshToken,
+                    'expires_in' => $socialUser->expiresIn,
+                    'channel_slug' => $channel->slug,
+                    'user_profile' => [
+                        'name' => $socialUser->name,
+                        'email' => $socialUser->email,
+                        'avatar' => $socialUser->avatar,
+                    ],
+                    'pages' => $instagramPages,
+                ]
+            ]);
+
+            \Log::info('Instagram OAuth data stored in session', [
+                'channel_slug' => $channel->slug,
+                'pages_count' => count($instagramPages),
+                'session_key' => 'instagram_oauth_data',
+            ]);
+
+            // Redirect to Instagram page selection page
+            return redirect()->route('instagram.account-selection', $channel->slug);
+
+        } catch (\Exception $e) {
+            \Log::error('Instagram page selection failed', [
+                'channel_slug' => $channel->slug,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return $this->redirectToErrorPage(
+                'instagram',
+                $channel->slug,
+                'Failed to retrieve Instagram Business accounts: ' . $e->getMessage(),
+                'instagram_page_selection_failed'
             );
         }
     }
