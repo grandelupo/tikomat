@@ -63,6 +63,12 @@ class UploadVideoToInstagram implements ShouldQueue
                 'updated_at' => $socialAccount->updated_at,
             ]);
 
+            // Check if this is a development environment without Instagram Business API approval
+            if (empty($socialAccount->facebook_page_id) && app()->environment('local', 'development')) {
+                Log::info('Development environment detected - Instagram uploads require Facebook app approval for Instagram Business API');
+                throw new \Exception('Instagram uploads require Facebook app approval for Instagram Business API. In development, this feature is limited. Please check the Instagram OAuth troubleshooting guide.');
+            }
+            
             // Validate that this Instagram account is compatible with content publishing
             if (!$socialAccount->isInstagramUploadCompatible()) {
                 $reason = $socialAccount->getInstagramIncompatibilityReason();

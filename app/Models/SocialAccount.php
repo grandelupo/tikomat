@@ -249,7 +249,7 @@ class SocialAccount extends Model
         }
 
         if (empty($this->facebook_page_id)) {
-            return 'Instagram account was connected using Instagram Basic Display API. Content publishing requires Facebook Business Page integration.';
+            return 'Instagram account was connected using an incompatible method. Content publishing requires Facebook Page integration with Instagram permissions.';
         }
 
         if (empty($this->access_token)) {

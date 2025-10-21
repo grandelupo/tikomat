@@ -723,17 +723,24 @@ class SocialAccountController extends Controller
                 ])
                 ->redirect();
         } elseif ($platform === 'instagram') {
-            // Instagram Content Publishing API: use Facebook driver with Instagram Business scopes
+            // Instagram: For development, use basic Facebook scopes that don't require approval
+            // For production, you'll need to get your Facebook app approved for Instagram Business API
             $scopes = [
                 'pages_show_list',
                 'pages_read_engagement', 
                 'pages_manage_posts',
-                'instagram_business_basic',
-                'instagram_business_content_publish',
-                'instagram_business_manage_comments',
                 'public_profile',
                 'email',
             ];
+            
+            // Add Instagram scopes if app is approved (will be ignored if not approved)
+            if (app()->environment('production')) {
+                $scopes = array_merge($scopes, [
+                    'instagram_business_basic',
+                    'instagram_business_content_publish',
+                ]);
+            }
+            
             return Socialite::driver('facebook')
                 ->scopes($scopes)
                 ->with([
@@ -741,7 +748,6 @@ class SocialAccountController extends Controller
                     'auth_type' => 'rerequest',
                     'prompt' => 'select_account consent',
                     'response_type' => 'code',
-                    'display' => 'popup',
                 ])
                 ->redirect();
         } elseif ($platform === 'tiktok') {
