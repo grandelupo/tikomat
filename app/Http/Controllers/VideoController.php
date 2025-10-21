@@ -473,6 +473,17 @@ class VideoController extends Controller
             abort(404, 'Video target not found');
         }
 
+        \Log::info('VideoTarget authorization check details', [
+            'target_id' => $targetId,
+            'target_exists' => $target ? true : false,
+            'target_video_id' => $target?->video_id,
+            'target_video_exists' => $target?->video ? true : false,
+            'target_video_user_id' => $target?->video?->user_id,
+            'current_user_id' => auth()->id(),
+            'user_authenticated' => auth()->check(),
+            'authorization_will_pass' => $target?->video?->user_id === auth()->id(),
+        ]);
+
         if ($target->video->user_id !== auth()->id()) {
             \Log::warning('VideoTarget unauthorized access', [
                 'target_id' => $targetId,
