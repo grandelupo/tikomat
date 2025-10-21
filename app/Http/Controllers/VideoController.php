@@ -459,6 +459,10 @@ class VideoController extends Controller
         \Log::info('retryTarget method called', [
             'target_id' => $targetId,
             'current_user_id' => auth()->id(),
+            'request_method' => request()->method(),
+            'request_url' => request()->fullUrl(),
+            'user_agent' => request()->userAgent(),
+            'ip' => request()->ip(),
         ]);
 
         // Manual lookup and authorization check
