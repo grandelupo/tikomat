@@ -784,9 +784,14 @@ class SocialAccountController extends Controller
                 ])
                 ->redirect();
         } elseif ($platform === 'snapchat') {
-            // Snapchat requires creative and media permissions
+            // Snapchat requires Marketing API and profile permissions for content publishing
             return Socialite::driver($driver)
-                ->scopes([])
+                ->scopes([
+                    'snapchat-marketing-api',           // Required for Marketing API access
+                    'snapchat-profile-api',             // Required for profile information
+                    'https://auth.snapchat.com/oauth2/api/user.display_name', // User display name
+                    'https://auth.snapchat.com/oauth2/api/user.bitmoji.avatar' // User avatar (optional)
+                ])
                 ->with([
                     'state' => $state,
                     'prompt' => 'select_account consent'

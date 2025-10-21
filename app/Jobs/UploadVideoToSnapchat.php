@@ -66,10 +66,8 @@ class UploadVideoToSnapchat implements ShouldQueue
                 return;
             }
 
-            // Check if token is expired
-            if ($socialAccount->token_expires_at && $socialAccount->token_expires_at->isPast()) {
-                throw new \Exception('Snapchat access token has expired. Please reconnect your account.');
-            }
+            // Validate access token
+            $this->validateAccessToken($socialAccount);
 
             // Get video file - For Snapchat, we need a publicly accessible URL
             $videoUrl = $this->getPublicVideoUrl();
@@ -168,13 +166,39 @@ class UploadVideoToSnapchat implements ShouldQueue
         }
 
         // Step 1: Create media upload session
+        Log::info('Attempting Snapchat media upload', [
+            'video_target_id' => $this->videoTarget->id,
+            'media_data' => $mediaData,
+            'access_token_length' => strlen($socialAccount->access_token),
+            'token_expires_at' => $socialAccount->token_expires_at?->toISOString(),
+        ]);
+
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $socialAccount->access_token,
             'Content-Type' => 'application/json'
         ])->post('https://adsapi.snapchat.com/v1/media', $mediaData);
 
         if (!$response->successful()) {
-            throw new \Exception('Failed to create Snapchat media upload session: ' . $response->body());
+            $errorBody = $response->body();
+            $statusCode = $response->status();
+            
+            Log::error('Snapchat media upload failed', [
+                'video_target_id' => $this->videoTarget->id,
+                'status_code' => $statusCode,
+                'error_body' => $errorBody,
+                'headers' => $response->headers(),
+            ]);
+
+            // Provide more specific error messages based on status code
+            if ($statusCode === 401) {
+                throw new \Exception('Snapchat authentication failed. The access token may be invalid or expired. Please reconnect your Snapchat account.');
+            } elseif ($statusCode === 403) {
+                throw new \Exception('Insufficient permissions for Snapchat upload. Please ensure your Snapchat account has the required Marketing API permissions and try reconnecting.');
+            } elseif ($statusCode === 400) {
+                throw new \Exception('Invalid request to Snapchat API. Error details: ' . $errorBody);
+            } else {
+                throw new \Exception('Failed to create Snapchat media upload session (HTTP ' . $statusCode . '): ' . $errorBody);
+            }
         }
 
         $data = $response->json();
@@ -191,10 +215,7 @@ class UploadVideoToSnapchat implements ShouldQueue
      */
     protected function publishSnapchatStory(SocialAccount $socialAccount, string $mediaId): void
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $socialAccount->access_token,
-            'Content-Type' => 'application/json'
-        ])->post('https://adsapi.snapchat.com/v1/creatives', [
+        $creativeData = [
             'creatives' => [
                 [
                     'name' => $this->videoTarget->video->title,
@@ -204,21 +225,95 @@ class UploadVideoToSnapchat implements ShouldQueue
                     'brand_name' => 'Filmate'
                 ]
             ]
+        ];
+
+        Log::info('Attempting Snapchat creative creation', [
+            'video_target_id' => $this->videoTarget->id,
+            'media_id' => $mediaId,
+            'creative_data' => $creativeData,
         ]);
 
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $socialAccount->access_token,
+            'Content-Type' => 'application/json'
+        ])->post('https://adsapi.snapchat.com/v1/creatives', $creativeData);
+
         if (!$response->successful()) {
-            throw new \Exception('Failed to publish Snapchat story: ' . $response->body());
+            $errorBody = $response->body();
+            $statusCode = $response->status();
+            
+            Log::error('Snapchat creative creation failed', [
+                'video_target_id' => $this->videoTarget->id,
+                'media_id' => $mediaId,
+                'status_code' => $statusCode,
+                'error_body' => $errorBody,
+            ]);
+
+            // Provide more specific error messages based on status code
+            if ($statusCode === 401) {
+                throw new \Exception('Snapchat authentication failed during story publishing. Please reconnect your account.');
+            } elseif ($statusCode === 403) {
+                throw new \Exception('Insufficient permissions to publish Snapchat story. Please ensure your account has creative management permissions.');
+            } elseif ($statusCode === 400) {
+                throw new \Exception('Invalid creative data for Snapchat story. Error details: ' . $errorBody);
+            } else {
+                throw new \Exception('Failed to publish Snapchat story (HTTP ' . $statusCode . '): ' . $errorBody);
+            }
         }
 
         $data = $response->json();
 
         if (isset($data['errors'])) {
+            Log::error('Snapchat API returned errors', [
+                'video_target_id' => $this->videoTarget->id,
+                'errors' => $data['errors'],
+            ]);
             throw new \Exception('Snapchat API error: ' . json_encode($data['errors']));
         }
 
         Log::info('Snapchat story published successfully', [
             'creative_id' => $data['creatives'][0]['id'] ?? 'unknown',
             'video_target_id' => $this->videoTarget->id,
+        ]);
+    }
+
+    /**
+     * Validate and refresh access token if needed.
+     */
+    protected function validateAccessToken(SocialAccount $socialAccount): void
+    {
+        // Check if token is expired
+        if ($socialAccount->token_expires_at && $socialAccount->token_expires_at->isPast()) {
+            Log::warning('Snapchat access token has expired', [
+                'video_target_id' => $this->videoTarget->id,
+                'expires_at' => $socialAccount->token_expires_at->toISOString(),
+                'current_time' => now()->toISOString(),
+            ]);
+            throw new \Exception('Snapchat access token has expired. Please reconnect your account.');
+        }
+
+        // Check if token is close to expiring (within 1 hour)
+        if ($socialAccount->token_expires_at && $socialAccount->token_expires_at->diffInMinutes(now()) < 60) {
+            Log::warning('Snapchat access token expires soon', [
+                'video_target_id' => $this->videoTarget->id,
+                'expires_at' => $socialAccount->token_expires_at->toISOString(),
+                'minutes_until_expiry' => $socialAccount->token_expires_at->diffInMinutes(now()),
+            ]);
+        }
+
+        // Basic token format validation
+        if (empty($socialAccount->access_token) || strlen($socialAccount->access_token) < 10) {
+            Log::error('Invalid Snapchat access token format', [
+                'video_target_id' => $this->videoTarget->id,
+                'token_length' => strlen($socialAccount->access_token ?? ''),
+            ]);
+            throw new \Exception('Invalid Snapchat access token. Please reconnect your account.');
+        }
+
+        Log::info('Snapchat access token validation passed', [
+            'video_target_id' => $this->videoTarget->id,
+            'token_length' => strlen($socialAccount->access_token),
+            'expires_at' => $socialAccount->token_expires_at?->toISOString(),
         ]);
     }
 
