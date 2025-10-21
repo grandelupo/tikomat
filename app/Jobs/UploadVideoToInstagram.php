@@ -50,6 +50,25 @@ class UploadVideoToInstagram implements ShouldQueue
                 throw new \Exception('Instagram account not connected');
             }
 
+            // Log social account details for debugging
+            Log::info('Instagram social account details', [
+                'account_id' => $socialAccount->id,
+                'platform' => $socialAccount->platform,
+                'platform_channel_id' => $socialAccount->platform_channel_id,
+                'has_access_token' => !empty($socialAccount->access_token),
+                'token_length' => strlen($socialAccount->access_token ?? ''),
+                'has_facebook_page_id' => !empty($socialAccount->facebook_page_id),
+                'facebook_page_id' => $socialAccount->facebook_page_id,
+                'created_at' => $socialAccount->created_at,
+                'updated_at' => $socialAccount->updated_at,
+            ]);
+
+            // Validate that this Instagram account is compatible with content publishing
+            if (!$socialAccount->isInstagramUploadCompatible()) {
+                $reason = $socialAccount->getInstagramIncompatibilityReason();
+                throw new \Exception($reason ?: 'Instagram account is not compatible with content publishing. Please reconnect your Instagram account.');
+            }
+
             // Check if we're in development mode with fake tokens
             if ($socialAccount->access_token === 'fake_token_for_development') {
                 Log::info('Development mode detected - simulating Instagram upload success');

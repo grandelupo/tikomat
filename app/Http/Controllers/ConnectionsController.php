@@ -83,6 +83,12 @@ class ConnectionsController extends Controller
                 
                 $data['platform_channel_specific'] = $account->is_platform_channel_specific ?? false;
 
+                // Add Instagram compatibility information
+                if ($account->platform === 'instagram') {
+                    $data['instagram_upload_compatible'] = $account->isInstagramUploadCompatible();
+                    $data['instagram_incompatibility_reason'] = $account->getInstagramIncompatibilityReason();
+                }
+
                 return $data;
             });
 

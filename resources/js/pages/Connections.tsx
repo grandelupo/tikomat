@@ -47,6 +47,8 @@ interface SocialAccount {
     platform_channel_thumbnail_url?: string;
     platform_channel_specific?: boolean;
     is_platform_channel_specific?: boolean;
+    instagram_upload_compatible?: boolean;
+    instagram_incompatibility_reason?: string;
 }
 
 interface Platform {
@@ -251,6 +253,17 @@ export default function Connections({
                                                                         Channel: {account.platform_channel_name}
                                                                         {account.platform_channel_handle && ` (${account.platform_channel_handle})`}
                                                                     </p>
+                                                                )}
+                                                                {/* Instagram compatibility warning */}
+                                                                {account.platform === 'instagram' && account.instagram_upload_compatible === false && (
+                                                                    <Alert className="mt-2 p-2 bg-yellow-50 border-yellow-200">
+                                                                        <Info className="h-3 w-3 text-yellow-600" />
+                                                                        <AlertDescription className="text-xs text-yellow-800">
+                                                                            ⚠️ Upload incompatible: {account.instagram_incompatibility_reason}
+                                                                            <br />
+                                                                            <span className="font-medium">Please reconnect to enable uploads.</span>
+                                                                        </AlertDescription>
+                                                                    </Alert>
                                                                 )}
                                                             </div>
                                                         </div>

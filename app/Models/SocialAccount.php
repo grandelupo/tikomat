@@ -224,4 +224,38 @@ class SocialAccount extends Model
         
         return $deletedCount;
     }
+
+    /**
+     * Check if this Instagram account is compatible with content publishing.
+     * Instagram content publishing requires Facebook Business Page integration.
+     */
+    public function isInstagramUploadCompatible(): bool
+    {
+        if ($this->platform !== 'instagram') {
+            return true; // Not an Instagram account
+        }
+
+        // Instagram accounts need Facebook page integration for content publishing
+        return !empty($this->facebook_page_id) && !empty($this->access_token);
+    }
+
+    /**
+     * Get incompatibility reason for Instagram accounts.
+     */
+    public function getInstagramIncompatibilityReason(): ?string
+    {
+        if ($this->platform !== 'instagram') {
+            return null;
+        }
+
+        if (empty($this->facebook_page_id)) {
+            return 'Instagram account was connected using Instagram Basic Display API. Content publishing requires Facebook Business Page integration.';
+        }
+
+        if (empty($this->access_token)) {
+            return 'Instagram account is missing access token.';
+        }
+
+        return null;
+    }
 }
