@@ -70,6 +70,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Custom route model binding for video targets scoped to current user
+        // Temporarily disabled to debug 403 issue
+        /*
         Route::bind('target', function ($value, $route) {
             \Log::info('VideoTarget route model binding', [
                 'target_id' => $value,
@@ -108,5 +110,6 @@ class AppServiceProvider extends ServiceProvider
             // Fallback to default behavior if no auth
             return \App\Models\VideoTarget::findOrFail($value);
         });
+        */
     }
 }
