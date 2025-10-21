@@ -454,16 +454,35 @@ class VideoController extends Controller
     /**
      * Retry failed video target.
      */
-    public function retryTarget(VideoTarget $target): RedirectResponse
+    public function retryTarget($targetId): RedirectResponse
     {
-        // Video ownership is already ensured by route model binding
         \Log::info('retryTarget method called', [
+            'target_id' => $targetId,
+            'current_user_id' => auth()->id(),
+        ]);
+
+        // Manual lookup and authorization check
+        $target = \App\Models\VideoTarget::with('video')->find($targetId);
+        
+        if (!$target) {
+            \Log::warning('VideoTarget not found', ['target_id' => $targetId]);
+            abort(404, 'Video target not found');
+        }
+
+        if ($target->video->user_id !== auth()->id()) {
+            \Log::warning('VideoTarget unauthorized access', [
+                'target_id' => $targetId,
+                'target_video_user_id' => $target->video->user_id,
+                'current_user_id' => auth()->id(),
+            ]);
+            abort(403, 'Unauthorized access to video target');
+        }
+
+        \Log::info('retryTarget authorization passed', [
             'target_id' => $target->id,
             'target_platform' => $target->platform,
             'target_status' => $target->status,
             'video_id' => $target->video_id,
-            'video_user_id' => $target->video?->user_id,
-            'current_user_id' => auth()->id(),
         ]);
 
         try {
