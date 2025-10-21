@@ -484,15 +484,26 @@ class VideoController extends Controller
             'authorization_will_pass' => $target?->video?->user_id === auth()->id(),
         ]);
 
-        if ($target->video->user_id !== auth()->id()) {
-            \Log::warning('VideoTarget unauthorized access', [
-                'target_id' => $targetId,
-                'target_video_user_id' => $target->video->user_id,
-                'current_user_id' => auth()->id(),
-            ]);
+        $videoUserId = $target->video->user_id;
+        $currentUserId = auth()->id();
+        $comparison = $videoUserId !== $currentUserId;
+        
+        // Temporary: Show detailed debugging info
+        $debugInfo = [
+            'target_id' => $targetId,
+            'video_user_id' => $videoUserId,
+            'video_user_id_type' => gettype($videoUserId),
+            'current_user_id' => $currentUserId,
+            'current_user_id_type' => gettype($currentUserId),
+            'comparison_result' => $comparison,
+            'strict_equal' => $videoUserId === $currentUserId,
+            'loose_equal' => $videoUserId == $currentUserId,
+        ];
+        
+        if ($comparison) {
+            \Log::warning('VideoTarget unauthorized access', $debugInfo);
             
-            // Temporary: Show detailed error for debugging
-            $errorDetails = "Target ID: {$targetId}, Video Owner: {$target->video->user_id}, Current User: " . auth()->id();
+            $errorDetails = json_encode($debugInfo, JSON_PRETTY_PRINT);
             abort(403, "Unauthorized access to video target. Debug: {$errorDetails}");
         }
 
