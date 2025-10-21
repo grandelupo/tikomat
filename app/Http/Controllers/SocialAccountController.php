@@ -60,6 +60,15 @@ class SocialAccountController extends Controller
                     }
                 }
                 
+                // In development mode, allow simulation for platforms without OAuth credentials
+                if (app()->environment('local') && in_array($platform, ['snapchat', 'pinterest', 'x'])) {
+                    \Log::info("Development mode: OAuth credentials not configured for {$platform}, redirecting to simulation", [
+                        'platform' => $platform,
+                        'channel_slug' => $channel->slug,
+                    ]);
+                    return redirect()->route('social.simulate', ['channel' => $channel->slug, 'platform' => $platform]);
+                }
+                
                 $this->errorHandler->logConfigurationError($platform, $configError);
                 return $this->redirectToErrorPage(
                     $platform, 
