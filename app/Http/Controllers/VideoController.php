@@ -457,6 +457,14 @@ class VideoController extends Controller
     public function retryTarget(VideoTarget $target): RedirectResponse
     {
         // Video ownership is already ensured by route model binding
+        \Log::info('retryTarget method called', [
+            'target_id' => $target->id,
+            'target_platform' => $target->platform,
+            'target_status' => $target->status,
+            'video_id' => $target->video_id,
+            'video_user_id' => $target->video?->user_id,
+            'current_user_id' => auth()->id(),
+        ]);
 
         try {
             $this->uploadService->retryFailedTarget($target);
@@ -464,6 +472,10 @@ class VideoController extends Controller
             return redirect()->back()
                 ->with('success', 'Video target queued for retry!');
         } catch (\Exception $e) {
+            \Log::error('retryTarget failed', [
+                'target_id' => $target->id,
+                'error' => $e->getMessage(),
+            ]);
             return redirect()->back()
                 ->with('error', $e->getMessage());
         }

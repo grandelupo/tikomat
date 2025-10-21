@@ -71,6 +71,13 @@ class AppServiceProvider extends ServiceProvider
 
         // Custom route model binding for video targets scoped to current user
         Route::bind('target', function ($value, $route) {
+            \Log::info('VideoTarget route model binding', [
+                'target_id' => $value,
+                'user_id' => auth()->id(),
+                'authenticated' => auth()->check(),
+                'route_name' => $route->getName(),
+            ]);
+            
             // Only apply user scoping if we have an authenticated user
             if (auth()->check()) {
                 $target = \App\Models\VideoTarget::with('video')
@@ -80,7 +87,18 @@ class AppServiceProvider extends ServiceProvider
                     ->where('id', $value)
                     ->first();
                 
+                \Log::info('VideoTarget query result', [
+                    'target_id' => $value,
+                    'found' => $target ? true : false,
+                    'target_video_user_id' => $target?->video?->user_id,
+                    'current_user_id' => auth()->id(),
+                ]);
+                
                 if (!$target) {
+                    \Log::warning('VideoTarget not found or unauthorized', [
+                        'target_id' => $value,
+                        'user_id' => auth()->id(),
+                    ]);
                     throw new ModelNotFoundException();
                 }
                 
