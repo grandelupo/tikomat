@@ -653,6 +653,15 @@ export default function ChannelShow({
                                                                         </Button>
                                                                     </>
                                                                 )}
+                                                                {/* Temporary: Always show test button for debugging */}
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleTestRoute(target.id)}
+                                                                    className="text-xs px-1 py-0 h-auto ml-1 text-blue-600"
+                                                                >
+                                                                    Debug Test
+                                                                </Button>
                                                             </div>
                                                         );
                                                     })}
