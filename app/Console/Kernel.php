@@ -41,6 +41,11 @@ class Kernel extends ConsoleKernel
                  ->daily()
                  ->at('03:00');
 
+        // Clean up temporary files created for social media uploads daily
+        $schedule->command('cleanup:temp-files --hours=24')
+                 ->daily()
+                 ->at('04:00');
+
         // Log scheduler activity for monitoring
         $schedule->call(function () {
             \Log::info('Laravel Scheduler heartbeat', [

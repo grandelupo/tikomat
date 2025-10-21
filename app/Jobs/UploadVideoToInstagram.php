@@ -127,6 +127,9 @@ class UploadVideoToInstagram implements ShouldQueue
                 'media_id' => $mediaId
             ]);
 
+            // Clean up temporary public file
+            $this->cleanupTemporaryFile($videoUrl);
+
             // Mark as success
             $this->videoTarget->markAsSuccess();
 
@@ -136,6 +139,11 @@ class UploadVideoToInstagram implements ShouldQueue
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
+            // Clean up temporary public file if it was created
+            if (isset($videoUrl)) {
+                $this->cleanupTemporaryFile($videoUrl);
+            }
 
             // Mark as failed
             $this->videoTarget->markAsFailed($e->getMessage());
@@ -148,13 +156,44 @@ class UploadVideoToInstagram implements ShouldQueue
      */
     protected function getPublicVideoUrl(): string
     {
-        // In production, you should upload the video to a public cloud storage (S3, etc.)
-        // For now, we'll use the app URL if available
-        $videoPath = $this->videoTarget->video->original_file_path;
-        $appUrl = config('app.url');
+        // For Instagram uploads, we need to temporarily copy the video to public storage
+        // so Instagram can access it without authentication
+        $originalPath = $this->videoTarget->video->original_file_path;
+        $filename = basename($originalPath);
         
-        // Create a temporary public URL - in production use cloud storage
-        return $appUrl . '/storage/' . $videoPath;
+        // Create a temporary public path
+        $publicPath = 'temp/instagram/' . uniqid() . '_' . $filename;
+        
+        try {
+            // Copy from private storage to public storage temporarily
+            if (Storage::disk('local')->exists($originalPath)) {
+                $fileContents = Storage::disk('local')->get($originalPath);
+                Storage::disk('public')->put($publicPath, $fileContents);
+                
+                Log::info('Video copied to public storage for Instagram upload', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'original_path' => $originalPath,
+                    'public_path' => $publicPath,
+                    'file_size' => strlen($fileContents),
+                ]);
+                
+                // Return the public URL
+                return Storage::disk('public')->url($publicPath);
+            } else {
+                Log::error('Original video file not found in private storage', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'original_path' => $originalPath,
+                ]);
+                throw new \Exception('Original video file not found');
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to create public video URL for Instagram', [
+                'video_target_id' => $this->videoTarget->id,
+                'error' => $e->getMessage(),
+                'original_path' => $originalPath,
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -302,6 +341,38 @@ class UploadVideoToInstagram implements ShouldQueue
                     'error_message' => $exception->getMessage(),
                 ]
             );
+        }
+    }
+
+    /**
+     * Clean up temporary public file after upload.
+     */
+    protected function cleanupTemporaryFile(string $videoUrl): void
+    {
+        try {
+            // Extract the path from the URL
+            $parsedUrl = parse_url($videoUrl);
+            if (isset($parsedUrl['path'])) {
+                // Remove the /storage prefix to get the actual file path
+                $path = ltrim(str_replace('/storage', '', $parsedUrl['path']), '/');
+                
+                // Only delete if it's in the temp/instagram directory
+                if (str_starts_with($path, 'temp/instagram/')) {
+                    if (Storage::disk('public')->exists($path)) {
+                        Storage::disk('public')->delete($path);
+                        Log::info('Temporary Instagram video file cleaned up', [
+                            'video_target_id' => $this->videoTarget->id,
+                            'cleaned_path' => $path,
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to clean up temporary Instagram video file', [
+                'video_target_id' => $this->videoTarget->id,
+                'video_url' => $videoUrl,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 } 

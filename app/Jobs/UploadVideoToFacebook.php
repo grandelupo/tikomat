@@ -240,6 +240,9 @@ class UploadVideoToFacebook implements ShouldQueue
                 'processing_time' => microtime(true) - LARAVEL_START,
             ]);
 
+            // Clean up temporary public file
+            $this->cleanupTemporaryFile($videoUrl);
+
             // Mark as success
             $this->videoTarget->markAsSuccess();
             
@@ -265,6 +268,11 @@ class UploadVideoToFacebook implements ShouldQueue
                 'job_max_tries' => $this->tries ?? 3,
             ]);
 
+            // Clean up temporary public file if it was created
+            if (isset($videoUrl)) {
+                $this->cleanupTemporaryFile($videoUrl);
+            }
+
             // Mark as failed
             $this->videoTarget->markAsFailed($e->getMessage());
             
@@ -281,8 +289,44 @@ class UploadVideoToFacebook implements ShouldQueue
      */
     protected function getPublicVideoUrl(): string
     {
-        $filename = basename($this->videoTarget->video->original_file_path);
-        return url('storage/videos/' . $filename);
+        // For Facebook uploads, we need to temporarily copy the video to public storage
+        // so Facebook can access it without authentication
+        $originalPath = $this->videoTarget->video->original_file_path;
+        $filename = basename($originalPath);
+        
+        // Create a temporary public path
+        $publicPath = 'temp/facebook/' . uniqid() . '_' . $filename;
+        
+        try {
+            // Copy from private storage to public storage temporarily
+            if (Storage::disk('local')->exists($originalPath)) {
+                $fileContents = Storage::disk('local')->get($originalPath);
+                Storage::disk('public')->put($publicPath, $fileContents);
+                
+                Log::info('Video copied to public storage for Facebook upload', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'original_path' => $originalPath,
+                    'public_path' => $publicPath,
+                    'file_size' => strlen($fileContents),
+                ]);
+                
+                // Return the public URL
+                return Storage::disk('public')->url($publicPath);
+            } else {
+                Log::error('Original video file not found in private storage', [
+                    'video_target_id' => $this->videoTarget->id,
+                    'original_path' => $originalPath,
+                ]);
+                throw new \Exception('Original video file not found');
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to create public video URL for Facebook', [
+                'video_target_id' => $this->videoTarget->id,
+                'error' => $e->getMessage(),
+                'original_path' => $originalPath,
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -300,6 +344,38 @@ class UploadVideoToFacebook implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
             return false;
+        }
+    }
+
+    /**
+     * Clean up temporary public file after upload.
+     */
+    protected function cleanupTemporaryFile(string $videoUrl): void
+    {
+        try {
+            // Extract the path from the URL
+            $parsedUrl = parse_url($videoUrl);
+            if (isset($parsedUrl['path'])) {
+                // Remove the /storage prefix to get the actual file path
+                $path = ltrim(str_replace('/storage', '', $parsedUrl['path']), '/');
+                
+                // Only delete if it's in the temp/facebook directory
+                if (str_starts_with($path, 'temp/facebook/')) {
+                    if (Storage::disk('public')->exists($path)) {
+                        Storage::disk('public')->delete($path);
+                        Log::info('Temporary Facebook video file cleaned up', [
+                            'video_target_id' => $this->videoTarget->id,
+                            'cleaned_path' => $path,
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to clean up temporary Facebook video file', [
+                'video_target_id' => $this->videoTarget->id,
+                'video_url' => $videoUrl,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -671,6 +747,30 @@ class UploadVideoToFacebook implements ShouldQueue
             Log::warning('Failed to get social account info at job failure', [
                 'video_target_id' => $this->videoTarget->id,
                 'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Try to clean up any temporary files that might have been created
+        try {
+            $originalPath = $this->videoTarget->video->original_file_path ?? '';
+            if ($originalPath) {
+                $filename = basename($originalPath);
+                // Look for temporary files that might match this video
+                $tempFiles = Storage::disk('public')->files('temp/facebook');
+                foreach ($tempFiles as $tempFile) {
+                    if (str_contains($tempFile, $filename)) {
+                        Storage::disk('public')->delete($tempFile);
+                        Log::info('Cleaned up temporary file during job failure', [
+                            'video_target_id' => $this->videoTarget->id,
+                            'temp_file' => $tempFile,
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $cleanupException) {
+            Log::warning('Failed to clean up temporary files during job failure', [
+                'video_target_id' => $this->videoTarget->id,
+                'cleanup_error' => $cleanupException->getMessage(),
             ]);
         }
 
